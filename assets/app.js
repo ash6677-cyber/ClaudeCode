@@ -2716,6 +2716,22 @@ function init() {
   registerServiceWorker();
   wireInstallPrompt();
   switchTab(appSettings.mode === 'player' ? 'p-dashboard' : 'dashboard');
+  applyLaunchShortcut();
+}
+
+// Handles PWA manifest "shortcuts" (long-press the home-screen icon) —
+// a shortcut that doesn't actually do anything on launch is worse than not
+// offering one, so this turns the URL param into the real action.
+function applyLaunchShortcut() {
+  const params = new URLSearchParams(location.search);
+  const shortcut = params.get('shortcut');
+  if (!shortcut) return;
+  if (shortcut === 'add-season') {
+    if (appSettings.mode === 'player') openPlayerSeasonModal(null); else openSeasonModal(null);
+  } else if (shortcut === 'trophies') {
+    switchTab(appSettings.mode === 'player' ? 'p-honours' : 'trophies');
+  }
+  history.replaceState(null, '', location.pathname);
 }
 
 document.addEventListener('DOMContentLoaded', init);
