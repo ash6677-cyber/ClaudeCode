@@ -24,6 +24,20 @@ const TRANSFER_TYPES = ['Permanent', 'Loan', 'Loan with Obligation', 'Free Trans
 
 const PLAYER_POSITIONS = ['GK','CB','LB','RB','LWB','RWB','CDM','CM','CAM','LM','RM','LW','RW','ST','CF'];
 
+const SEASON_SECTIONS = [
+  { id: 'fs-basics', label: 'Basics', icon: '📋' },
+  { id: 'fs-league', label: 'League', icon: '🏟️' },
+  { id: 'fs-competitions', label: 'Cups', icon: '🏆' },
+  { id: 'fs-awards', label: 'Awards', icon: '⭐' },
+  { id: 'fs-standing', label: 'Standing', icon: '📈' },
+  { id: 'fs-transfers-in', label: 'Signings', icon: '⬇️' },
+  { id: 'fs-transfers-out', label: 'Sales', icon: '⬆️' },
+  { id: 'fs-finances', label: 'Finances', icon: '💰' },
+  { id: 'fs-objectives', label: 'Objectives', icon: '🎯' },
+  { id: 'fs-youth', label: 'Youth', icon: '🌱' },
+  { id: 'fs-notes', label: 'Notes', icon: '📝' }
+];
+
 /* ---------------- Helpers ---------------- */
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -314,14 +328,22 @@ function closeConfirmModal() {
 
 /* ---------------- Tabs / routing ---------------- */
 
+const TAB_TITLES = {
+  dashboard: 'Dashboard', seasons: 'Seasons', totals: 'Career Totals',
+  trophies: 'Trophy Cabinet', transfers: 'Transfers', settings: 'Settings'
+};
+
 function switchTab(tab) {
   currentTab = tab;
   $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $$('.view').forEach(v => v.classList.remove('active'));
   $('#view-' + tab).classList.add('active');
-  $('#main-tabs').classList.remove('open');
+  $('#sidebar').classList.remove('open');
+  $('#sidebar-backdrop').classList.remove('open');
+  $('#page-title').textContent = TAB_TITLES[tab] || 'FC Career Tracker';
   renderCurrentTab();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  $('#app-main').scrollTop = 0;
+  window.scrollTo({ top: 0 });
 }
 
 function renderCurrentTab() {
@@ -335,19 +357,29 @@ function renderCurrentTab() {
 }
 
 function updateHeaderSubtitle() {
-  const el = $('#manager-subtitle');
+  const subEl = $('#manager-subtitle');
+  const nameEl = $('#manager-mini-name');
+  const avatarEl = $('#manager-avatar');
   const totals = computeCareerTotals();
+
+  if (state.manager.name) {
+    nameEl.textContent = state.manager.name;
+    avatarEl.textContent = state.manager.name.trim().slice(0, 2) || '?';
+  } else {
+    nameEl.textContent = 'Set up profile';
+    avatarEl.textContent = '?';
+  }
+
   if (!state.manager.name && !state.seasons.length) {
-    el.textContent = 'Set up your manager profile to get started';
+    subEl.textContent = 'Tap to configure';
     return;
   }
   const parts = [];
-  if (state.manager.name) parts.push(state.manager.name);
   if (totals.totalSeasons) parts.push(totals.totalSeasons + ' season' + (totals.totalSeasons === 1 ? '' : 's'));
   if (totals.totalTrophies) parts.push(totals.totalTrophies + ' trophies');
   const latest = totals.seasonsChrono[totals.seasonsChrono.length - 1];
-  if (latest) parts.push('Currently at ' + (latest.club || '—'));
-  el.textContent = parts.join(' · ') || 'Set up your manager profile to get started';
+  if (latest) parts.push('at ' + (latest.club || '—'));
+  subEl.textContent = parts.join(' · ') || 'Tap to configure';
 }
 
 /* ---------------- SVG charts ---------------- */
@@ -603,7 +635,6 @@ function renderTotals() {
     </div>`).join('');
 
   el.innerHTML = `
-    <div class="view-header"><h2>Career Totals</h2></div>
 
     <div class="section-title">Overall Record (League + Cups)</div>
     <div class="stat-grid">
@@ -689,7 +720,6 @@ function renderTrophies() {
 
   el.innerHTML = `
     <div class="view-header">
-      <h2>Trophy Cabinet</h2>
       <div class="hint">${t.totalTrophies} ${t.totalTrophies === 1 ? 'trophy' : 'trophies'} won across ${t.totalSeasons} season${t.totalSeasons === 1 ? '' : 's'}</div>
     </div>
     ${entries.length ? `<div class="trophy-grid">
@@ -718,8 +748,7 @@ function renderTransfers() {
   });
 
   if (!rows.length) {
-    el.innerHTML = `<div class="view-header"><h2>Transfers</h2></div>
-      <div class="empty-state card card-pad"><div class="empty-icon">🔄</div><h3>No transfers logged</h3><p>Add signings and sales inside a season's transfer sections.</p></div>`;
+    el.innerHTML = `<div class="empty-state card card-pad"><div class="empty-icon">🔄</div><h3>No transfers logged</h3><p>Add signings and sales inside a season's transfer sections.</p></div>`;
     return;
   }
 
@@ -739,9 +768,6 @@ function renderTransfers() {
     </tr>`).join('');
 
   el.innerHTML = `
-    <div class="view-header">
-      <h2>Transfers</h2>
-    </div>
     <div class="stat-grid" style="margin-bottom:18px;">
       <div class="stat-tile"><div class="stat-label">Total Spent</div><div class="stat-value">${fmtM(totalIn, currency)}</div></div>
       <div class="stat-tile"><div class="stat-label">Total Received</div><div class="stat-value">${fmtM(totalOut, currency)}</div></div>
@@ -763,10 +789,9 @@ function renderSettings() {
   const el = $('#settings-content');
   const m = state.manager, s = state.settings;
   el.innerHTML = `
-    <div class="view-header"><h2>Settings</h2></div>
-
-    <fieldset class="form-section settings-block">
-      <legend><span class="legend-icon">👤</span> Manager Profile</legend>
+    <details class="form-section settings-block" open>
+      <summary><span class="legend-icon">👤</span> Manager Profile</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-2">
         <div class="field"><label>Manager Name</label><input class="input" id="f-mgr-name" value="${esc(m.name)}" placeholder="e.g. Alex Morgan" /></div>
         <div class="field"><label>Nationality</label><input class="input" id="f-mgr-nat" value="${esc(m.nationality)}" placeholder="e.g. England" /></div>
@@ -774,7 +799,8 @@ function renderSettings() {
         <div class="field"><label>Career Start Year</label><input class="input" id="f-mgr-year" value="${esc(m.careerStartYear)}" placeholder="e.g. 2026" /></div>
       </div>
       <button class="btn btn-primary btn-sm" style="margin-top:14px;" data-action="save-profile">Save Profile</button>
-    </fieldset>
+      </div>
+    </details>
 
     <div class="settings-block">
       <div class="settings-row">
@@ -886,22 +912,37 @@ function objectiveRowHTML(o, i) {
   </div>`;
 }
 
+function detailsOpen(o) { return o ? 'open' : ''; }
+
 function renderSeasonFormHTML(d) {
   const L = d.league, PA = d.playerAwards, MS = d.managerStanding, F = d.finances, Y = d.youth;
-  return `
+
+  const openAwards = !!(PA.topScorerName || PA.topAssisterName || PA.playerOfTheSeason || PA.youngPlayerOfTheSeason || PA.teamOfTheSeason || PA.goldenBoot || PA.goldenGlove || PA.otherAwards);
+  const openStanding = !!(MS.managerOfTheSeason || num(MS.motmCount) > 0 || num(MS.reputationStars, 3) !== 3 || num(MS.jobSecurity, 70) !== 70);
+  const openFin = !!(F.transferBudget || F.wageBudget || F.prizeMoney || F.sponsorship);
+  const openYouth = !!(Y.playersPromoted || num(Y.regensGenerated) > 0 || Y.notes);
+
+  const quicknav = `<div class="modal-quicknav">${SEASON_SECTIONS.map(s =>
+    `<button type="button" class="quicknav-pill" data-action="jump-section" data-target="${s.id}">${s.icon} ${s.label}</button>`
+  ).join('')}</div>`;
+
+  return quicknav + `
   <form id="season-form">
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">📋</span> Basics</legend>
+    <details class="form-section" id="fs-basics" open>
+      <summary><span class="legend-icon">📋</span> Basics</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-2">
         <div class="field"><label>Season *</label><input class="input" id="f-seasonLabel" required value="${esc(d.seasonLabel)}" placeholder="e.g. 2026/27" /></div>
         <div class="field"><label>Club *</label><input class="input" id="f-club" required value="${esc(d.club)}" placeholder="e.g. Manchester United" /></div>
         <div class="field"><label>Country</label><input class="input" id="f-country" value="${esc(d.country)}" placeholder="e.g. England" /></div>
         <div class="field"><label>Division / Tier</label><input class="input" id="f-divisionTier" value="${esc(d.divisionTier)}" placeholder="e.g. Premier League" /></div>
       </div>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">🏟️</span> League Record</legend>
+    <details class="form-section" id="fs-league" open>
+      <summary><span class="legend-icon">🏟️</span> League Record</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-4">
         <div class="field"><label>Played</label><input class="input" type="number" min="0" id="f-league-played" value="${esc(L.played)}" /></div>
         <div class="field"><label>Won</label><input class="input" type="number" min="0" id="f-league-won" value="${esc(L.won)}" /></div>
@@ -918,16 +959,20 @@ function renderSeasonFormHTML(d) {
         <div class="field checkbox-field"><input type="checkbox" id="f-league-relegated" ${L.relegated ? 'checked' : ''} /><label for="f-league-relegated">Relegated</label></div>
         <div class="field checkbox-field"><input type="checkbox" id="f-league-playoff" ${L.playoff ? 'checked' : ''} /><label for="f-league-playoff">Reached Playoffs</label></div>
       </div>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">🏆</span> Cup &amp; Continental Competitions</legend>
+    <details class="form-section" id="fs-competitions" ${detailsOpen(d.competitions.length > 0)}>
+      <summary><span class="legend-icon">🏆</span> Cup &amp; Continental Competitions ${d.competitions.length ? `<span class="chip-count">${d.competitions.length}</span>` : ''}</summary>
+      <div class="form-section-body">
       <div class="repeat-list" id="repeat-competitions">${repeatRowsHTML('competitions', d.competitions, competitionRowHTML)}</div>
       <button type="button" class="add-row-btn" data-action="add-row" data-repeat="competitions">+ Add Competition</button>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">⭐</span> Player Stats &amp; Individual Awards</legend>
+    <details class="form-section" id="fs-awards" ${detailsOpen(openAwards)}>
+      <summary><span class="legend-icon">⭐</span> Player Stats &amp; Individual Awards</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-2">
         <div class="field"><label>Top Scorer</label><input class="input" id="f-pa-topScorerName" value="${esc(PA.topScorerName)}" placeholder="Player name" /></div>
         <div class="field"><label>Goals</label><input class="input" type="number" min="0" id="f-pa-topScorerGoals" value="${esc(PA.topScorerGoals)}" /></div>
@@ -942,59 +987,74 @@ function renderSeasonFormHTML(d) {
         <div class="field checkbox-field"><input type="checkbox" id="f-pa-goldenGlove" ${PA.goldenGlove ? 'checked' : ''} /><label for="f-pa-goldenGlove">Won League Golden Glove</label></div>
       </div>
       <div class="field field-full" style="margin-top:12px;"><label>Other Awards</label><textarea class="input" id="f-pa-otherAwards" placeholder="e.g. Ballon d'Or nomination, PFA Team of the Year...">${esc(PA.otherAwards)}</textarea></div>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">📈</span> Manager Standing</legend>
+    <details class="form-section" id="fs-standing" ${detailsOpen(openStanding)}>
+      <summary><span class="legend-icon">📈</span> Manager Standing</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-4">
         <div class="field checkbox-field" style="align-self:center;"><input type="checkbox" id="f-ms-managerOfTheSeason" ${MS.managerOfTheSeason ? 'checked' : ''} /><label for="f-ms-managerOfTheSeason">Manager of the Season</label></div>
         <div class="field"><label>Manager of the Month (count)</label><input class="input" type="number" min="0" id="f-ms-motmCount" value="${esc(MS.motmCount)}" /></div>
         <div class="field"><label>Reputation (1-5 stars)</label><input class="input" type="number" min="1" max="5" id="f-ms-reputationStars" value="${esc(MS.reputationStars)}" /></div>
         <div class="field"><label>Job Security (%)</label><input class="input" type="number" min="0" max="100" id="f-ms-jobSecurity" value="${esc(MS.jobSecurity)}" /></div>
       </div>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">⬇️</span> Transfers In</legend>
+    <details class="form-section" id="fs-transfers-in" ${detailsOpen(d.transfersIn.length > 0)}>
+      <summary><span class="legend-icon">⬇️</span> Transfers In ${d.transfersIn.length ? `<span class="chip-count">${d.transfersIn.length}</span>` : ''}</summary>
+      <div class="form-section-body">
       <div class="repeat-list" id="repeat-transfersIn">${repeatRowsHTML('transfersIn', d.transfersIn, transferRowHTML)}</div>
       <button type="button" class="add-row-btn" data-action="add-row" data-repeat="transfersIn">+ Add Signing</button>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">⬆️</span> Transfers Out</legend>
+    <details class="form-section" id="fs-transfers-out" ${detailsOpen(d.transfersOut.length > 0)}>
+      <summary><span class="legend-icon">⬆️</span> Transfers Out ${d.transfersOut.length ? `<span class="chip-count">${d.transfersOut.length}</span>` : ''}</summary>
+      <div class="form-section-body">
       <div class="repeat-list" id="repeat-transfersOut">${repeatRowsHTML('transfersOut', d.transfersOut, transferRowHTML)}</div>
       <button type="button" class="add-row-btn" data-action="add-row" data-repeat="transfersOut">+ Add Sale</button>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">💰</span> Finances (${state.settings.currency}M)</legend>
+    <details class="form-section" id="fs-finances" ${detailsOpen(openFin)}>
+      <summary><span class="legend-icon">💰</span> Finances (${state.settings.currency}M)</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-4">
         <div class="field"><label>Transfer Budget</label><input class="input" type="number" step="0.1" id="f-fin-transferBudget" value="${esc(F.transferBudget)}" /></div>
         <div class="field"><label>Wage Budget</label><input class="input" type="number" step="0.1" id="f-fin-wageBudget" value="${esc(F.wageBudget)}" /></div>
         <div class="field"><label>Prize Money</label><input class="input" type="number" step="0.1" id="f-fin-prizeMoney" value="${esc(F.prizeMoney)}" /></div>
         <div class="field"><label>Sponsorship Income</label><input class="input" type="number" step="0.1" id="f-fin-sponsorship" value="${esc(F.sponsorship)}" /></div>
       </div>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">🎯</span> Board Objectives</legend>
+    <details class="form-section" id="fs-objectives" ${detailsOpen(d.boardObjectives.length > 0)}>
+      <summary><span class="legend-icon">🎯</span> Board Objectives ${d.boardObjectives.length ? `<span class="chip-count">${d.boardObjectives.length}</span>` : ''}</summary>
+      <div class="form-section-body">
       <div class="repeat-list" id="repeat-boardObjectives">${repeatRowsHTML('boardObjectives', d.boardObjectives, objectiveRowHTML)}</div>
       <button type="button" class="add-row-btn" data-action="add-row" data-repeat="boardObjectives">+ Add Objective</button>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">🌱</span> Youth Academy</legend>
+    <details class="form-section" id="fs-youth" ${detailsOpen(openYouth)}>
+      <summary><span class="legend-icon">🌱</span> Youth Academy</summary>
+      <div class="form-section-body">
       <div class="form-grid cols-2">
         <div class="field field-full"><label>Players Promoted to First Team</label><input class="input" id="f-youth-playersPromoted" value="${esc(Y.playersPromoted)}" placeholder="Comma-separated list" /></div>
         <div class="field"><label>Regens / Newgens Generated</label><input class="input" type="number" min="0" id="f-youth-regensGenerated" value="${esc(Y.regensGenerated)}" /></div>
       </div>
       <div class="field field-full" style="margin-top:12px;"><label>Notes</label><textarea class="input" id="f-youth-notes" placeholder="Standout prospects, potential ratings...">${esc(Y.notes)}</textarea></div>
-    </fieldset>
+      </div>
+    </details>
 
-    <fieldset class="form-section">
-      <legend><span class="legend-icon">📝</span> Season Notes</legend>
+    <details class="form-section" id="fs-notes" ${detailsOpen(!!d.notes)}>
+      <summary><span class="legend-icon">📝</span> Season Notes</summary>
+      <div class="form-section-body">
       <textarea class="input" id="f-notes" placeholder="Anything else worth remembering about this season...">${esc(d.notes)}</textarea>
-    </fieldset>
+      </div>
+    </details>
 
     <div class="modal-footer-actions">
       <div>${editingSeasonId ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-season" data-id="${editingSeasonId}">Delete Season</button>` : '<span></span>'}</div>
@@ -1135,9 +1195,14 @@ function wireEvents() {
     if (btn) switchTab(btn.dataset.tab);
   });
 
-  $('#mobile-nav-toggle').addEventListener('click', () => $('#main-tabs').classList.toggle('open'));
+  function openSidebar() { $('#sidebar').classList.add('open'); $('#sidebar-backdrop').classList.add('open'); }
+  function closeSidebar() { $('#sidebar').classList.remove('open'); $('#sidebar-backdrop').classList.remove('open'); }
+  $('#mobile-nav-toggle').addEventListener('click', openSidebar);
+  $('#mobile-nav-close').addEventListener('click', closeSidebar);
+  $('#sidebar-backdrop').addEventListener('click', closeSidebar);
 
   $('#add-season-btn').addEventListener('click', () => openSeasonModal(null));
+  $('#add-season-btn-side').addEventListener('click', () => openSeasonModal(null));
 
   $('#season-modal-close').addEventListener('click', closeSeasonModal);
   $('#season-modal').addEventListener('click', e => { if (e.target.id === 'season-modal') closeSeasonModal(); });
@@ -1179,6 +1244,17 @@ function wireEvents() {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10);
       seasonDraft[kind].splice(idx, 1);
       reRenderRepeatSection(kind);
+    } else if (action === 'jump-section') {
+      const target = document.getElementById(t.dataset.target);
+      if (target) {
+        if (target.tagName === 'DETAILS') target.open = true;
+        t.blur();
+        requestAnimationFrame(() => {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+      }
+    } else if (action === 'jump-settings') {
+      switchTab('settings');
     } else if (action === 'save-profile') {
       state.manager.name = $('#f-mgr-name').value.trim();
       state.manager.nationality = $('#f-mgr-nat').value.trim();
@@ -1221,6 +1297,22 @@ function wireEvents() {
 
   $('#season-form-body').addEventListener('submit', e => {
     if (e.target.id === 'season-form') { e.preventDefault(); saveSeasonDraft(); }
+  });
+
+  // Quicknav scroll-spy inside the season modal
+  let spyPending = false;
+  $('#season-modal').addEventListener('scroll', () => {
+    if (spyPending) return;
+    spyPending = true;
+    requestAnimationFrame(() => {
+      spyPending = false;
+      let currentId = null;
+      SEASON_SECTIONS.forEach(s => {
+        const el = document.getElementById(s.id);
+        if (el && el.getBoundingClientRect().top - 150 <= 0) currentId = s.id;
+      });
+      $$('.quicknav-pill').forEach(p => p.classList.toggle('active', p.dataset.target === currentId));
+    });
   });
 
   // Seasons tab controls
