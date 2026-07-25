@@ -614,7 +614,7 @@ function computeCareerTotals() {
     avgPosition: positionsCount ? (positionsSum / positionsCount) : null,
     trophiesByName, totalTrophies,
     awards,
-    finances: { spend, income, net: income - spend, prizeMoneyTotal, transfersInCount, transfersOutCount },
+    finances: { spend, income, net: spend - income, prizeMoneyTotal, transfersInCount, transfersOutCount },
     clubHistory,
     bestSeason,
     seasonsChrono: seasons
