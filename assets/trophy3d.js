@@ -146,6 +146,63 @@ function latheCup(rawPoints, material, segments, samples) {
   return new THREE.Mesh(geo, material);
 }
 
+// A lathe revolve is perfectly rotationally symmetric, which is exactly why
+// a plain one reads as a smooth plastic blob rather than a crafted trophy —
+// real cups are fluted. Perturbs the radius by angle to cut vertical ribs
+// into an existing lathe mesh, fading out above/below [yStart, yEnd] so the
+// fluting stays confined to the bowl instead of also chewing up the stem.
+function fluteLathe(mesh, ribs, depth, yStart, yEnd) {
+  const pos = mesh.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const r = Math.sqrt(x * x + z * z);
+    if (r < 1e-4) continue; // on-axis cap vertices — nothing to flute
+    const angle = Math.atan2(z, x);
+    const t = Math.max(0, Math.min(1, (y - yStart) / (yEnd - yStart)));
+    const falloff = Math.sin(t * Math.PI);
+    const rNew = r * (1 + depth * Math.cos(ribs * angle) * falloff);
+    pos.setX(i, Math.cos(angle) * rNew);
+    pos.setZ(i, Math.sin(angle) * rNew);
+  }
+  pos.needsUpdate = true;
+  mesh.geometry.computeVertexNormals();
+  return mesh;
+}
+
+// A small engraved-look nameplate mounted flush on the base's front face —
+// the single detail that most reads as "a real trophy" rather than a
+// generic metal shape. `depth` matches the metal plate to the base's
+// contrasting dark material for a recessed, bordered look.
+function nameplate(radius, y, material) {
+  ensureSharedResources();
+  const g = new THREE.Group();
+  const w = radius * 0.95, h = radius * 0.38, d = 0.024;
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w + 0.035, h + 0.035, d * 0.5), material);
+  back.position.set(0, y, radius - 0.014);
+  g.add(back);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), sharedPlinthMaterial);
+  plate.position.set(0, y, radius + d / 2 - 0.004);
+  g.add(plate);
+  return g;
+}
+
+// Layered base: a dark lower plinth, a tapered metal trim tier wrapping up
+// toward the collar, and a nameplate — real trophies almost never sit on a
+// single plain cylinder, and that plainness reads as "cheap" more than any
+// material setting does.
+function trophyBase(radius, height, material) {
+  ensureSharedResources();
+  const g = new THREE.Group();
+  const baseH = height * 0.66;
+  const trimH = height - baseH;
+  g.add(plinth(radius, baseH));
+  const trim = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.86, radius, trimH, 48), material);
+  trim.position.y = baseH + trimH / 2;
+  g.add(trim);
+  g.add(nameplate(radius * 1.02, baseH * 0.52, material));
+  return g;
+}
+
 // A flat extruded cap (e.g. the shield's front face) has no interior
 // vertices — it's a handful of large triangles fanned across the boundary —
 // so it can only ever catch one or two flat patches of reflection, reading
@@ -222,7 +279,7 @@ function handle(radiusMajor, radiusMinor, y, side, material) {
 
 function buildClassicCup(material) {
   const g = new THREE.Group();
-  g.add(plinth(0.66, 0.2));
+  g.add(trophyBase(0.66, 0.2, material));
   const collar = metalCollar(0.5, 0.16, material);
   collar.position.y = 0.2 + 0.08;
   g.add(collar);
@@ -242,7 +299,8 @@ function buildClassicCup(material) {
     new THREE.Vector2(0.0, stemTop + 0.95)
   ];
   const cupY = 0.2 + 0.16;
-  const cup = latheCup(pts, material, 88);
+  const cup = latheCup(pts, material, 128);
+  fluteLathe(cup, 16, 0.03, stemTop, stemTop + 0.86);
   cup.position.y = cupY;
   g.add(cup);
   g.add(neckBand(0.135, cupY + stemTop * 0.55, material));
@@ -257,7 +315,7 @@ function buildClassicCup(material) {
 
 function buildCrownTitle(material) {
   const g = new THREE.Group();
-  g.add(plinth(0.64, 0.22));
+  g.add(trophyBase(0.64, 0.22, material));
   const collar = metalCollar(0.48, 0.16, material);
   collar.position.y = 0.22 + 0.08;
   g.add(collar);
@@ -277,7 +335,8 @@ function buildCrownTitle(material) {
     new THREE.Vector2(0.0, stemTop + 0.88)
   ];
   const cupY = 0.22 + 0.16;
-  const cup = latheCup(pts, material, 88);
+  const cup = latheCup(pts, material, 128);
+  fluteLathe(cup, 14, 0.03, stemTop, stemTop + 0.76);
   cup.position.y = cupY;
   g.add(cup);
   g.add(neckBand(0.115, cupY + stemTop * 0.5, material));
@@ -302,7 +361,7 @@ function buildCrownTitle(material) {
 
 function buildContinental(material) {
   const g = new THREE.Group();
-  g.add(plinth(0.7, 0.22));
+  g.add(trophyBase(0.7, 0.22, material));
   const collar = metalCollar(0.5, 0.18, material);
   collar.position.y = 0.22 + 0.09;
   g.add(collar);
@@ -323,7 +382,8 @@ function buildContinental(material) {
     new THREE.Vector2(0.0, stemTop + 0.92)
   ];
   const cupY = 0.22 + 0.18;
-  const cup = latheCup(pts, material, 96);
+  const cup = latheCup(pts, material, 128);
+  fluteLathe(cup, 18, 0.028, stemTop, stemTop + 0.76);
   cup.position.y = cupY;
   g.add(cup);
   g.add(neckBand(0.09, cupY + stemTop * 0.55, material));
@@ -410,7 +470,7 @@ function buildShield(material) {
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, standH, 24), material);
   stand.position.y = plinthH + standH / 2;
   g.add(stand);
-  g.add(plinth(0.46, plinthH));
+  g.add(trophyBase(0.46, plinthH, material));
 
   return g;
 }
