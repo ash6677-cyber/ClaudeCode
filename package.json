@@ -1,0 +1,52 @@
+{
+  "name": "fc-career-tracker",
+  "productName": "FC Career Tracker",
+  "version": "1.0.0",
+  "description": "Track every stat from your football manager or player career mode, season by season, with up to 100 saves per mode.",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --x64",
+    "dist:win:portable": "electron-builder --win portable --x64",
+    "dist:linux": "electron-builder --linux --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.fccareertracker.app",
+    "productName": "FC Career Tracker",
+    "files": [
+      "index.html",
+      "manifest.webmanifest",
+      "electron/**/*",
+      "assets/**/*",
+      "!assets/icons/icon.svg"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ],
+      "icon": "assets/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "FC Career Tracker"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/icons/icon-512.png",
+      "category": "Game"
+    }
+  }
+}

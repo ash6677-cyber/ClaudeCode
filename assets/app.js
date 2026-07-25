@@ -7,8 +7,6 @@
 
 /* ---------------- Constants ---------------- */
 
-const STORAGE_KEY = 'fc-career-tracker:v1';
-
 const COMPETITION_TYPES = [
   'Domestic Cup', 'League Cup', 'Domestic Super Cup',
   'Champions League', 'Europa League', 'Conference League',
@@ -38,6 +36,21 @@ const SEASON_SECTIONS = [
   { id: 'fs-notes', label: 'Notes', icon: '📝' }
 ];
 
+const PLAYER_SEASON_SECTIONS = [
+  { id: 'pfs-basics', label: 'Basics', icon: '📋' },
+  { id: 'pfs-ratings', label: 'Ratings', icon: '📊' },
+  { id: 'pfs-appearances', label: 'Apps', icon: '👟' },
+  { id: 'pfs-attack', label: 'Attacking', icon: '⚽' },
+  { id: 'pfs-defending', label: 'Defending', icon: '🛡️' },
+  { id: 'pfs-goalkeeping', label: 'Goalkeeping', icon: '🧤' },
+  { id: 'pfs-discipline', label: 'Discipline', icon: '🟨' },
+  { id: 'pfs-team', label: 'Team Season', icon: '🏟️' },
+  { id: 'pfs-awards', label: 'Awards', icon: '⭐' },
+  { id: 'pfs-transfer', label: 'Transfer', icon: '🔄' },
+  { id: 'pfs-contract', label: 'Contract', icon: '📄' },
+  { id: 'pfs-international', label: 'International', icon: '🌍' },
+  { id: 'pfs-notes', label: 'Notes', icon: '📝' }
+];
 /* ---------------- Helpers ---------------- */
 
 const $ = (sel, root) => (root || document).querySelector(sel);
@@ -112,12 +125,12 @@ function ordinal(n) {
 
 /* ---------------- Data model ---------------- */
 
-function defaultState() {
-  return {
-    manager: { name: '', nationality: '', startingClub: '', careerStartYear: '' },
-    settings: { theme: 'dark', currency: '£' },
-    seasons: []
-  };
+function emptyManagerProfile() {
+  return { name: '', nationality: '', startingClub: '', careerStartYear: '' };
+}
+
+function emptyManagerSaveData() {
+  return { manager: emptyManagerProfile(), seasons: [] };
 }
 
 function emptySeason() {
@@ -157,35 +170,342 @@ function emptyObjective() {
   return { id: uid('obj'), description: '', achieved: false };
 }
 
-/* ---------------- Storage ---------------- */
+/* ---------------- Player Career data model ---------------- */
 
-function loadState() {
+function emptyPlayerProfile() {
+  return { name: '', nationality: '', position: 'ST', startingClub: '', careerStartYear: '' };
+}
+
+function emptyPlayerSaveData() {
+  return { player: emptyPlayerProfile(), seasons: [] };
+}
+
+function emptyPlayerSeason() {
+  return {
+    id: uid('pseason'),
+    seasonLabel: '', club: '', country: '', divisionTier: '', age: '', shirtNumber: '',
+    ratings: { overallStart: '', overallEnd: '', potential: '', skillMoves: 3, weakFoot: 3 },
+    appearances: { played: 0, started: 0, subApps: 0, minutes: 0 },
+    attack: { goals: 0, assists: 0, shotsOnTarget: 0, shotsTotal: 0, keyPasses: 0, dribbles: 0 },
+    defending: { tackles: 0, interceptions: 0, duelsWon: 0 },
+    goalkeeping: { saves: 0, goalsConceded: 0, cleanSheets: 0 },
+    discipline: { yellow: 0, red: 0, fouls: 0 },
+    form: { avgRating: '', motmCount: 0 },
+    league: { position: '', leagueSize: '', promoted: false, relegated: false },
+    competitions: [],
+    awards: {
+      potsClub: false, yotsClub: false, teamOfSeason: false,
+      goldenBoot: false, goldenGlove: false, ballonDorRank: '', otherAwards: ''
+    },
+    transfer: { moved: false, fromClub: '', toClub: '', fee: '', type: 'Permanent' },
+    contract: { wage: '', yearsRemaining: '', releaseClause: '' },
+    international: { calledUp: false, team: '', caps: 0, goals: 0, tournament: '', tournamentResult: '' },
+    notes: ''
+  };
+}
+
+function emptyPlayerCompetition() {
+  return { id: uid('pcomp'), name: '', type: 'Domestic Cup', result: 'Winner', apps: '', goals: '', assists: '' };
+}
+
+/* ---------------- Storage: global settings + per-mode save slots ---------------- */
+
+const APP_SETTINGS_KEY = 'fc-tracker:app-settings';
+const MANAGER_SAVES_KEY = 'fc-tracker:manager-saves';
+const PLAYER_SAVES_KEY = 'fc-tracker:player-saves';
+const LEGACY_STATE_KEY = 'fc-career-tracker:v1';
+const MAX_SAVES_PER_MODE = 100;
+
+function defaultAppSettings() {
+  return { theme: 'dark', currency: '£', mode: 'manager', activeManagerSaveId: null, activePlayerSaveId: null };
+}
+
+function loadAppSettings() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaultState();
-    const parsed = JSON.parse(raw);
-    return Object.assign(defaultState(), parsed, {
-      manager: Object.assign(defaultState().manager, parsed.manager || {}),
-      settings: Object.assign(defaultState().settings, parsed.settings || {}),
-      seasons: Array.isArray(parsed.seasons) ? parsed.seasons : []
-    });
+    const raw = localStorage.getItem(APP_SETTINGS_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return Object.assign(defaultAppSettings(), parsed);
   } catch (e) {
-    console.error('Failed to load state', e);
-    return defaultState();
+    return defaultAppSettings();
   }
 }
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveAppSettings() {
+  localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(appSettings));
+}
+
+function savesKey(mode) { return mode === 'player' ? PLAYER_SAVES_KEY : MANAGER_SAVES_KEY; }
+
+function loadSaves(mode) {
+  try {
+    const raw = localStorage.getItem(savesKey(mode));
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function persistSaves(mode, saves) {
+  localStorage.setItem(savesKey(mode), JSON.stringify(saves));
+}
+
+function emptySaveData(mode) {
+  return mode === 'player' ? emptyPlayerSaveData() : emptyManagerSaveData();
+}
+
+function saveDisplayName(mode, saveObj) {
+  if (saveObj.name && saveObj.name.trim()) return saveObj.name.trim();
+  if (mode === 'player') return (saveObj.player && saveObj.player.name) || 'Unnamed Player';
+  return (saveObj.manager && saveObj.manager.name) || 'Unnamed Career';
+}
+
+function migrateLegacyStateIfNeeded() {
+  const raw = localStorage.getItem(LEGACY_STATE_KEY);
+  if (!raw) return;
+  const existingManagerSaves = loadSaves('manager');
+  if (existingManagerSaves.length) { localStorage.removeItem(LEGACY_STATE_KEY); return; }
+  try {
+    const parsed = JSON.parse(raw);
+    const now = Date.now();
+    const save = {
+      id: uid('save'), name: (parsed.manager && parsed.manager.name) ? parsed.manager.name + "'s Career" : 'My Career',
+      createdAt: now, updatedAt: now,
+      manager: Object.assign(emptyManagerProfile(), parsed.manager || {}),
+      seasons: Array.isArray(parsed.seasons) ? parsed.seasons : []
+    };
+    persistSaves('manager', [save]);
+    const settings = loadAppSettings();
+    settings.activeManagerSaveId = save.id;
+    if (parsed.settings) {
+      if (parsed.settings.theme) settings.theme = parsed.settings.theme;
+      if (parsed.settings.currency) settings.currency = parsed.settings.currency;
+    }
+    localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(settings));
+  } catch (e) { /* ignore corrupt legacy data */ }
+  localStorage.removeItem(LEGACY_STATE_KEY);
+}
+
+function createSave(mode, name) {
+  const saves = loadSaves(mode);
+  if (saves.length >= MAX_SAVES_PER_MODE) {
+    toast(`Save limit reached (${MAX_SAVES_PER_MODE}/${MAX_SAVES_PER_MODE}) for this mode`, 'danger');
+    return null;
+  }
+  const now = Date.now();
+  const save = Object.assign(
+    { id: uid('save'), name: name && name.trim() ? name.trim() : (mode === 'player' ? 'New Player' : 'New Career'), createdAt: now, updatedAt: now },
+    emptySaveData(mode)
+  );
+  saves.push(save);
+  persistSaves(mode, saves);
+  return save;
+}
+
+function getActiveSave(mode) {
+  const saves = loadSaves(mode);
+  const activeId = mode === 'player' ? appSettings.activePlayerSaveId : appSettings.activeManagerSaveId;
+  let save = saves.find(s => s.id === activeId);
+  if (!save && saves.length) save = saves[0];
+  if (!save) save = createSave(mode, null);
+  setActiveSaveId(mode, save.id);
+  return save;
+}
+
+function setActiveSaveId(mode, id) {
+  if (mode === 'player') appSettings.activePlayerSaveId = id;
+  else appSettings.activeManagerSaveId = id;
+  saveAppSettings();
+}
+
+function persistActiveSave(mode, saveObj) {
+  const saves = loadSaves(mode);
+  const idx = saves.findIndex(s => s.id === saveObj.id);
+  saveObj.updatedAt = Date.now();
+  if (idx >= 0) saves[idx] = saveObj;
+  else saves.push(saveObj);
+  persistSaves(mode, saves);
+}
+
+function renameSave(mode, id, name) {
+  const saves = loadSaves(mode);
+  const save = saves.find(s => s.id === id);
+  if (!save) return;
+  save.name = name.trim() || saveDisplayName(mode, save);
+  save.updatedAt = Date.now();
+  persistSaves(mode, saves);
+  if (mode === 'manager' && state.id === id) state.name = save.name;
+  if (mode === 'player' && pState.id === id) pState.name = save.name;
+}
+
+function duplicateSave(mode, id) {
+  const saves = loadSaves(mode);
+  if (saves.length >= MAX_SAVES_PER_MODE) {
+    toast(`Save limit reached (${MAX_SAVES_PER_MODE}/${MAX_SAVES_PER_MODE}) for this mode`, 'danger');
+    return null;
+  }
+  const original = saves.find(s => s.id === id);
+  if (!original) return null;
+  const now = Date.now();
+  const copy = deepClone(original);
+  copy.id = uid('save');
+  copy.name = saveDisplayName(mode, original) + ' (Copy)';
+  copy.createdAt = now;
+  copy.updatedAt = now;
+  saves.push(copy);
+  persistSaves(mode, saves);
+  return copy;
+}
+
+function deleteSaveSlot(mode, id) {
+  let saves = loadSaves(mode);
+  saves = saves.filter(s => s.id !== id);
+  persistSaves(mode, saves);
+  const activeId = mode === 'player' ? appSettings.activePlayerSaveId : appSettings.activeManagerSaveId;
+  if (activeId === id) {
+    const next = saves[0] || createSave(mode, null);
+    setActiveSaveId(mode, next.id);
+    if (mode === 'manager') state = getActiveSave('manager');
+    else pState = getActiveSave('player');
+  }
+}
+
+/* ---------------- Save Manager ---------------- */
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const min = 60000, hr = 3600000, day = 86400000;
+  if (diff < min) return 'just now';
+  if (diff < hr) return Math.floor(diff / min) + 'm ago';
+  if (diff < day) return Math.floor(diff / hr) + 'h ago';
+  if (diff < day * 30) return Math.floor(diff / day) + 'd ago';
+  return new Date(ts).toLocaleDateString();
+}
+
+function saveStatsLine(mode, saveObj) {
+  const seasons = saveObj.seasons || [];
+  if (mode === 'player') {
+    let goals = 0, assists = 0;
+    seasons.forEach(s => { goals += num(s.attack && s.attack.goals); assists += num(s.attack && s.attack.assists); });
+    return `${seasons.length} season${seasons.length === 1 ? '' : 's'} · ${goals}G ${assists}A`;
+  }
+  let trophies = 0;
+  seasons.forEach(s => { trophies += seasonTrophyCount(s); });
+  return `${seasons.length} season${seasons.length === 1 ? '' : 's'} · ${trophies} trophies`;
+}
+
+function openSaveManagerModal() {
+  saveManagerMode = appSettings.mode;
+  $('#save-manager-title').textContent = saveManagerMode === 'player' ? 'Player Saves' : 'Manager Saves';
+  renderSaveManagerList();
+  $('#save-manager-modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSaveManagerModal() {
+  $('#save-manager-modal').hidden = true;
+  document.body.style.overflow = '';
+}
+
+function saveListCardsHTML(mode, query) {
+  const saves = loadSaves(mode).sort((a, b) => b.updatedAt - a.updatedAt);
+  const activeId = mode === 'player' ? appSettings.activePlayerSaveId : appSettings.activeManagerSaveId;
+  const q = (query || '').toLowerCase().trim();
+  const filtered = q ? saves.filter(s => saveDisplayName(mode, s).toLowerCase().includes(q)) : saves;
+
+  return filtered.length ? filtered.map(s => {
+    const isActive = s.id === activeId;
+    return `<div class="save-card ${isActive ? 'is-active' : ''}" data-save-id="${s.id}">
+      <span class="manager-avatar">${esc(saveDisplayName(mode, s).trim().slice(0, 2).toUpperCase())}</span>
+      <div class="save-card-main">
+        <div class="save-card-name-row">
+          <span class="save-card-name">${esc(saveDisplayName(mode, s))}</span>
+          ${isActive ? '<span class="save-card-badge">Active</span>' : ''}
+        </div>
+        <div class="save-card-meta">${saveStatsLine(mode, s)} · updated ${timeAgo(s.updatedAt)}</div>
+      </div>
+      <div class="save-card-actions">
+        ${isActive ? '' : `<button class="btn btn-ghost btn-sm btn-icon" data-action="switch-save" data-id="${s.id}" title="Switch to this save">⇄</button>`}
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="rename-save" data-id="${s.id}" title="Rename">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-save" data-id="${s.id}" title="Duplicate">⧉</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-save" data-id="${s.id}" title="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('') : `<div class="empty-state" style="padding:40px 20px;"><p>No saves match your search.</p></div>`;
+}
+
+function refreshSaveListOnly(query) {
+  const el = document.querySelector('#save-manager-body .save-list');
+  if (el) el.innerHTML = saveListCardsHTML(saveManagerMode, query);
+}
+
+function renderSaveManagerList(query) {
+  const mode = saveManagerMode;
+  const total = loadSaves(mode).length;
+  const atCap = total >= MAX_SAVES_PER_MODE;
+
+  $('#save-manager-body').innerHTML = `
+    <div class="save-manager-toolbar">
+      <input class="input" id="save-manager-search" type="text" placeholder="Search saves…" value="${esc(query || '')}" />
+      <span class="save-manager-count">${total}/${MAX_SAVES_PER_MODE}</span>
+    </div>
+    <div class="save-create-row">
+      <input class="input" id="save-manager-new-name" type="text" placeholder="${mode === 'player' ? 'New player save name…' : 'New career save name…'}" ${atCap ? 'disabled' : ''} />
+      <button class="btn btn-primary" id="save-manager-create-btn" data-action="create-save" ${atCap ? 'disabled' : ''}>+ Create</button>
+    </div>
+    <div class="save-list">${saveListCardsHTML(mode, query)}</div>
+  `;
+}
+
+function startInlineRename(id) {
+  const card = document.querySelector(`.save-card[data-save-id="${id}"]`);
+  if (!card) return;
+  const nameEl = card.querySelector('.save-card-name');
+  const input = document.createElement('input');
+  input.className = 'input save-card-name-input';
+  input.value = nameEl.textContent;
+  nameEl.replaceWith(input);
+  input.focus();
+  input.select();
+  const commit = () => {
+    renameSave(saveManagerMode, id, input.value);
+    refreshSaveListOnly($('#save-manager-search') ? $('#save-manager-search').value : '');
+    updateHeaderSubtitle();
+  };
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.removeEventListener('blur', commit); refreshSaveListOnly($('#save-manager-search') ? $('#save-manager-search').value : ''); }
+  });
+  input.addEventListener('blur', commit, { once: true });
+}
+
+function switchToSave(mode, id) {
+  setActiveSaveId(mode, id);
+  if (mode === 'manager') state = getActiveSave('manager');
+  else pState = getActiveSave('player');
+  closeSaveManagerModal();
+  toast('Switched save');
+  renderCurrentTab();
 }
 
 /* ---------------- Global runtime state ---------------- */
 
-let state = loadState();
+let appSettings = loadAppSettings();
+migrateLegacyStateIfNeeded();
+appSettings = loadAppSettings();
+let state = null;   // active Manager-mode save
+let pState = null;  // active Player-mode save
 let currentTab = 'dashboard';
 let seasonDraft = null;
 let editingSeasonId = null;
+let seasonModalMode = 'manager';
+let playerSeasonDraft = null;
+let editingPlayerSeasonId = null;
 let confirmAction = null;
+let saveManagerMode = 'manager';
+
+function saveState() { persistActiveSave('manager', state); }
+function savePlayerState() { persistActiveSave('player', pState); }
 
 /* ---------------- Trophy / stat computation ---------------- */
 
@@ -204,7 +524,7 @@ function seasonTrophyCount(season) { return seasonTrophyList(season).length; }
 
 function computeCareerTotals() {
   const seasons = sortedSeasons(state.seasons, 'chrono');
-  const currency = state.settings.currency;
+  const currency = appSettings.currency;
 
   let matches = { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0 };
   let leagueOnly = { played: 0, won: 0, drawn: 0, lost: 0, gf: 0, ga: 0 };
@@ -300,6 +620,114 @@ function computeCareerTotals() {
   };
 }
 
+/* ---------------- Player Career: trophy / stat computation ---------------- */
+
+function playerSeasonTrophyList(season) {
+  const trophies = [];
+  if (num(season.league.position) === 1 && season.league.position !== '') {
+    trophies.push({ name: (season.divisionTier || 'League') + ' Title', type: 'League' });
+  }
+  (season.competitions || []).forEach(c => {
+    if (c.result === 'Winner') trophies.push({ name: c.name || c.type, type: c.type });
+  });
+  return trophies;
+}
+
+function playerSeasonTrophyCount(season) { return playerSeasonTrophyList(season).length; }
+
+function playerSortedSeasons(seasons, order) {
+  const arr = seasons.slice();
+  order = order || 'chrono';
+  if (order === 'newest') arr.sort((a, b) => parseSeasonStartYear(b.seasonLabel) - parseSeasonStartYear(a.seasonLabel));
+  else if (order === 'goals') arr.sort((a, b) => num(b.attack.goals) - num(a.attack.goals));
+  else if (order === 'rating') arr.sort((a, b) => num(b.form.avgRating) - num(a.form.avgRating));
+  else arr.sort((a, b) => parseSeasonStartYear(a.seasonLabel) - parseSeasonStartYear(b.seasonLabel));
+  return arr;
+}
+
+function computePlayerCareerTotals() {
+  const seasons = playerSortedSeasons(pState.seasons, 'chrono');
+
+  let appearances = { played: 0, started: 0, subApps: 0, minutes: 0 };
+  let attack = { goals: 0, assists: 0, shotsOnTarget: 0, shotsTotal: 0, keyPasses: 0, dribbles: 0 };
+  let defending = { tackles: 0, interceptions: 0, duelsWon: 0 };
+  let goalkeeping = { saves: 0, goalsConceded: 0, cleanSheets: 0 };
+  let discipline = { yellow: 0, red: 0, fouls: 0 };
+  let ratingSum = 0, ratingWeight = 0, motmTotal = 0;
+  let promotions = 0, relegations = 0;
+  let trophiesByName = {}, totalTrophies = 0;
+  let awards = { potsClub: 0, yotsClub: 0, teamOfSeason: 0, goldenBoot: 0, goldenGlove: 0, ballonDor: [] };
+  let intl = { caps: 0, goals: 0, tournaments: [] };
+  let clubMap = {};
+
+  seasons.forEach(s => {
+    const A = s.appearances || {}, AT = s.attack || {}, D = s.defending || {}, GK = s.goalkeeping || {}, DI = s.discipline || {}, F = s.form || {}, L = s.league || {}, AW = s.awards || {}, I = s.international || {};
+
+    appearances.played += num(A.played); appearances.started += num(A.started);
+    appearances.subApps += num(A.subApps); appearances.minutes += num(A.minutes);
+    attack.goals += num(AT.goals); attack.assists += num(AT.assists);
+    attack.shotsOnTarget += num(AT.shotsOnTarget); attack.shotsTotal += num(AT.shotsTotal);
+    attack.keyPasses += num(AT.keyPasses); attack.dribbles += num(AT.dribbles);
+    defending.tackles += num(D.tackles); defending.interceptions += num(D.interceptions); defending.duelsWon += num(D.duelsWon);
+    goalkeeping.saves += num(GK.saves); goalkeeping.goalsConceded += num(GK.goalsConceded); goalkeeping.cleanSheets += num(GK.cleanSheets);
+    discipline.yellow += num(DI.yellow); discipline.red += num(DI.red); discipline.fouls += num(DI.fouls);
+    if (F.avgRating !== '' && F.avgRating !== undefined && num(A.played) > 0) { ratingSum += num(F.avgRating) * num(A.played); ratingWeight += num(A.played); }
+    motmTotal += num(F.motmCount);
+
+    if (L.promoted) promotions++;
+    if (L.relegated) relegations++;
+
+    playerSeasonTrophyList(s).forEach(t => {
+      trophiesByName[t.name] = trophiesByName[t.name] || { count: 0, entries: [] };
+      trophiesByName[t.name].count++;
+      trophiesByName[t.name].entries.push({ season: s.seasonLabel, club: s.club });
+      totalTrophies++;
+    });
+
+    if (AW.potsClub) awards.potsClub++;
+    if (AW.yotsClub) awards.yotsClub++;
+    if (AW.teamOfSeason) awards.teamOfSeason++;
+    if (AW.goldenBoot) awards.goldenBoot++;
+    if (AW.goldenGlove) awards.goldenGlove++;
+    if (AW.ballonDorRank) awards.ballonDor.push({ season: s.seasonLabel, rank: AW.ballonDorRank });
+
+    if (I.calledUp) {
+      intl.caps += num(I.caps); intl.goals += num(I.goals);
+      if (I.tournament) intl.tournaments.push({ season: s.seasonLabel, tournament: I.tournament, team: I.team, result: I.tournamentResult });
+    }
+
+    const clubKey = s.club || 'Unknown Club';
+    if (!clubMap[clubKey]) clubMap[clubKey] = { club: clubKey, seasons: [], apps: 0, goals: 0, assists: 0, trophies: 0 };
+    clubMap[clubKey].seasons.push(s.seasonLabel);
+    clubMap[clubKey].apps += num(A.played); clubMap[clubKey].goals += num(AT.goals); clubMap[clubKey].assists += num(AT.assists);
+    clubMap[clubKey].trophies += playerSeasonTrophyCount(s);
+  });
+
+  let bestSeason = null, bestScore = -1;
+  seasons.forEach(s => {
+    const score = playerSeasonTrophyCount(s) * 100 + num(s.attack.goals) * 2 + num(s.attack.assists);
+    if (score > bestScore) { bestScore = score; bestSeason = s; }
+  });
+
+  const clubHistory = Object.values(clubMap).map(c => ({
+    club: c.club, first: c.seasons[0], last: c.seasons[c.seasons.length - 1],
+    seasonCount: c.seasons.length, apps: c.apps, goals: c.goals, assists: c.assists, trophies: c.trophies
+  }));
+
+  return {
+    totalSeasons: seasons.length,
+    totalClubs: Object.keys(clubMap).length,
+    appearances, attack, defending, goalkeeping, discipline,
+    avgRating: ratingWeight ? (ratingSum / ratingWeight) : null,
+    motmTotal, promotions, relegations,
+    goalContributions: attack.goals + attack.assists,
+    goalsPerGame: appearances.played ? (attack.goals / appearances.played) : 0,
+    trophiesByName, totalTrophies, awards, intl,
+    clubHistory, bestSeason,
+    seasonsChrono: seasons
+  };
+}
+
 /* ---------------- Toast ---------------- */
 
 function toast(msg, kind) {
@@ -330,20 +758,32 @@ function closeConfirmModal() {
 
 const TAB_TITLES = {
   dashboard: 'Dashboard', seasons: 'Seasons', totals: 'Career Totals',
-  trophies: 'Trophy Cabinet', transfers: 'Transfers', settings: 'Settings'
+  trophies: 'Trophy Cabinet', transfers: 'Transfers', settings: 'Settings',
+  'p-dashboard': 'Dashboard', 'p-seasons': 'Seasons', 'p-totals': 'Career Totals',
+  'p-honours': 'Honours', 'p-international': 'International', 'p-settings': 'Settings'
 };
 
 function switchTab(tab) {
   currentTab = tab;
   $$('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $$('.view').forEach(v => v.classList.remove('active'));
-  $('#view-' + tab).classList.add('active');
+  const view = $('#view-' + tab);
+  if (view) view.classList.add('active');
   $('#sidebar').classList.remove('open');
   $('#sidebar-backdrop').classList.remove('open');
   $('#page-title').textContent = TAB_TITLES[tab] || 'FC Career Tracker';
   renderCurrentTab();
   $('#app-main').scrollTop = 0;
   window.scrollTo({ top: 0 });
+}
+
+function switchMode(mode) {
+  if (mode === appSettings.mode) return;
+  appSettings.mode = mode;
+  saveAppSettings();
+  document.documentElement.setAttribute('data-app-mode', mode);
+  $$('.mode-switch-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  switchTab(mode === 'player' ? 'p-dashboard' : 'dashboard');
 }
 
 function renderCurrentTab() {
@@ -353,6 +793,12 @@ function renderCurrentTab() {
   else if (currentTab === 'trophies') renderTrophies();
   else if (currentTab === 'transfers') renderTransfers();
   else if (currentTab === 'settings') renderSettings();
+  else if (currentTab === 'p-dashboard') renderPlayerDashboard();
+  else if (currentTab === 'p-seasons') renderPlayerSeasons();
+  else if (currentTab === 'p-totals') renderPlayerTotals();
+  else if (currentTab === 'p-honours') renderPlayerHonours();
+  else if (currentTab === 'p-international') renderPlayerInternational();
+  else if (currentTab === 'p-settings') renderPlayerSettings();
   updateHeaderSubtitle();
 }
 
@@ -360,18 +806,17 @@ function updateHeaderSubtitle() {
   const subEl = $('#manager-subtitle');
   const nameEl = $('#manager-mini-name');
   const avatarEl = $('#manager-avatar');
-  const totals = computeCareerTotals();
+  const mode = appSettings.mode;
+  const active = mode === 'player' ? pState : state;
+  const profileName = mode === 'player' ? active.player.name : active.manager.name;
+  const displayName = saveDisplayName(mode, active);
+  const totals = mode === 'player' ? computePlayerCareerTotals() : computeCareerTotals();
 
-  if (state.manager.name) {
-    nameEl.textContent = state.manager.name;
-    avatarEl.textContent = state.manager.name.trim().slice(0, 2) || '?';
-  } else {
-    nameEl.textContent = 'Set up profile';
-    avatarEl.textContent = '?';
-  }
+  nameEl.textContent = displayName;
+  avatarEl.textContent = (profileName || displayName || '?').trim().slice(0, 2).toUpperCase();
 
-  if (!state.manager.name && !state.seasons.length) {
-    subEl.textContent = 'Tap to configure';
+  if (!profileName && !active.seasons.length) {
+    subEl.textContent = 'Tap to switch saves';
     return;
   }
   const parts = [];
@@ -379,7 +824,7 @@ function updateHeaderSubtitle() {
   if (totals.totalTrophies) parts.push(totals.totalTrophies + ' trophies');
   const latest = totals.seasonsChrono[totals.seasonsChrono.length - 1];
   if (latest) parts.push('at ' + (latest.club || '—'));
-  subEl.textContent = parts.join(' · ') || 'Tap to configure';
+  subEl.textContent = parts.join(' · ') || 'Tap to switch saves';
 }
 
 /* ---------------- SVG charts ---------------- */
@@ -483,7 +928,7 @@ function renderDashboard() {
   }
   const t = computeCareerTotals();
   const latest = t.seasonsChrono[t.seasonsChrono.length - 1];
-  const currency = state.settings.currency;
+  const currency = appSettings.currency;
 
   const recent = t.seasonsChrono.slice(-5).reverse();
   const recentHtml = recent.map(s => {
@@ -615,7 +1060,7 @@ function renderTotals() {
     return;
   }
   const t = computeCareerTotals();
-  const currency = state.settings.currency;
+  const currency = appSettings.currency;
 
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
     `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => esc(e.season)).join(', ')}</td></tr>`
@@ -739,7 +1184,7 @@ function renderTrophies() {
 function renderTransfers() {
   const el = $('#transfers-content');
   const seasons = sortedSeasons(state.seasons, 'newest');
-  const currency = state.settings.currency;
+  const currency = appSettings.currency;
 
   let rows = [];
   seasons.forEach(s => {
@@ -787,7 +1232,7 @@ function renderTransfers() {
 
 function renderSettings() {
   const el = $('#settings-content');
-  const m = state.manager, s = state.settings;
+  const m = state.manager, s = appSettings;
   el.innerHTML = `
     <details class="form-section settings-block" open>
       <summary><span class="legend-icon">👤</span> Manager Profile</summary>
@@ -803,6 +1248,10 @@ function renderSettings() {
     </details>
 
     <div class="settings-block">
+      <div class="settings-row install-app-row" ${deferredInstallPrompt ? '' : 'hidden'}>
+        <div class="settings-row-text"><h4>Install App</h4><p>Add FC Career Tracker to your device as a standalone app.</p></div>
+        <button class="btn btn-primary install-app-btn">Install</button>
+      </div>
       <div class="settings-row">
         <div class="settings-row-text"><h4>Theme</h4><p>Choose how the tracker looks.</p></div>
         <div class="theme-toggle" id="theme-toggle">
@@ -813,22 +1262,395 @@ function renderSettings() {
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><h4>Currency</h4><p>Used for transfer fees, budgets and prize money.</p></div>
-        <select class="input select" id="f-currency" style="width:120px;">
+        <select class="input select currency-select" id="f-currency" style="width:120px;">
           <option value="£" ${s.currency === '£' ? 'selected' : ''}>£ GBP</option>
           <option value="€" ${s.currency === '€' ? 'selected' : ''}>€ EUR</option>
           <option value="$" ${s.currency === '$' ? 'selected' : ''}>$ USD</option>
         </select>
       </div>
       <div class="settings-row">
-        <div class="settings-row-text"><h4>Export Data</h4><p>Download your full career as a JSON backup file.</p></div>
+        <div class="settings-row-text"><h4>Export Data</h4><p>Download this save as a JSON backup file.</p></div>
         <button class="btn btn-ghost" data-action="export-json">Export JSON</button>
       </div>
       <div class="settings-row">
-        <div class="settings-row-text"><h4>Import Data</h4><p>Restore from a previously exported JSON backup. This replaces current data.</p></div>
-        <label class="btn btn-ghost" style="cursor:pointer;">Import JSON<input type="file" id="import-file-input" accept="application/json" style="display:none;" /></label>
+        <div class="settings-row-text"><h4>Import Data</h4><p>Restore this save from a previously exported JSON backup. This replaces its current data.</p></div>
+        <label class="btn btn-ghost" style="cursor:pointer;">Import JSON<input type="file" class="import-file-input" accept="application/json" style="display:none;" /></label>
       </div>
       <div class="settings-row">
-        <div class="settings-row-text"><h4>Reset All Data</h4><p>Permanently delete your manager profile and every season. Cannot be undone.</p></div>
+        <div class="settings-row-text"><h4>Reset This Save</h4><p>Permanently clear the manager profile and every season in this save. Cannot be undone.</p></div>
+        <button class="btn btn-danger" data-action="reset-all">Reset Everything</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ================= PLAYER MODE VIEWS ================= */
+
+function renderPlayerDashboard() {
+  const el = $('#p-dashboard-content');
+  if (!pState.seasons.length) {
+    el.innerHTML = `
+      <div class="empty-state card card-pad">
+        <div class="empty-icon">⚽</div>
+        <h3>Your playing career starts here</h3>
+        <p>Add your first season to start tracking appearances, goals, assists, ratings, awards and international caps — every stat from your player career mode.</p>
+        <button class="btn btn-primary" data-action="open-add-player-season">+ Add First Season</button>
+      </div>`;
+    return;
+  }
+  const t = computePlayerCareerTotals();
+  const latest = t.seasonsChrono[t.seasonsChrono.length - 1];
+  const currency = appSettings.currency;
+
+  const recent = t.seasonsChrono.slice(-5).reverse();
+  const recentHtml = recent.map(s => {
+    const trophies = playerSeasonTrophyList(s);
+    return `<div class="season-card" data-action="edit-player-season" data-id="${s.id}" style="cursor:pointer;">
+      <div class="season-card-main">
+        <div class="season-card-title">${esc(s.seasonLabel)} <span class="season-card-club">${esc(s.club)}</span></div>
+        <div class="season-card-meta">
+          <span>${esc(s.divisionTier || '—')}</span>
+          ${s.ratings.overallEnd ? `<span class="badge badge-position">OVR ${esc(s.ratings.overallEnd)}</span>` : ''}
+        </div>
+      </div>
+      <div class="form-record">
+        <span class="pill pill-w">${num(s.attack.goals)}G</span>
+        <span class="pill pill-d">${num(s.attack.assists)}A</span>
+        <span class="pill pill-l">${num(s.appearances.played)} apps</span>
+      </div>
+      <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
+    </div>`;
+  }).join('');
+
+  const ratingPoints = t.seasonsChrono.filter(s => s.ratings.overallEnd !== '').map(s => ({ label: s.seasonLabel, value: num(s.ratings.overallEnd) }));
+  const contribGroups = t.seasonsChrono.map(s => ({ label: s.seasonLabel, values: [num(s.attack.goals), num(s.attack.assists)] }));
+
+  el.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="stat-label">Seasons Played</div><div class="stat-value">${t.totalSeasons}</div><div class="stat-sub">${t.totalClubs} club${t.totalClubs === 1 ? '' : 's'}</div></div>
+      <div class="stat-tile"><div class="stat-label">Appearances</div><div class="stat-value">${fmtNum(t.appearances.played)}</div><div class="stat-sub">${fmtNum(t.appearances.minutes)} minutes</div></div>
+      <div class="stat-tile"><div class="stat-label">Goals + Assists</div><div class="stat-value">${t.goalContributions}</div><div class="stat-sub">${t.attack.goals}G ${t.attack.assists}A</div></div>
+      <div class="stat-tile"><div class="stat-label">Trophies Won</div><div class="stat-value">${t.totalTrophies}</div><div class="stat-sub">${t.awards.potsClub} POTS award${t.awards.potsClub === 1 ? '' : 's'}</div></div>
+      <div class="stat-tile"><div class="stat-label">Avg. Match Rating</div><div class="stat-value">${t.avgRating ? t.avgRating.toFixed(2) : '—'}</div><div class="stat-sub">${t.motmTotal} MOTM</div></div>
+      <div class="stat-tile"><div class="stat-label">International Caps</div><div class="stat-value">${t.intl.caps}</div><div class="stat-sub">${t.intl.goals} goals</div></div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="card chart-card">
+        <div class="chart-title">Overall Rating by Season</div>
+        ${svgLineChart(ratingPoints, { color: 'var(--accent-2)' })}
+      </div>
+      <div class="card card-pad">
+        <div class="chart-title">Current Club</div>
+        ${latest ? `
+          <h3 style="font-size:20px;margin-bottom:4px;">${esc(latest.club)}</h3>
+          <p class="hint" style="margin-bottom:14px;">${esc(latest.divisionTier || '')} · ${esc(latest.seasonLabel)}${latest.shirtNumber ? ' · #' + esc(latest.shirtNumber) : ''}</p>
+          ${latest.ratings.overallEnd ? `
+          <div style="margin-bottom:12px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:6px;"><span>Overall Rating</span><b style="color:var(--text)">${esc(latest.ratings.overallEnd)}</b></div>
+            <div class="progress-bar"><div class="progress-bar-fill" style="width:${clamp(num(latest.ratings.overallEnd), 0, 99)}%"></div></div>
+          </div>` : ''}
+          <p class="hint">Potential: ${esc(latest.ratings.potential) || '—'} · Skill Moves: ${'⭐'.repeat(clamp(num(latest.ratings.skillMoves) || 0, 0, 5))}</p>
+        ` : '<p class="hint">No seasons yet.</p>'}
+      </div>
+    </div>
+
+    <div class="card chart-card" style="margin-top:16px;">
+      <div class="chart-title">Goals vs Assists by Season</div>
+      ${svgBarChart(contribGroups, { colors: ['var(--accent)', 'var(--accent-2)'], series: ['Goals', 'Assists'] })}
+    </div>
+
+    <div class="section-title">Recent Seasons</div>
+    <div class="seasons-list">${recentHtml}</div>
+  `;
+}
+
+function renderPlayerSeasons() {
+  const listEl = $('#p-seasons-list');
+  const q = ($('#p-season-search').value || '').toLowerCase().trim();
+  const sort = $('#p-season-sort').value;
+
+  let seasons = playerSortedSeasons(pState.seasons, sort);
+  if (q) {
+    seasons = seasons.filter(s => {
+      const hay = [s.club, s.seasonLabel, s.divisionTier, s.country, ...(s.competitions || []).map(c => c.name)].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  if (!pState.seasons.length) {
+    listEl.innerHTML = `<div class="empty-state card card-pad">
+      <div class="empty-icon">📋</div>
+      <h3>No seasons yet</h3>
+      <p>Add a season to start logging appearances, goals, assists and awards.</p>
+      <button class="btn btn-primary" data-action="open-add-player-season">+ Add Season</button>
+    </div>`;
+    return;
+  }
+  if (!seasons.length) {
+    listEl.innerHTML = `<div class="empty-state card card-pad"><p>No seasons match "${esc(q)}".</p></div>`;
+    return;
+  }
+
+  listEl.innerHTML = seasons.map(s => {
+    const trophies = playerSeasonTrophyList(s);
+    return `<div class="season-card" data-action="edit-player-season" data-id="${s.id}">
+      <div class="season-card-main">
+        <div class="season-card-title">${esc(s.seasonLabel)} <span class="season-card-club">${esc(s.club)}</span></div>
+        <div class="season-card-meta">
+          <span>${esc(s.divisionTier || '—')}</span>
+          ${s.ratings.overallEnd ? `<span class="badge badge-position">OVR ${esc(s.ratings.overallEnd)}</span>` : ''}
+          ${s.transfer && s.transfer.moved ? '<span class="badge badge-position">Transferred</span>' : ''}
+          ${s.international && s.international.calledUp ? '<span class="badge badge-promoted">Capped</span>' : ''}
+        </div>
+      </div>
+      <div class="form-record">
+        <span class="pill pill-w">${num(s.attack.goals)}G</span>
+        <span class="pill pill-d">${num(s.attack.assists)}A</span>
+        <span class="pill pill-l">${num(s.appearances.played)} apps</span>
+      </div>
+      <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
+      <div class="season-card-actions">
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-player-season" data-id="${s.id}" title="Edit">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-player-season" data-id="${s.id}" title="Delete">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPlayerTotals() {
+  const el = $('#p-totals-content');
+  if (!pState.seasons.length) {
+    el.innerHTML = `<div class="empty-state card card-pad"><div class="empty-icon">📊</div><h3>No career data yet</h3><p>Add seasons to see your full career totals here.</p></div>`;
+    return;
+  }
+  const t = computePlayerCareerTotals();
+
+  const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
+    `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => esc(e.season)).join(', ')}</td></tr>`
+  ).join('') || `<tr><td colspan="3" class="hint">No trophies yet</td></tr>`;
+
+  const clubRows = t.clubHistory.map(c => `
+    <div class="club-history-row">
+      <div>
+        <div class="club-history-name">${esc(c.club)}</div>
+        <div class="club-history-range">${esc(c.first)} – ${esc(c.last)} · ${c.seasonCount} season${c.seasonCount === 1 ? '' : 's'}</div>
+      </div>
+      <div class="club-history-stats">
+        <span><b>${c.apps}</b> apps</span>
+        <span><b>${c.goals}</b> goals</span>
+        <span><b>${c.assists}</b> assists</span>
+        <span><b>${c.trophies}</b> trophies</span>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="section-title">Career Output</div>
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="stat-label">Appearances</div><div class="stat-value">${fmtNum(t.appearances.played)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Starts</div><div class="stat-value">${fmtNum(t.appearances.started)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Sub Appearances</div><div class="stat-value">${fmtNum(t.appearances.subApps)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Minutes Played</div><div class="stat-value">${fmtNum(t.appearances.minutes)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Goals</div><div class="stat-value">${fmtNum(t.attack.goals)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Assists</div><div class="stat-value">${fmtNum(t.attack.assists)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Goals per Game</div><div class="stat-value">${t.goalsPerGame.toFixed(2)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Avg. Match Rating</div><div class="stat-value">${t.avgRating ? t.avgRating.toFixed(2) : '—'}</div></div>
+    </div>
+
+    <div class="section-title">Shooting &amp; Creation</div>
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="stat-label">Shots on Target</div><div class="stat-value">${fmtNum(t.attack.shotsOnTarget)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Total Shots</div><div class="stat-value">${fmtNum(t.attack.shotsTotal)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Key Passes</div><div class="stat-value">${fmtNum(t.attack.keyPasses)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Dribbles Completed</div><div class="stat-value">${fmtNum(t.attack.dribbles)}</div></div>
+    </div>
+
+    <div class="section-title">Defending, Goalkeeping &amp; Discipline</div>
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="stat-label">Tackles</div><div class="stat-value">${fmtNum(t.defending.tackles)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Interceptions</div><div class="stat-value">${fmtNum(t.defending.interceptions)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Duels Won</div><div class="stat-value">${fmtNum(t.defending.duelsWon)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Goalkeeper Saves</div><div class="stat-value">${fmtNum(t.goalkeeping.saves)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Clean Sheets</div><div class="stat-value">${fmtNum(t.goalkeeping.cleanSheets)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Yellow Cards</div><div class="stat-value">${fmtNum(t.discipline.yellow)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Red Cards</div><div class="stat-value">${fmtNum(t.discipline.red)}</div></div>
+      <div class="stat-tile"><div class="stat-label">Promotions</div><div class="stat-value">${t.promotions}</div></div>
+    </div>
+
+    <div class="section-title">Trophies &amp; Awards</div>
+    <div class="stat-grid">
+      <div class="stat-tile"><div class="stat-label">Total Trophies</div><div class="stat-value">${t.totalTrophies}</div></div>
+      <div class="stat-tile"><div class="stat-label">Player of the Season</div><div class="stat-value">${t.awards.potsClub}</div></div>
+      <div class="stat-tile"><div class="stat-label">Young Player of the Season</div><div class="stat-value">${t.awards.yotsClub}</div></div>
+      <div class="stat-tile"><div class="stat-label">Team of the Season</div><div class="stat-value">${t.awards.teamOfSeason}</div></div>
+      <div class="stat-tile"><div class="stat-label">Golden Boot Seasons</div><div class="stat-value">${t.awards.goldenBoot}</div></div>
+      <div class="stat-tile"><div class="stat-label">Golden Glove Seasons</div><div class="stat-value">${t.awards.goldenGlove}</div></div>
+    </div>
+
+    ${t.bestSeason ? `
+    <div class="section-title">Best Season</div>
+    <div class="card card-pad">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div>
+          <h3 style="font-size:17px;">${esc(t.bestSeason.seasonLabel)} — ${esc(t.bestSeason.club)}</h3>
+          <p class="hint" style="margin-top:4px;">${num(t.bestSeason.attack.goals)} goals, ${num(t.bestSeason.attack.assists)} assists</p>
+        </div>
+        <div class="season-card-trophies">${playerSeasonTrophyList(t.bestSeason).map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
+      </div>
+    </div>` : ''}
+
+    <div class="section-title">Trophy Breakdown</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Competition</th><th>Times Won</th><th>Seasons</th></tr></thead>
+        <tbody>${trophyRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section-title">Club History</div>
+    <div class="club-history">${clubRows}</div>
+  `;
+}
+
+function renderPlayerHonours() {
+  const el = $('#p-honours-content');
+  const t = computePlayerCareerTotals();
+  const entries = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count);
+
+  const individualCards = [
+    { count: t.awards.potsClub, name: 'Club Player of the Season', emoji: '🏅' },
+    { count: t.awards.yotsClub, name: 'Young Player of the Season', emoji: '🌟' },
+    { count: t.awards.teamOfSeason, name: 'Team of the Season', emoji: '🎽' },
+    { count: t.awards.goldenBoot, name: 'Golden Boot', emoji: '👟' },
+    { count: t.awards.goldenGlove, name: 'Golden Glove', emoji: '🧤' }
+  ].filter(a => a.count > 0);
+
+  el.innerHTML = `
+    <div class="view-header">
+      <div class="hint">${t.totalTrophies} team ${t.totalTrophies === 1 ? 'trophy' : 'trophies'} · ${individualCards.reduce((a, c) => a + c.count, 0)} individual awards</div>
+    </div>
+
+    <div class="section-title">Team Trophies</div>
+    ${entries.length ? `<div class="trophy-grid">
+      ${entries.map(([name, d]) => `
+        <div class="trophy-card">
+          <div class="trophy-emoji">${trophyEmoji(name)}</div>
+          <div class="trophy-count">×${d.count}</div>
+          <div class="trophy-name">${esc(name)}</div>
+          <div class="trophy-list-detail">${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join('<br>')}</div>
+        </div>`).join('')}
+    </div>` : `<div class="empty-state card card-pad"><div class="empty-icon">🏆</div><h3>No team honours yet</h3><p>Win a league title or cup with your club and it'll show up here.</p></div>`}
+
+    <div class="section-title">Individual Awards</div>
+    ${individualCards.length ? `<div class="trophy-grid">
+      ${individualCards.map(a => `
+        <div class="trophy-card">
+          <div class="trophy-emoji">${a.emoji}</div>
+          <div class="trophy-count">×${a.count}</div>
+          <div class="trophy-name">${esc(a.name)}</div>
+        </div>`).join('')}
+    </div>` : `<div class="empty-state card card-pad"><div class="empty-icon">🏅</div><h3>No individual awards yet</h3><p>Log a Player of the Season or Golden Boot win in a season's Awards section.</p></div>`}
+
+    ${t.awards.ballonDor.length ? `
+    <div class="section-title">Ballon d'Or Finishes</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Season</th><th>Finish</th></tr></thead>
+        <tbody>${t.awards.ballonDor.map(b => `<tr><td>${esc(b.season)}</td><td>${esc(b.rank)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+  `;
+}
+
+function renderPlayerInternational() {
+  const el = $('#p-international-content');
+  const t = computePlayerCareerTotals();
+  const callUps = t.seasonsChrono.filter(s => s.international && s.international.calledUp);
+
+  if (!callUps.length) {
+    el.innerHTML = `<div class="empty-state card card-pad"><div class="empty-icon">🌍</div><h3>No international career yet</h3><p>Log a call-up inside a season's International Duty section to start tracking caps, goals and tournaments.</p></div>`;
+    return;
+  }
+
+  const rows = callUps.map(s => `
+    <tr>
+      <td>${esc(s.seasonLabel)}</td>
+      <td>${esc(s.international.team) || '—'}</td>
+      <td>${num(s.international.caps)}</td>
+      <td>${num(s.international.goals)}</td>
+      <td>${esc(s.international.tournament) || '—'}</td>
+      <td>${esc(s.international.tournamentResult) || '—'}</td>
+    </tr>`).join('');
+
+  el.innerHTML = `
+    <div class="stat-grid" style="margin-bottom:18px;">
+      <div class="stat-tile"><div class="stat-label">Total Caps</div><div class="stat-value">${t.intl.caps}</div></div>
+      <div class="stat-tile"><div class="stat-label">International Goals</div><div class="stat-value">${t.intl.goals}</div></div>
+      <div class="stat-tile"><div class="stat-label">Seasons Capped</div><div class="stat-value">${callUps.length}</div></div>
+      <div class="stat-tile"><div class="stat-label">Tournaments</div><div class="stat-value">${t.intl.tournaments.length}</div></div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Season</th><th>Team</th><th>Caps</th><th>Goals</th><th>Tournament</th><th>Result</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderPlayerSettings() {
+  const el = $('#p-settings-content');
+  const p = pState.player, s = appSettings;
+  el.innerHTML = `
+    <details class="form-section settings-block" open>
+      <summary><span class="legend-icon">👤</span> Player Profile</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-2">
+        <div class="field"><label>Player Name</label><input class="input" id="pf-plr-name" value="${esc(p.name)}" placeholder="e.g. Alex Morgan" /></div>
+        <div class="field"><label>Nationality</label><input class="input" id="pf-plr-nat" value="${esc(p.nationality)}" placeholder="e.g. England" /></div>
+        <div class="field"><label>Position</label>
+          <select class="input select" id="pf-plr-position">
+            ${PLAYER_POSITIONS.map(pos => `<option value="${pos}" ${p.position === pos ? 'selected' : ''}>${pos}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Starting Club</label><input class="input" id="pf-plr-club" value="${esc(p.startingClub)}" placeholder="e.g. Academy FC" /></div>
+        <div class="field"><label>Career Start Year</label><input class="input" id="pf-plr-year" value="${esc(p.careerStartYear)}" placeholder="e.g. 2026" /></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:14px;" data-action="save-player-profile">Save Profile</button>
+      </div>
+    </details>
+
+    <div class="settings-block">
+      <div class="settings-row install-app-row" ${deferredInstallPrompt ? '' : 'hidden'}>
+        <div class="settings-row-text"><h4>Install App</h4><p>Add FC Career Tracker to your device as a standalone app.</p></div>
+        <button class="btn btn-primary install-app-btn">Install</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Theme</h4><p>Choose how the tracker looks.</p></div>
+        <div class="theme-toggle">
+          <button data-theme="dark" class="${s.theme === 'dark' ? 'active' : ''}">Dark</button>
+          <button data-theme="light" class="${s.theme === 'light' ? 'active' : ''}">Light</button>
+          <button data-theme="system" class="${s.theme === 'system' ? 'active' : ''}">System</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Currency</h4><p>Used for transfer fees, wages and release clauses.</p></div>
+        <select class="input select currency-select" style="width:120px;">
+          <option value="£" ${s.currency === '£' ? 'selected' : ''}>£ GBP</option>
+          <option value="€" ${s.currency === '€' ? 'selected' : ''}>€ EUR</option>
+          <option value="$" ${s.currency === '$' ? 'selected' : ''}>$ USD</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Export Data</h4><p>Download this save as a JSON backup file.</p></div>
+        <button class="btn btn-ghost" data-action="export-json">Export JSON</button>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Import Data</h4><p>Restore this save from a previously exported JSON backup. This replaces its current data.</p></div>
+        <label class="btn btn-ghost" style="cursor:pointer;">Import JSON<input type="file" class="import-file-input" accept="application/json" style="display:none;" /></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Reset This Save</h4><p>Permanently clear the player profile and every season in this save. Cannot be undone.</p></div>
         <button class="btn btn-danger" data-action="reset-all">Reset Everything</button>
       </div>
     </div>
@@ -838,6 +1660,7 @@ function renderSettings() {
 /* ---------------- Season form (add/edit modal) ---------------- */
 
 function openSeasonModal(season) {
+  seasonModalMode = 'manager';
   seasonDraft = season ? deepClone(season) : emptySeason();
   editingSeasonId = season ? season.id : null;
   $('#season-modal-title').textContent = season ? `Edit Season — ${season.seasonLabel || ''} ${season.club || ''}` : 'Add Season';
@@ -851,6 +1674,8 @@ function closeSeasonModal() {
   document.body.style.overflow = '';
   seasonDraft = null;
   editingSeasonId = null;
+  playerSeasonDraft = null;
+  editingPlayerSeasonId = null;
 }
 
 function repeatRowsHTML(kind, items, rowFieldsFn) {
@@ -896,7 +1721,7 @@ function transferRowHTML(tr, i, kind) {
         ${TRANSFER_TYPES.map(t => `<option value="${t}" ${tr.type === t ? 'selected' : ''}>${t}</option>`).join('')}
       </select>
     </div>
-    <div class="field"><label>Fee (${state.settings.currency}M)</label><input class="input" type="number" step="0.1" min="0" data-repeat="${kind}" data-index="${i}" data-field="fee" value="${esc(tr.fee)}" /></div>
+    <div class="field"><label>Fee (${appSettings.currency}M)</label><input class="input" type="number" step="0.1" min="0" data-repeat="${kind}" data-index="${i}" data-field="fee" value="${esc(tr.fee)}" /></div>
     <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="${kind}" data-index="${i}" title="Remove">✕</button>
   </div>`;
 }
@@ -1019,7 +1844,7 @@ function renderSeasonFormHTML(d) {
     </details>
 
     <details class="form-section" id="fs-finances" ${detailsOpen(openFin)}>
-      <summary><span class="legend-icon">💰</span> Finances (${state.settings.currency}M)</summary>
+      <summary><span class="legend-icon">💰</span> Finances (${appSettings.currency}M)</summary>
       <div class="form-section-body">
       <div class="form-grid cols-4">
         <div class="field"><label>Transfer Budget</label><input class="input" type="number" step="0.1" id="f-fin-transferBudget" value="${esc(F.transferBudget)}" /></div>
@@ -1141,36 +1966,356 @@ function deleteSeason(id) {
   renderCurrentTab();
 }
 
+/* ---------------- Player season form (add/edit modal) ---------------- */
+
+function openPlayerSeasonModal(season) {
+  seasonModalMode = 'player';
+  playerSeasonDraft = season ? deepClone(season) : emptyPlayerSeason();
+  editingPlayerSeasonId = season ? season.id : null;
+  $('#season-modal-title').textContent = season ? `Edit Season — ${season.seasonLabel || ''} ${season.club || ''}` : 'Add Season';
+  $('#season-form-body').innerHTML = renderPlayerSeasonFormHTML(playerSeasonDraft);
+  $('#season-modal').hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+function playerCompetitionRowHTML(c, i) {
+  return `<div class="repeat-row">
+    <div class="field"><label>Competition</label><input class="input" data-repeat="pcompetitions" data-index="${i}" data-field="name" value="${esc(c.name)}" placeholder="e.g. FA Cup" /></div>
+    <div class="field"><label>Type</label>
+      <select class="input select" data-repeat="pcompetitions" data-index="${i}" data-field="type">
+        ${COMPETITION_TYPES.map(t => `<option value="${t}" ${c.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Result</label>
+      <select class="input select" data-repeat="pcompetitions" data-index="${i}" data-field="result">
+        ${RESULT_OPTIONS.map(r => `<option value="${r}" ${c.result === r ? 'selected' : ''}>${r}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Apps</label><input class="input" type="number" min="0" data-repeat="pcompetitions" data-index="${i}" data-field="apps" value="${esc(c.apps)}" /></div>
+    <div class="field"><label>Goals</label><input class="input" type="number" min="0" data-repeat="pcompetitions" data-index="${i}" data-field="goals" value="${esc(c.goals)}" /></div>
+    <div class="field"><label>Assists</label><input class="input" type="number" min="0" data-repeat="pcompetitions" data-index="${i}" data-field="assists" value="${esc(c.assists)}" /></div>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="pcompetitions" data-index="${i}" title="Remove">✕</button>
+  </div>`;
+}
+
+function reRenderPlayerRepeatSection() {
+  const container = $('#repeat-pcompetitions');
+  if (!container) return;
+  container.innerHTML = repeatRowsHTML('pcompetitions', playerSeasonDraft.competitions, playerCompetitionRowHTML);
+}
+
+function renderPlayerSeasonFormHTML(d) {
+  const R = d.ratings, A = d.appearances, AT = d.attack, DE = d.defending, GK = d.goalkeeping, DI = d.discipline, F = d.form, L = d.league, AW = d.awards, TR = d.transfer, C = d.contract, I = d.international;
+
+  const openAttack = !!(num(AT.goals) || num(AT.assists) || num(AT.shotsOnTarget) || num(AT.shotsTotal) || num(AT.keyPasses) || num(AT.dribbles));
+  const openDefending = !!(num(DE.tackles) || num(DE.interceptions) || num(DE.duelsWon));
+  const openGoalkeeping = !!(num(GK.saves) || num(GK.goalsConceded) || num(GK.cleanSheets));
+  const openDiscipline = !!(num(DI.yellow) || num(DI.red) || num(DI.fouls) || F.avgRating || num(F.motmCount));
+  const openTeam = !!(L.position || d.competitions.length > 0);
+  const openAwards = !!(AW.potsClub || AW.yotsClub || AW.teamOfSeason || AW.goldenBoot || AW.goldenGlove || AW.ballonDorRank || AW.otherAwards);
+  const openTransfer = !!TR.moved;
+  const openContract = !!(C.wage || C.yearsRemaining || C.releaseClause);
+  const openIntl = !!I.calledUp;
+
+  const quicknav = `<div class="modal-quicknav">${PLAYER_SEASON_SECTIONS.map(s =>
+    `<button type="button" class="quicknav-pill" data-action="jump-section" data-target="${s.id}">${s.icon} ${s.label}</button>`
+  ).join('')}</div>`;
+
+  return quicknav + `
+  <form id="player-season-form">
+    <details class="form-section" id="pfs-basics" open>
+      <summary><span class="legend-icon">📋</span> Basics</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-2">
+        <div class="field"><label>Season *</label><input class="input" id="pf-seasonLabel" required value="${esc(d.seasonLabel)}" placeholder="e.g. 2026/27" /></div>
+        <div class="field"><label>Club *</label><input class="input" id="pf-club" required value="${esc(d.club)}" placeholder="e.g. Manchester United" /></div>
+        <div class="field"><label>Country</label><input class="input" id="pf-country" value="${esc(d.country)}" placeholder="e.g. England" /></div>
+        <div class="field"><label>Division / Tier</label><input class="input" id="pf-divisionTier" value="${esc(d.divisionTier)}" placeholder="e.g. Premier League" /></div>
+        <div class="field"><label>Age</label><input class="input" type="number" min="14" max="50" id="pf-age" value="${esc(d.age)}" /></div>
+        <div class="field"><label>Shirt Number</label><input class="input" type="number" min="1" max="99" id="pf-shirtNumber" value="${esc(d.shirtNumber)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-ratings" open>
+      <summary><span class="legend-icon">📊</span> Ratings &amp; Development</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Overall (Start)</label><input class="input" type="number" min="1" max="99" id="pf-rat-overallStart" value="${esc(R.overallStart)}" /></div>
+        <div class="field"><label>Overall (End)</label><input class="input" type="number" min="1" max="99" id="pf-rat-overallEnd" value="${esc(R.overallEnd)}" /></div>
+        <div class="field"><label>Potential</label><input class="input" type="number" min="1" max="99" id="pf-rat-potential" value="${esc(R.potential)}" /></div>
+        <div class="field"><label>Skill Moves (1-5)</label><input class="input" type="number" min="1" max="5" id="pf-rat-skillMoves" value="${esc(R.skillMoves)}" /></div>
+        <div class="field"><label>Weak Foot (1-5)</label><input class="input" type="number" min="1" max="5" id="pf-rat-weakFoot" value="${esc(R.weakFoot)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-appearances" open>
+      <summary><span class="legend-icon">👟</span> Appearances</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Played</label><input class="input" type="number" min="0" id="pf-app-played" value="${esc(A.played)}" /></div>
+        <div class="field"><label>Started</label><input class="input" type="number" min="0" id="pf-app-started" value="${esc(A.started)}" /></div>
+        <div class="field"><label>Sub Appearances</label><input class="input" type="number" min="0" id="pf-app-subApps" value="${esc(A.subApps)}" /></div>
+        <div class="field"><label>Minutes Played</label><input class="input" type="number" min="0" id="pf-app-minutes" value="${esc(A.minutes)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-attack" ${detailsOpen(openAttack)}>
+      <summary><span class="legend-icon">⚽</span> Attacking Output</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Goals</label><input class="input" type="number" min="0" id="pf-atk-goals" value="${esc(AT.goals)}" /></div>
+        <div class="field"><label>Assists</label><input class="input" type="number" min="0" id="pf-atk-assists" value="${esc(AT.assists)}" /></div>
+        <div class="field"><label>Shots on Target</label><input class="input" type="number" min="0" id="pf-atk-shotsOnTarget" value="${esc(AT.shotsOnTarget)}" /></div>
+        <div class="field"><label>Total Shots</label><input class="input" type="number" min="0" id="pf-atk-shotsTotal" value="${esc(AT.shotsTotal)}" /></div>
+        <div class="field"><label>Key Passes</label><input class="input" type="number" min="0" id="pf-atk-keyPasses" value="${esc(AT.keyPasses)}" /></div>
+        <div class="field"><label>Dribbles Completed</label><input class="input" type="number" min="0" id="pf-atk-dribbles" value="${esc(AT.dribbles)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-defending" ${detailsOpen(openDefending)}>
+      <summary><span class="legend-icon">🛡️</span> Defending</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Tackles</label><input class="input" type="number" min="0" id="pf-def-tackles" value="${esc(DE.tackles)}" /></div>
+        <div class="field"><label>Interceptions</label><input class="input" type="number" min="0" id="pf-def-interceptions" value="${esc(DE.interceptions)}" /></div>
+        <div class="field"><label>Duels Won</label><input class="input" type="number" min="0" id="pf-def-duelsWon" value="${esc(DE.duelsWon)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-goalkeeping" ${detailsOpen(openGoalkeeping)}>
+      <summary><span class="legend-icon">🧤</span> Goalkeeping</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Saves</label><input class="input" type="number" min="0" id="pf-gk-saves" value="${esc(GK.saves)}" /></div>
+        <div class="field"><label>Goals Conceded</label><input class="input" type="number" min="0" id="pf-gk-goalsConceded" value="${esc(GK.goalsConceded)}" /></div>
+        <div class="field"><label>Clean Sheets</label><input class="input" type="number" min="0" id="pf-gk-cleanSheets" value="${esc(GK.cleanSheets)}" /></div>
+      </div>
+      <p class="hint" style="margin-top:8px;">Only relevant if you played in goal this season.</p>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-discipline" ${detailsOpen(openDiscipline)}>
+      <summary><span class="legend-icon">🟨</span> Discipline &amp; Form</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Yellow Cards</label><input class="input" type="number" min="0" id="pf-dis-yellow" value="${esc(DI.yellow)}" /></div>
+        <div class="field"><label>Red Cards</label><input class="input" type="number" min="0" id="pf-dis-red" value="${esc(DI.red)}" /></div>
+        <div class="field"><label>Fouls Committed</label><input class="input" type="number" min="0" id="pf-dis-fouls" value="${esc(DI.fouls)}" /></div>
+        <div class="field"><label>Avg. Match Rating</label><input class="input" type="number" step="0.01" min="0" max="10" id="pf-form-avgRating" value="${esc(F.avgRating)}" /></div>
+        <div class="field"><label>Man of the Match (count)</label><input class="input" type="number" min="0" id="pf-form-motmCount" value="${esc(F.motmCount)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-team" ${detailsOpen(openTeam)}>
+      <summary><span class="legend-icon">🏟️</span> Team Season &amp; Cup Competitions ${d.competitions.length ? `<span class="chip-count">${d.competitions.length}</span>` : ''}</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>League Position</label><input class="input" type="number" min="1" id="pf-league-position" value="${esc(L.position)}" /></div>
+        <div class="field"><label>Teams in League</label><input class="input" type="number" min="1" id="pf-league-leagueSize" value="${esc(L.leagueSize)}" /></div>
+      </div>
+      <div class="form-grid cols-2" style="margin-top:12px;">
+        <div class="field checkbox-field"><input type="checkbox" id="pf-league-promoted" ${L.promoted ? 'checked' : ''} /><label for="pf-league-promoted">Promoted</label></div>
+        <div class="field checkbox-field"><input type="checkbox" id="pf-league-relegated" ${L.relegated ? 'checked' : ''} /><label for="pf-league-relegated">Relegated</label></div>
+      </div>
+      <div class="repeat-list" id="repeat-pcompetitions" style="margin-top:14px;">${repeatRowsHTML('pcompetitions', d.competitions, playerCompetitionRowHTML)}</div>
+      <button type="button" class="add-row-btn" data-action="add-row" data-repeat="pcompetitions">+ Add Competition</button>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-awards" ${detailsOpen(openAwards)}>
+      <summary><span class="legend-icon">⭐</span> Individual Awards</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-2">
+        <div class="field checkbox-field"><input type="checkbox" id="pf-aw-potsClub" ${AW.potsClub ? 'checked' : ''} /><label for="pf-aw-potsClub">Club Player of the Season</label></div>
+        <div class="field checkbox-field"><input type="checkbox" id="pf-aw-yotsClub" ${AW.yotsClub ? 'checked' : ''} /><label for="pf-aw-yotsClub">Young Player of the Season</label></div>
+        <div class="field checkbox-field"><input type="checkbox" id="pf-aw-teamOfSeason" ${AW.teamOfSeason ? 'checked' : ''} /><label for="pf-aw-teamOfSeason">Team of the Season</label></div>
+        <div class="field checkbox-field"><input type="checkbox" id="pf-aw-goldenBoot" ${AW.goldenBoot ? 'checked' : ''} /><label for="pf-aw-goldenBoot">League Golden Boot</label></div>
+        <div class="field checkbox-field"><input type="checkbox" id="pf-aw-goldenGlove" ${AW.goldenGlove ? 'checked' : ''} /><label for="pf-aw-goldenGlove">League Golden Glove</label></div>
+        <div class="field"><label>Ballon d'Or Finish (e.g. 3rd)</label><input class="input" id="pf-aw-ballonDorRank" value="${esc(AW.ballonDorRank)}" /></div>
+      </div>
+      <div class="field field-full" style="margin-top:12px;"><label>Other Awards</label><textarea class="input" id="pf-aw-otherAwards" placeholder="Anything else worth noting...">${esc(AW.otherAwards)}</textarea></div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-transfer" ${detailsOpen(openTransfer)}>
+      <summary><span class="legend-icon">🔄</span> Transfer</summary>
+      <div class="form-section-body">
+      <div class="field checkbox-field" style="margin-bottom:12px;"><input type="checkbox" id="pf-tr-moved" ${TR.moved ? 'checked' : ''} /><label for="pf-tr-moved">Moved clubs this season</label></div>
+      <div class="form-grid cols-4">
+        <div class="field"><label>From Club</label><input class="input" id="pf-tr-fromClub" value="${esc(TR.fromClub)}" /></div>
+        <div class="field"><label>To Club</label><input class="input" id="pf-tr-toClub" value="${esc(TR.toClub)}" /></div>
+        <div class="field"><label>Fee (${appSettings.currency}M)</label><input class="input" type="number" step="0.1" min="0" id="pf-tr-fee" value="${esc(TR.fee)}" /></div>
+        <div class="field"><label>Type</label>
+          <select class="input select" id="pf-tr-type">
+            ${TRANSFER_TYPES.map(t => `<option value="${t}" ${TR.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-contract" ${detailsOpen(openContract)}>
+      <summary><span class="legend-icon">📄</span> Contract</summary>
+      <div class="form-section-body">
+      <div class="form-grid cols-4">
+        <div class="field"><label>Weekly Wage (${appSettings.currency}k)</label><input class="input" type="number" step="0.1" id="pf-ct-wage" value="${esc(C.wage)}" /></div>
+        <div class="field"><label>Years Remaining</label><input class="input" type="number" step="0.5" min="0" id="pf-ct-yearsRemaining" value="${esc(C.yearsRemaining)}" /></div>
+        <div class="field"><label>Release Clause (${appSettings.currency}M)</label><input class="input" type="number" step="0.1" id="pf-ct-releaseClause" value="${esc(C.releaseClause)}" /></div>
+      </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-international" ${detailsOpen(openIntl)}>
+      <summary><span class="legend-icon">🌍</span> International Duty</summary>
+      <div class="form-section-body">
+      <div class="field checkbox-field" style="margin-bottom:12px;"><input type="checkbox" id="pf-intl-calledUp" ${I.calledUp ? 'checked' : ''} /><label for="pf-intl-calledUp">Called up this season</label></div>
+      <div class="form-grid cols-4">
+        <div class="field"><label>National Team</label><input class="input" id="pf-intl-team" value="${esc(I.team)}" /></div>
+        <div class="field"><label>Caps</label><input class="input" type="number" min="0" id="pf-intl-caps" value="${esc(I.caps)}" /></div>
+        <div class="field"><label>Goals</label><input class="input" type="number" min="0" id="pf-intl-goals" value="${esc(I.goals)}" /></div>
+        <div class="field"><label>Tournament (if any)</label><input class="input" id="pf-intl-tournament" placeholder="e.g. World Cup" value="${esc(I.tournament)}" /></div>
+      </div>
+      <div class="field field-full" style="margin-top:12px;"><label>Tournament Result</label><input class="input" id="pf-intl-tournamentResult" placeholder="e.g. Reached the Final" value="${esc(I.tournamentResult)}" /></div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-notes" ${detailsOpen(!!d.notes)}>
+      <summary><span class="legend-icon">📝</span> Season Notes</summary>
+      <div class="form-section-body">
+      <textarea class="input" id="pf-notes" placeholder="Anything else worth remembering about this season...">${esc(d.notes)}</textarea>
+      </div>
+    </details>
+
+    <div class="modal-footer-actions">
+      <div>${editingPlayerSeasonId ? `<button type="button" class="btn btn-danger btn-sm" data-action="delete-player-season" data-id="${editingPlayerSeasonId}">Delete Season</button>` : '<span></span>'}</div>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-ghost" data-action="close-season-modal">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Season</button>
+      </div>
+    </div>
+  </form>`;
+}
+
+function collectPlayerSeasonFormIntoDraft() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const gc = id => { const el = document.getElementById(id); return el ? el.checked : false; };
+  const d = playerSeasonDraft;
+
+  d.seasonLabel = g('pf-seasonLabel').trim();
+  d.club = g('pf-club').trim();
+  d.country = g('pf-country').trim();
+  d.divisionTier = g('pf-divisionTier').trim();
+  d.age = g('pf-age');
+  d.shirtNumber = g('pf-shirtNumber');
+
+  d.ratings = {
+    overallStart: g('pf-rat-overallStart'), overallEnd: g('pf-rat-overallEnd'), potential: g('pf-rat-potential'),
+    skillMoves: clamp(num(g('pf-rat-skillMoves'), 3), 1, 5), weakFoot: clamp(num(g('pf-rat-weakFoot'), 3), 1, 5)
+  };
+  d.appearances = {
+    played: num(g('pf-app-played')), started: num(g('pf-app-started')),
+    subApps: num(g('pf-app-subApps')), minutes: num(g('pf-app-minutes'))
+  };
+  d.attack = {
+    goals: num(g('pf-atk-goals')), assists: num(g('pf-atk-assists')),
+    shotsOnTarget: num(g('pf-atk-shotsOnTarget')), shotsTotal: num(g('pf-atk-shotsTotal')),
+    keyPasses: num(g('pf-atk-keyPasses')), dribbles: num(g('pf-atk-dribbles'))
+  };
+  d.defending = { tackles: num(g('pf-def-tackles')), interceptions: num(g('pf-def-interceptions')), duelsWon: num(g('pf-def-duelsWon')) };
+  d.goalkeeping = { saves: num(g('pf-gk-saves')), goalsConceded: num(g('pf-gk-goalsConceded')), cleanSheets: num(g('pf-gk-cleanSheets')) };
+  d.discipline = { yellow: num(g('pf-dis-yellow')), red: num(g('pf-dis-red')), fouls: num(g('pf-dis-fouls')) };
+  d.form = { avgRating: g('pf-form-avgRating'), motmCount: num(g('pf-form-motmCount')) };
+  d.league = {
+    position: g('pf-league-position') === '' ? '' : num(g('pf-league-position')),
+    leagueSize: g('pf-league-leagueSize') === '' ? '' : num(g('pf-league-leagueSize')),
+    promoted: gc('pf-league-promoted'), relegated: gc('pf-league-relegated')
+  };
+  d.awards = {
+    potsClub: gc('pf-aw-potsClub'), yotsClub: gc('pf-aw-yotsClub'), teamOfSeason: gc('pf-aw-teamOfSeason'),
+    goldenBoot: gc('pf-aw-goldenBoot'), goldenGlove: gc('pf-aw-goldenGlove'),
+    ballonDorRank: g('pf-aw-ballonDorRank').trim(), otherAwards: g('pf-aw-otherAwards').trim()
+  };
+  d.transfer = {
+    moved: gc('pf-tr-moved'), fromClub: g('pf-tr-fromClub').trim(), toClub: g('pf-tr-toClub').trim(),
+    fee: g('pf-tr-fee'), type: g('pf-tr-type')
+  };
+  d.contract = { wage: g('pf-ct-wage'), yearsRemaining: g('pf-ct-yearsRemaining'), releaseClause: g('pf-ct-releaseClause') };
+  d.international = {
+    calledUp: gc('pf-intl-calledUp'), team: g('pf-intl-team').trim(), caps: num(g('pf-intl-caps')), goals: num(g('pf-intl-goals')),
+    tournament: g('pf-intl-tournament').trim(), tournamentResult: g('pf-intl-tournamentResult').trim()
+  };
+  d.notes = g('pf-notes').trim();
+  return d;
+}
+
+function savePlayerSeasonDraft() {
+  collectPlayerSeasonFormIntoDraft();
+  if (!playerSeasonDraft.seasonLabel || !playerSeasonDraft.club) {
+    toast('Season and club are required', 'danger');
+    return;
+  }
+  const idx = pState.seasons.findIndex(s => s.id === playerSeasonDraft.id);
+  if (idx >= 0) pState.seasons[idx] = playerSeasonDraft;
+  else pState.seasons.push(playerSeasonDraft);
+  savePlayerState();
+  closeSeasonModal();
+  toast('Season saved');
+  renderCurrentTab();
+}
+
+function deletePlayerSeason(id) {
+  pState.seasons = pState.seasons.filter(s => s.id !== id);
+  savePlayerState();
+  toast('Season deleted', 'danger');
+  if (!$('#season-modal').hidden) closeSeasonModal();
+  renderCurrentTab();
+}
+
 /* ---------------- Import / Export ---------------- */
 
 function exportJSON() {
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const mode = appSettings.mode;
+  const active = mode === 'player' ? pState : state;
+  const exportObj = mode === 'player'
+    ? { player: active.player, seasons: active.seasons }
+    : { manager: active.manager, seasons: active.seasons };
+  const blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const safeName = (state.manager.name || 'fc-career').replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
+  const nameSrc = mode === 'player' ? active.player.name : active.manager.name;
+  const safeName = (nameSrc || (mode === 'player' ? 'player-save' : 'manager-save')).replace(/[^a-z0-9-]+/gi, '-').toLowerCase();
   a.href = url;
-  a.download = `${safeName}-career-tracker.json`;
+  a.download = `${safeName}-${mode}-save.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  toast('Exported career data');
+  toast('Exported save data');
 }
 
 function importJSON(file) {
+  const mode = appSettings.mode;
   const reader = new FileReader();
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
       if (!parsed || typeof parsed !== 'object') throw new Error('Invalid file');
-      state = Object.assign(defaultState(), parsed, {
-        manager: Object.assign(defaultState().manager, parsed.manager || {}),
-        settings: Object.assign(defaultState().settings, parsed.settings || {}),
-        seasons: Array.isArray(parsed.seasons) ? parsed.seasons : []
-      });
-      saveState();
-      applyTheme();
-      toast('Career data imported');
+      if (mode === 'player') {
+        pState.player = Object.assign(emptyPlayerProfile(), parsed.player || {});
+        pState.seasons = Array.isArray(parsed.seasons) ? parsed.seasons : [];
+        savePlayerState();
+      } else {
+        state.manager = Object.assign(emptyManagerProfile(), parsed.manager || {});
+        state.seasons = Array.isArray(parsed.seasons) ? parsed.seasons : [];
+        saveState();
+      }
+      toast('Save data imported');
       renderCurrentTab();
     } catch (e) {
       toast('Import failed — invalid JSON file', 'danger');
@@ -1182,7 +2327,7 @@ function importJSON(file) {
 /* ---------------- Theme ---------------- */
 
 function applyTheme() {
-  const theme = state.settings.theme;
+  const theme = appSettings.theme;
   if (theme === 'system') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', theme);
 }
@@ -1201,11 +2346,20 @@ function wireEvents() {
   $('#mobile-nav-close').addEventListener('click', closeSidebar);
   $('#sidebar-backdrop').addEventListener('click', closeSidebar);
 
-  $('#add-season-btn').addEventListener('click', () => openSeasonModal(null));
-  $('#add-season-btn-side').addEventListener('click', () => openSeasonModal(null));
+  $('#mode-switch').addEventListener('click', e => {
+    const btn = e.target.closest('.mode-switch-btn');
+    if (btn) switchMode(btn.dataset.mode);
+  });
+
+  function openAnySeasonModal() { appSettings.mode === 'player' ? openPlayerSeasonModal(null) : openSeasonModal(null); }
+  $('#add-season-btn').addEventListener('click', openAnySeasonModal);
+  $('#add-season-btn-side').addEventListener('click', openAnySeasonModal);
 
   $('#season-modal-close').addEventListener('click', closeSeasonModal);
   $('#season-modal').addEventListener('click', e => { if (e.target.id === 'season-modal') closeSeasonModal(); });
+
+  $('#save-manager-close').addEventListener('click', closeSaveManagerModal);
+  $('#save-manager-modal').addEventListener('click', e => { if (e.target.id === 'save-manager-modal') closeSaveManagerModal(); });
 
   $('#confirm-modal-cancel').addEventListener('click', closeConfirmModal);
   $('#confirm-modal-ok').addEventListener('click', () => {
@@ -1218,6 +2372,7 @@ function wireEvents() {
     if (e.key === 'Escape') {
       if (!$('#confirm-modal').hidden) closeConfirmModal();
       else if (!$('#season-modal').hidden) closeSeasonModal();
+      else if (!$('#save-manager-modal').hidden) closeSaveManagerModal();
     }
   });
 
@@ -1228,6 +2383,7 @@ function wireEvents() {
     const action = t.dataset.action;
 
     if (action === 'open-add-season') openSeasonModal(null);
+    else if (action === 'open-add-player-season') openPlayerSeasonModal(null);
     else if (action === 'close-season-modal') closeSeasonModal();
     else if (action === 'edit-season') {
       const s = state.seasons.find(s => s.id === t.dataset.id);
@@ -1235,15 +2391,31 @@ function wireEvents() {
     } else if (action === 'delete-season') {
       const s = state.seasons.find(s => s.id === t.dataset.id);
       confirmDialog(`Delete ${s ? s.seasonLabel + ' at ' + s.club : 'this season'}? This cannot be undone.`, () => deleteSeason(t.dataset.id));
+    } else if (action === 'edit-player-season') {
+      const s = pState.seasons.find(s => s.id === t.dataset.id);
+      if (s) openPlayerSeasonModal(s);
+    } else if (action === 'delete-player-season') {
+      const s = pState.seasons.find(s => s.id === t.dataset.id);
+      confirmDialog(`Delete ${s ? s.seasonLabel + ' at ' + s.club : 'this season'}? This cannot be undone.`, () => deletePlayerSeason(t.dataset.id));
     } else if (action === 'add-row') {
       const kind = t.dataset.repeat;
-      const factory = kind === 'competitions' ? emptyCompetition : kind === 'boardObjectives' ? emptyObjective : emptyTransfer;
-      seasonDraft[kind].push(factory());
-      reRenderRepeatSection(kind);
+      if (kind === 'pcompetitions') {
+        playerSeasonDraft[kind].push(emptyPlayerCompetition());
+        reRenderPlayerRepeatSection();
+      } else {
+        const factory = kind === 'competitions' ? emptyCompetition : kind === 'boardObjectives' ? emptyObjective : emptyTransfer;
+        seasonDraft[kind].push(factory());
+        reRenderRepeatSection(kind);
+      }
     } else if (action === 'remove-row') {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10);
-      seasonDraft[kind].splice(idx, 1);
-      reRenderRepeatSection(kind);
+      if (kind === 'pcompetitions') {
+        playerSeasonDraft[kind].splice(idx, 1);
+        reRenderPlayerRepeatSection();
+      } else {
+        seasonDraft[kind].splice(idx, 1);
+        reRenderRepeatSection(kind);
+      }
     } else if (action === 'jump-section') {
       const target = document.getElementById(t.dataset.target);
       if (target) {
@@ -1253,8 +2425,8 @@ function wireEvents() {
           target.scrollIntoView({ behavior: 'auto', block: 'start' });
         });
       }
-    } else if (action === 'jump-settings') {
-      switchTab('settings');
+    } else if (action === 'open-save-manager') {
+      openSaveManagerModal();
     } else if (action === 'save-profile') {
       state.manager.name = $('#f-mgr-name').value.trim();
       state.manager.nationality = $('#f-mgr-nat').value.trim();
@@ -1263,16 +2435,60 @@ function wireEvents() {
       saveState();
       toast('Profile saved');
       updateHeaderSubtitle();
+    } else if (action === 'save-player-profile') {
+      pState.player.name = $('#pf-plr-name').value.trim();
+      pState.player.nationality = $('#pf-plr-nat').value.trim();
+      pState.player.position = $('#pf-plr-position').value;
+      pState.player.startingClub = $('#pf-plr-club').value.trim();
+      pState.player.careerStartYear = $('#pf-plr-year').value.trim();
+      savePlayerState();
+      toast('Profile saved');
+      updateHeaderSubtitle();
     } else if (action === 'export-json') {
       exportJSON();
     } else if (action === 'reset-all') {
-      confirmDialog('Reset ALL career data? Your manager profile and every season will be permanently deleted.', () => {
-        state = defaultState();
-        saveState();
-        applyTheme();
-        toast('All data reset', 'danger');
-        switchTab('dashboard');
+      const mode = appSettings.mode;
+      const label = mode === 'player' ? 'this player save' : 'this manager save';
+      confirmDialog(`Reset ${label}? The profile and every season in it will be permanently cleared. This cannot be undone.`, () => {
+        if (mode === 'player') {
+          const keepId = pState.id, keepName = pState.name;
+          pState = Object.assign({ id: keepId, name: keepName, createdAt: pState.createdAt, updatedAt: Date.now() }, emptyPlayerSaveData());
+          savePlayerState();
+        } else {
+          const keepId = state.id, keepName = state.name;
+          state = Object.assign({ id: keepId, name: keepName, createdAt: state.createdAt, updatedAt: Date.now() }, emptyManagerSaveData());
+          saveState();
+        }
+        toast('Save data reset', 'danger');
+        switchTab(mode === 'player' ? 'p-dashboard' : 'dashboard');
       });
+    } else if (action === 'switch-save') {
+      switchToSave(saveManagerMode, t.dataset.id);
+    } else if (action === 'rename-save') {
+      startInlineRename(t.dataset.id);
+    } else if (action === 'duplicate-save') {
+      const copy = duplicateSave(saveManagerMode, t.dataset.id);
+      if (copy) { toast('Save duplicated'); renderSaveManagerList($('#save-manager-search') ? $('#save-manager-search').value : ''); }
+    } else if (action === 'delete-save') {
+      const mode = saveManagerMode;
+      const saves = loadSaves(mode);
+      if (saves.length <= 1) { toast('You need at least one save — create another before deleting this one', 'danger'); return; }
+      const target = saves.find(s => s.id === t.dataset.id);
+      confirmDialog(`Delete "${target ? saveDisplayName(mode, target) : 'this save'}"? This cannot be undone.`, () => {
+        deleteSaveSlot(mode, t.dataset.id);
+        if (mode === 'manager') state = getActiveSave('manager'); else pState = getActiveSave('player');
+        toast('Save deleted', 'danger');
+        renderSaveManagerList($('#save-manager-search') ? $('#save-manager-search').value : '');
+        renderCurrentTab();
+      });
+    } else if (action === 'create-save') {
+      const nameInput = $('#save-manager-new-name');
+      const save = createSave(saveManagerMode, nameInput ? nameInput.value : '');
+      if (save) {
+        switchToSave(saveManagerMode, save.id);
+        toast('Save created');
+        switchTab(saveManagerMode === 'player' ? 'p-dashboard' : 'dashboard');
+      }
     }
   });
 
@@ -1281,22 +2497,33 @@ function wireEvents() {
     const t = e.target;
     if (t.matches('[data-repeat][data-field]')) {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10), field = t.dataset.field;
-      if (!seasonDraft || !seasonDraft[kind] || !seasonDraft[kind][idx]) return;
-      seasonDraft[kind][idx][field] = t.type === 'checkbox' ? t.checked : t.value;
+      const draft = kind === 'pcompetitions' ? playerSeasonDraft : seasonDraft;
+      if (!draft || !draft[kind] || !draft[kind][idx]) return;
+      draft[kind][idx][field] = t.type === 'checkbox' ? t.checked : t.value;
+    }
+    if (t.id === 'save-manager-search') refreshSaveListOnly(t.value);
+  });
+
+  $('#save-manager-body').addEventListener('keydown', e => {
+    if (e.target.id === 'save-manager-new-name' && e.key === 'Enter') {
+      e.preventDefault();
+      $('#save-manager-create-btn').click();
     }
   });
   document.addEventListener('change', e => {
     const t = e.target;
     if (t.matches('[data-repeat][data-field][type="checkbox"]')) {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10), field = t.dataset.field;
-      if (!seasonDraft || !seasonDraft[kind] || !seasonDraft[kind][idx]) return;
-      seasonDraft[kind][idx][field] = t.checked;
+      const draft = kind === 'pcompetitions' ? playerSeasonDraft : seasonDraft;
+      if (!draft || !draft[kind] || !draft[kind][idx]) return;
+      draft[kind][idx][field] = t.checked;
     }
     if (t.id === 'theme-toggle' || t.closest?.('#theme-toggle')) return;
   });
 
   $('#season-form-body').addEventListener('submit', e => {
     if (e.target.id === 'season-form') { e.preventDefault(); saveSeasonDraft(); }
+    else if (e.target.id === 'player-season-form') { e.preventDefault(); savePlayerSeasonDraft(); }
   });
 
   // Quicknav scroll-spy inside the season modal
@@ -1307,7 +2534,8 @@ function wireEvents() {
     requestAnimationFrame(() => {
       spyPending = false;
       let currentId = null;
-      SEASON_SECTIONS.forEach(s => {
+      const sections = seasonModalMode === 'player' ? PLAYER_SEASON_SECTIONS : SEASON_SECTIONS;
+      sections.forEach(s => {
         const el = document.getElementById(s.id);
         if (el && el.getBoundingClientRect().top - 150 <= 0) currentId = s.id;
       });
@@ -1318,24 +2546,27 @@ function wireEvents() {
   // Seasons tab controls
   $('#season-search').addEventListener('input', renderSeasons);
   $('#season-sort').addEventListener('change', renderSeasons);
+  $('#p-season-search').addEventListener('input', renderPlayerSeasons);
+  $('#p-season-sort').addEventListener('change', renderPlayerSeasons);
 
   // Settings tab (delegated because content is re-rendered)
-  $('#view-settings').addEventListener('click', e => {
-    const btn = e.target.closest('#theme-toggle button');
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.theme-toggle button');
     if (btn) {
-      state.settings.theme = btn.dataset.theme;
-      saveState();
+      appSettings.theme = btn.dataset.theme;
+      saveAppSettings();
       applyTheme();
-      renderSettings();
+      renderCurrentTab();
     }
   });
-  $('#view-settings').addEventListener('change', e => {
-    if (e.target.id === 'f-currency') {
-      state.settings.currency = e.target.value;
-      saveState();
+  document.addEventListener('change', e => {
+    if (e.target.matches('.currency-select')) {
+      appSettings.currency = e.target.value;
+      saveAppSettings();
       toast('Currency updated');
+      renderCurrentTab();
     }
-    if (e.target.id === 'import-file-input' && e.target.files[0]) {
+    if (e.target.matches('.import-file-input') && e.target.files[0]) {
       importJSON(e.target.files[0]);
       e.target.value = '';
     }
@@ -1344,10 +2575,49 @@ function wireEvents() {
 
 /* ---------------- Init ---------------- */
 
+/* ---------------- PWA: service worker + install prompt ---------------- */
+
+let deferredInstallPrompt = null;
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'http:' && location.protocol !== 'https:') return; // skip on file:// (Electron)
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => { /* offline support best-effort only */ });
+  });
+}
+
+function wireInstallPrompt() {
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    $$('.install-app-row').forEach(row => row.hidden = false);
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    $$('.install-app-row').forEach(row => row.hidden = true);
+    toast('App installed');
+  });
+  document.addEventListener('click', async e => {
+    if (!e.target.closest('.install-app-btn')) return;
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    $$('.install-app-row').forEach(row => row.hidden = true);
+  });
+}
+
 function init() {
+  state = getActiveSave('manager');
+  pState = getActiveSave('player');
   applyTheme();
+  document.documentElement.setAttribute('data-app-mode', appSettings.mode);
+  $$('.mode-switch-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === appSettings.mode));
   wireEvents();
-  switchTab('dashboard');
+  registerServiceWorker();
+  wireInstallPrompt();
+  switchTab(appSettings.mode === 'player' ? 'p-dashboard' : 'dashboard');
 }
 
 document.addEventListener('DOMContentLoaded', init);

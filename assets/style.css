@@ -265,9 +265,76 @@ a { color: var(--accent-2); }
   font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0;
   text-transform: uppercase;
 }
-.manager-mini-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.manager-mini-text { display: flex; flex-direction: column; min-width: 0; gap: 1px; flex: 1; }
 .manager-mini-name { font-size: 12.5px; font-weight: 750; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .manager-mini-sub { font-size: 11px; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-footer-chevron { flex-shrink: 0; color: var(--text-faint); }
+
+/* ---------------- Mode switcher ---------------- */
+
+.mode-switch {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  margin: 0 2px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+}
+.mode-switch-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: none; border: none; color: var(--text-dim);
+  padding: 8px 10px; border-radius: var(--radius-pill);
+  font-size: 12.5px; font-weight: 750; cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s var(--ease-out);
+}
+.mode-switch-btn:hover { color: var(--text); }
+.mode-switch-btn.active {
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-2-rgb), 0.2));
+  color: var(--text);
+  box-shadow: 0 2px 10px rgba(var(--accent-rgb), 0.15);
+}
+
+/* Show only the nav buttons / add-season label that match the active mode */
+.tab-btn[data-mode="player"] { display: none; }
+:root[data-app-mode="player"] .tab-btn[data-mode="manager"] { display: none; }
+:root[data-app-mode="player"] .tab-btn[data-mode="player"] { display: flex; }
+
+/* ---------------- Save Manager ---------------- */
+
+.save-manager-modal { max-width: 620px; }
+.save-manager-toolbar { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+.save-manager-toolbar .input { flex: 1; min-width: 160px; }
+.save-manager-count {
+  font-size: 11.5px; font-weight: 800; color: var(--text-faint);
+  background: var(--glass-bg-strong); border: 1px solid var(--glass-border);
+  padding: 6px 12px; border-radius: var(--radius-pill); white-space: nowrap;
+}
+.save-create-row {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.save-create-row .input { flex: 1; }
+.save-list { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; padding-right: 2px; }
+.save-card {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  border-radius: var(--radius); padding: 13px 14px;
+  transition: border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
+}
+.save-card.is-active { border-color: rgba(var(--accent-rgb), 0.45); background: var(--glass-bg-hover); }
+.save-card-main { flex: 1; min-width: 0; }
+.save-card-name-row { display: flex; align-items: center; gap: 8px; }
+.save-card-name { font-size: 14px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.save-card-name-input { font-size: 14px; font-weight: 800; }
+.save-card-meta { font-size: 11.5px; color: var(--text-faint); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.save-card-badge {
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+  background: rgba(var(--accent-rgb), 0.18); color: var(--accent);
+  padding: 2px 8px; border-radius: var(--radius-pill); flex-shrink: 0;
+}
+.save-card-actions { display: flex; gap: 5px; flex-shrink: 0; }
 
 .sidebar-backdrop {
   display: none;
