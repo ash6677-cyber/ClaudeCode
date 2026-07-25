@@ -404,6 +404,19 @@ function buildContinental(material) {
   return g;
 }
 
+function starShape(outerR, innerR, points) {
+  const shape = new THREE.Shape();
+  const step = Math.PI / points;
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const a = i * step - Math.PI / 2;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    if (i === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return shape;
+}
+
 function buildShield(material) {
   ensureSharedResources();
   const g = new THREE.Group();
@@ -412,18 +425,18 @@ function buildShield(material) {
   const standH = 0.36;
   const shieldBottomWorld = plinthH + standH; // top of the stand — shield sits fully above it, no overlap
 
-  // Heraldic shield outline: short flat header, then sides that curve
-  // inward to a rounded point — proportioned so the curve (not the flat
-  // top) dominates the silhouette, the way an actual shield reads at a
-  // glance instead of a flat-topped slab.
-  const halfW = 0.5, topY = 0.55, shoulderY = 0.12, tipY = -0.62;
+  // Heraldic shield outline: an arched, gently domed top and shoulders that
+  // flare outward before curving in to a rounded point — a flat top and
+  // straight sides read as a paddle blade, not a shield. Built entirely
+  // from bezier curves (no straight edges at all) so every silhouette line
+  // is a real curve.
+  const halfW = 0.52, topY = 0.5, shoulderY = 0.2, tipY = -0.7;
   const shape = new THREE.Shape();
-  shape.moveTo(-halfW, topY);
-  shape.lineTo(halfW, topY);
-  shape.lineTo(halfW, shoulderY);
-  shape.bezierCurveTo(halfW, -0.28, 0.32, -0.58, 0.0, tipY);
-  shape.bezierCurveTo(-0.32, -0.58, -halfW, -0.28, -halfW, shoulderY);
-  shape.lineTo(-halfW, topY);
+  shape.moveTo(0, topY);
+  shape.bezierCurveTo(halfW * 0.55, topY + 0.07, halfW, topY - 0.12, halfW, shoulderY);
+  shape.bezierCurveTo(halfW, -0.3, 0.32, -0.6, 0.0, tipY);
+  shape.bezierCurveTo(-0.32, -0.6, -halfW, -0.3, -halfW, shoulderY);
+  shape.bezierCurveTo(-halfW, topY - 0.12, -halfW * 0.55, topY + 0.07, 0, topY);
 
   const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 6, curveSegments: 32 });
   geo.computeBoundingBox();
@@ -442,30 +455,37 @@ function buildShield(material) {
   // slightly from the edge so a thin metal frame remains visible — the
   // extrude's own front cap is a flat, un-subdivided triangle fan and can't
   // shade like metal no matter how curvy the outline is, so this
-  // separately-subdivided panel (following the same taper) is the actual
-  // visible "face" of the shield.
-  const inset = 0.06;
-  const plaqueTopY = topY - 0.05;
-  const plaqueBottomY = tipY + 0.07;
+  // separately-subdivided panel (tapering to match the arched top and
+  // pointed bottom) is the actual visible "face" of the shield.
+  const inset = 0.055;
+  const plaqueTopY = topY - 0.02;
+  const plaqueBottomY = tipY + 0.03;
   const plaqueWidth = y => {
-    if (y >= shoulderY) return halfW - inset;
+    const insetW = halfW - inset;
+    if (y >= shoulderY) {
+      const t = Math.max(0, Math.min(1, (topY - y) / (topY - shoulderY)));
+      return insetW * Math.pow(t, 0.5);
+    }
     const t = Math.max(0, Math.min(1, (y - tipY) / (shoulderY - tipY)));
-    return (halfW - inset) * Math.pow(t, 0.6);
+    return insetW * Math.pow(t, 0.6);
   };
-  const plaqueGeo = buildDomedPanel(plaqueWidth, plaqueBottomY, plaqueTopY, 22, 16, 0.1);
+  const plaqueGeo = buildDomedPanel(plaqueWidth, plaqueBottomY, plaqueTopY, 26, 16, 0.1);
   const plaque = new THREE.Mesh(plaqueGeo, material);
   plaque.position.y = meshY - shapeCenterY;
   plaque.position.z = 0.11;
   g.add(plaque);
 
-  const badgeY = toWorldY((topY + shoulderY) / 2);
-  const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 48), sharedPlinthMaterial);
-  badge.rotation.x = Math.PI / 2;
-  badge.position.set(0, badgeY, 0.22);
-  g.add(badge);
-  const badgeRing = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.018, 12, 48), material);
-  badgeRing.position.set(0, badgeY, 0.225);
-  g.add(badgeRing);
+  // A raised star emblem in the same metal reads as an embossed badge —
+  // a flat recessed dark disc just reads as a hole punched through.
+  const badgeY = toWorldY(shoulderY + (topY - shoulderY) * 0.35);
+  const starGeo = new THREE.ExtrudeGeometry(starShape(0.16, 0.066, 5), { depth: 0.05, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 3, curveSegments: 10 });
+  starGeo.center();
+  const star = new THREE.Mesh(starGeo, material);
+  star.position.set(0, badgeY, 0.25);
+  g.add(star);
+  const starRing = new THREE.Mesh(new THREE.TorusGeometry(0.21, 0.013, 10, 40), material);
+  starRing.position.set(0, badgeY, 0.205);
+  g.add(starRing);
 
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, standH, 24), material);
   stand.position.y = plinthH + standH / 2;
