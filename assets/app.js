@@ -415,7 +415,7 @@ function saveListCardsHTML(mode, query) {
 
   return filtered.length ? filtered.map(s => {
     const isActive = s.id === activeId;
-    return `<div class="save-card ${isActive ? 'is-active' : ''}" data-save-id="${s.id}">
+    return `<div class="save-card ${isActive ? 'is-active' : ''}" data-save-id="${s.id}" ${isActive ? '' : `data-action="switch-save" data-id="${s.id}"`}>
       <span class="manager-avatar">${esc(saveDisplayName(mode, s).trim().slice(0, 2).toUpperCase())}</span>
       <div class="save-card-main">
         <div class="save-card-name-row">

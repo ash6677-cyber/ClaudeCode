@@ -323,6 +323,8 @@ a { color: var(--accent-2); }
   border-radius: var(--radius); padding: 13px 14px;
   transition: border-color 0.2s var(--ease-out), background 0.2s var(--ease-out);
 }
+.save-card:not(.is-active) { cursor: pointer; }
+.save-card:not(.is-active):hover { border-color: var(--glass-border-strong); background: var(--glass-bg-hover); }
 .save-card.is-active { border-color: rgba(var(--accent-rgb), 0.45); background: var(--glass-bg-hover); }
 .save-card-main { flex: 1; min-width: 0; }
 .save-card-name-row { display: flex; align-items: center; gap: 8px; }
