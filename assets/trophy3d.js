@@ -34,7 +34,7 @@ const instances = new Map();
 /* ---- Shared (never-disposed) resources ---- */
 
 function makeShadowTexture() {
-  const size = 256;
+  const size = 512;
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d');
@@ -101,16 +101,16 @@ function buildEnvScene() {
   };
 
   // Large soft overhead key light — gentle gradient, not a flat color block.
-  panel(makeSoftGradientTexture(512, '#fbf3e4', '#14161e', 0.35), 0xffffff, 0, 5.5, -1, Math.PI / 2.15, 0, 1.4);
+  panel(makeSoftGradientTexture(1024, '#fbf3e4', '#14161e', 0.35), 0xffffff, 0, 5.5, -1, Math.PI / 2.15, 0, 1.4);
   // Studio window/grid banks either side, the classic reason polished metal
   // reads as "real" instead of "plastic" — reflections pick up many small
   // panes rather than one solid color.
-  panel(makeStudioGridTexture(512, 5, '#eef2f8', '#1a1c24'), 0xffffff, -4.6, 0.4, 1.5, 0, Math.PI / 2.05, 1.15);
-  panel(makeStudioGridTexture(512, 6, '#f4efe6', '#20222c'), 0xffffff, 4.6, -0.3, 1.5, 0, -Math.PI / 2.05, 1.05);
+  panel(makeStudioGridTexture(1024, 5, '#eef2f8', '#1a1c24'), 0xffffff, -4.6, 0.4, 1.5, 0, Math.PI / 2.05, 1.15);
+  panel(makeStudioGridTexture(1024, 6, '#f4efe6', '#20222c'), 0xffffff, 4.6, -0.3, 1.5, 0, -Math.PI / 2.05, 1.05);
   // Dim, muted ground bounce so undersides aren't pitch black.
-  panel(makeSoftGradientTexture(512, '#3a3428', '#0c0d12', 0.5), 0xffffff, 0, -4.6, 1.5, -Math.PI / 2.2, 0, 1);
+  panel(makeSoftGradientTexture(1024, '#3a3428', '#0c0d12', 0.5), 0xffffff, 0, -4.6, 1.5, -Math.PI / 2.2, 0, 1);
   // Subtle rear fill, kept neutral rather than saturated.
-  panel(makeSoftGradientTexture(512, '#e7e2da', '#14161e', 0.4), 0xffffff, 0, 0.8, 4.8, Math.PI, 0, 0.85);
+  panel(makeSoftGradientTexture(1024, '#e7e2da', '#14161e', 0.4), 0xffffff, 0, 0.8, 4.8, Math.PI, 0, 0.85);
 
   return envScene;
 }
@@ -445,7 +445,13 @@ function ensureRenderer() {
   canvas.id = 'trophy3d-shared-canvas';
   document.body.appendChild(canvas);
   renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
+  // Force real supersampling rather than only scaling up for already-retina
+  // screens: a plain 1x monitor previously rendered trophies at exactly one
+  // sample per screen pixel (antialias alone can't fix that), so cards
+  // looked soft compared to the rest of the glass-morphic UI. Flooring at 2x
+  // and allowing up to 3x on genuine hi-dpi panels gets consistently crisp,
+  // near-4K-density renders across all displays.
+  renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
