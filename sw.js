@@ -1,11 +1,14 @@
 'use strict';
 
-const CACHE_VERSION = 'fc-career-tracker-v1';
+const CACHE_VERSION = 'fc-career-tracker-v2';
 const CORE_ASSETS = [
   './',
   './index.html',
   './assets/style.css',
   './assets/app.js',
+  './assets/trophy3d.js',
+  './assets/vendor/three.module.min.js',
+  './assets/vendor/three.core.min.js',
   './manifest.webmanifest',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png'

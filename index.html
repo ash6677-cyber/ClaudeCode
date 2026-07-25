@@ -86,7 +86,7 @@
       </button>
       <button class="tab-btn" data-mode="player" data-tab="p-honours" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v3.5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4.5A2.5 2.5 0 0 0 7 8"/><path d="M17 5h2.5A2.5 2.5 0 0 1 17 8"/><path d="M12 12.5V15"/><path d="M8.5 20h7"/><path d="M9.5 16.5h5l.6 3.5h-6.2z"/></svg></span>
-        <span>Honours</span>
+        <span>Trophy Cabinet</span>
       </button>
       <button class="tab-btn" data-mode="player" data-tab="p-international" role="tab">
         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
@@ -118,8 +118,13 @@
       <button id="mobile-nav-toggle" class="mobile-nav-toggle" aria-label="Toggle menu">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
+      <span class="brand-mark topbar-brand-mark">⚽</span>
       <h1 id="page-title">Dashboard</h1>
       <div class="topbar-spacer"></div>
+      <div class="mode-switch topbar-mode-switch" id="mode-switch-mobile" role="tablist" aria-label="Career mode"></div>
+      <button id="save-switcher-mobile" class="btn btn-ghost btn-icon topbar-save-btn" data-action="open-save-manager" aria-label="Switch or manage saves">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>
+      </button>
       <button id="add-season-btn" class="btn btn-primary btn-header">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Add Season
@@ -206,6 +211,12 @@
   </div>
 </div>
 
+<!-- Mobile Mode bottom tab bar + FAB (populated from #main-tabs; only shown when data-layout="mobile") -->
+<nav class="mobile-tabbar glass" id="mobile-tabbar" role="tablist" aria-label="Sections"></nav>
+<button id="fab-add-season" class="fab-add-season" aria-label="Add season">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
 <!-- Season Form Modal (reused by both Manager and Player mode) -->
 <div id="season-modal" class="modal-overlay" hidden>
   <div class="modal season-modal glass" role="dialog" aria-modal="true" aria-labelledby="season-modal-title">
@@ -240,5 +251,6 @@
 </div>
 
 <script src="assets/app.js"></script>
+<script type="module" src="assets/trophy3d.js"></script>
 </body>
 </html>

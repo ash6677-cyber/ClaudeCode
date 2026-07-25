@@ -758,7 +758,14 @@ details.form-section > summary:hover { color: var(--accent); }
   color: var(--text); border-color: rgba(var(--accent-rgb), 0.4);
 }
 
-/* ---------------- Trophy cabinet ---------------- */
+/* ---------------- Trophy cabinet (dynamic 3D) ---------------- */
+
+#trophy3d-shared-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
 
 .trophy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; }
 .trophy-card {
@@ -767,19 +774,39 @@ details.form-section > summary:hover { color: var(--accent); }
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 0;
   text-align: center;
-  transition: transform 0.25s var(--ease-out);
+  overflow: hidden;
+  transition: transform 0.25s var(--ease-out), border-color 0.25s var(--ease-out);
 }
-.trophy-card:hover { transform: translateY(-3px); }
-.trophy-card .trophy-emoji {
-  font-size: 30px; margin-bottom: 10px; width: 60px; height: 60px; line-height: 60px;
-  border-radius: 50%; background: radial-gradient(circle, rgba(255,214,10,0.18), transparent 70%);
-  margin-left: auto; margin-right: auto;
+.trophy-card:hover { transform: translateY(-3px); border-color: var(--glass-border-strong); }
+
+.trophy3d-slot {
+  position: relative;
+  width: 100%;
+  height: 190px;
+  cursor: grab;
+  touch-action: none;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 214, 10, 0.14), transparent 70%);
 }
-.trophy-card .trophy-count { font-size: 26px; font-weight: 800; }
-.trophy-card .trophy-name { font-size: 13px; color: var(--text-dim); margin-top: 4px; font-weight: 650; }
-.trophy-list-detail { font-size: 11px; color: var(--text-faint); margin-top: 10px; line-height: 1.6; }
+.trophy3d-slot:active { cursor: grabbing; }
+.trophy3d-hint {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; font-weight: 700; color: var(--text-faint);
+  background: var(--glass-bg-strong); padding: 3px 9px; border-radius: var(--radius-pill);
+  opacity: 0; transition: opacity 0.2s var(--ease-out); pointer-events: none;
+  white-space: nowrap;
+}
+.trophy-card:hover .trophy3d-hint { opacity: 0.85; }
+
+.trophy-card-count {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--glass-bg-strong); border: 1px solid var(--glass-border);
+  padding: 3px 10px; border-radius: var(--radius-pill); font-size: 12px; font-weight: 800; color: var(--text);
+}
+.trophy-card-info { padding: 14px 16px 16px; border-top: 1px solid var(--glass-border); }
+.trophy-card .trophy-name { font-size: 13px; color: var(--text); margin-top: 0; font-weight: 700; }
+.trophy-list-detail { font-size: 11px; color: var(--text-faint); margin-top: 8px; line-height: 1.6; }
 
 /* ---------------- Tables ---------------- */
 
@@ -871,16 +898,16 @@ table.data-table tbody tr:hover { background: var(--glass-bg-hover); }
 .settings-row-text h4 { font-size: 14px; margin-bottom: 3px; font-weight: 750; }
 .settings-row-text p { font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
 
-.theme-toggle {
+.theme-toggle, .layout-toggle {
   display: inline-flex; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill); padding: 3px; gap: 2px;
 }
-.theme-toggle button {
+.theme-toggle button, .layout-toggle button {
   background: none; border: none; color: var(--text-dim);
   padding: 7px 14px; border-radius: var(--radius-pill); font-size: 12.5px; font-weight: 700; cursor: pointer;
   font-family: inherit; transition: all 0.2s var(--ease-out);
 }
-.theme-toggle button.active { background: var(--glass-bg-strong); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.theme-toggle button.active, .layout-toggle button.active { background: var(--glass-bg-strong); color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
 
 .filter-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
 
@@ -908,4 +935,126 @@ table.data-table tbody tr:hover { background: var(--glass-bg-hover); }
   .stat-tile .stat-value { font-size: 21px; }
   .topbar h1 { font-size: 16px; }
   .modal-quicknav { top: 61px; }
+}
+
+/* ===========================================================
+   Mobile Mode — a dedicated touch-first layout, toggled manually
+   in Settings (independent of window width). Bottom tab bar
+   instead of the sidebar, single-column everything, bigger touch
+   targets, full-screen bottom-sheet modals.
+   =========================================================== */
+
+.mobile-tabbar {
+  display: none;
+  position: fixed; left: 0; right: 8px; bottom: 0; z-index: 50;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  border-radius: 0;
+  border-left: none; border-right: none; border-bottom: none;
+}
+.mobile-tabbar .tab-btn {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  padding: 7px 2px 6px;
+  font-size: 10px;
+  white-space: normal;
+  text-align: center;
+  border-radius: 12px;
+}
+.mobile-tabbar .tab-btn .nav-icon { width: 21px; height: 21px; }
+.mobile-tabbar .tab-btn span:last-child { line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+
+.fab-add-season {
+  display: none;
+  position: fixed; right: 18px; z-index: 55;
+  bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #04150c; border: none; cursor: pointer;
+  align-items: center; justify-content: center;
+  box-shadow: 0 10px 26px rgba(var(--accent-rgb), 0.4), inset 0 1px 0 rgba(255,255,255,0.35);
+  transition: transform 0.15s var(--ease-spring);
+}
+.fab-add-season:active { transform: scale(0.92); }
+
+.topbar-brand-mark { display: none; width: 30px; height: 30px; font-size: 15px; border-radius: 9px; flex-shrink: 0; }
+.topbar-mode-switch { display: none; margin: 0; }
+.topbar-save-btn { display: none; }
+
+:root[data-layout="mobile"] .sidebar,
+:root[data-layout="mobile"] .sidebar-backdrop,
+:root[data-layout="mobile"] .mobile-nav-toggle,
+:root[data-layout="mobile"] .btn-header {
+  display: none !important;
+}
+:root[data-layout="mobile"] .mobile-tabbar { display: flex; }
+:root[data-layout="mobile"] .fab-add-season { display: flex; }
+:root[data-layout="mobile"] .topbar-brand-mark { display: flex; }
+:root[data-layout="mobile"] .topbar-mode-switch { display: flex; }
+:root[data-layout="mobile"] .topbar-save-btn { display: inline-flex; }
+:root[data-layout="mobile"] .topbar { padding: 10px 14px; gap: 10px; }
+:root[data-layout="mobile"] .topbar h1 { font-size: 15px; }
+
+:root[data-layout="mobile"] .app-main {
+  padding: 14px 12px calc(100px + env(safe-area-inset-bottom, 0px));
+  max-width: 100%;
+}
+:root[data-layout="mobile"] .stat-grid,
+:root[data-layout="mobile"] .form-grid,
+:root[data-layout="mobile"] .form-grid.cols-2,
+:root[data-layout="mobile"] .form-grid.cols-4,
+:root[data-layout="mobile"] .dash-grid,
+:root[data-layout="mobile"] .two-col,
+:root[data-layout="mobile"] .trophy-grid {
+  grid-template-columns: 1fr !important;
+}
+:root[data-layout="mobile"] .season-card {
+  flex-direction: column;
+  align-items: stretch;
+}
+:root[data-layout="mobile"] .season-card-actions { align-self: flex-end; }
+:root[data-layout="mobile"] .view-header { justify-content: stretch; }
+:root[data-layout="mobile"] .view-header-actions { width: 100%; }
+:root[data-layout="mobile"] .view-header-actions .input,
+:root[data-layout="mobile"] .view-header-actions .select { flex: 1; min-width: 0; }
+
+/* Bigger touch targets everywhere */
+:root[data-layout="mobile"] .btn { padding: 13px 20px; font-size: 14.5px; min-height: 44px; }
+:root[data-layout="mobile"] .btn-sm { min-height: 38px; padding: 9px 14px; }
+:root[data-layout="mobile"] .btn-icon { min-height: 40px; min-width: 40px; }
+:root[data-layout="mobile"] .input,
+:root[data-layout="mobile"] textarea.input,
+:root[data-layout="mobile"] select.input { padding: 13px 14px; font-size: 15px; }
+:root[data-layout="mobile"] .checkbox-field input { width: 20px; height: 20px; }
+:root[data-layout="mobile"] .quicknav-pill { padding: 9px 15px; font-size: 12.5px; }
+
+/* Modals become full-screen bottom sheets */
+:root[data-layout="mobile"] .modal-overlay {
+  align-items: flex-end;
+  padding: 0;
+}
+:root[data-layout="mobile"] .modal {
+  max-width: 100%;
+  width: 100%;
+  max-height: 92vh;
+  margin: 0;
+  border-radius: 22px 22px 0 0;
+  animation: sheetUp 0.28s var(--ease-out);
+}
+:root[data-layout="mobile"] .modal-header,
+:root[data-layout="mobile"] .modal-quicknav {
+  border-radius: 0;
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+@media (max-width: 420px) {
+  .mobile-tabbar .tab-btn { font-size: 9px; }
+  .mobile-tabbar .tab-btn .nav-icon { width: 19px; height: 19px; }
 }

@@ -217,7 +217,7 @@ const LEGACY_STATE_KEY = 'fc-career-tracker:v1';
 const MAX_SAVES_PER_MODE = 100;
 
 function defaultAppSettings() {
-  return { theme: 'dark', currency: '£', mode: 'manager', activeManagerSaveId: null, activePlayerSaveId: null };
+  return { theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', activeManagerSaveId: null, activePlayerSaveId: null };
 }
 
 function loadAppSettings() {
@@ -558,7 +558,7 @@ function computeCareerTotals() {
     }
 
     seasonTrophyList(s).forEach(t => {
-      trophiesByName[t.name] = trophiesByName[t.name] || { count: 0, entries: [] };
+      trophiesByName[t.name] = trophiesByName[t.name] || { count: 0, entries: [], type: t.type };
       trophiesByName[t.name].count++;
       trophiesByName[t.name].entries.push({ season: s.seasonLabel, club: s.club });
       totalTrophies++;
@@ -678,7 +678,7 @@ function computePlayerCareerTotals() {
     if (L.relegated) relegations++;
 
     playerSeasonTrophyList(s).forEach(t => {
-      trophiesByName[t.name] = trophiesByName[t.name] || { count: 0, entries: [] };
+      trophiesByName[t.name] = trophiesByName[t.name] || { count: 0, entries: [], type: t.type };
       trophiesByName[t.name].count++;
       trophiesByName[t.name].entries.push({ season: s.seasonLabel, club: s.club });
       totalTrophies++;
@@ -760,7 +760,7 @@ const TAB_TITLES = {
   dashboard: 'Dashboard', seasons: 'Seasons', totals: 'Career Totals',
   trophies: 'Trophy Cabinet', transfers: 'Transfers', settings: 'Settings',
   'p-dashboard': 'Dashboard', 'p-seasons': 'Seasons', 'p-totals': 'Career Totals',
-  'p-honours': 'Honours', 'p-international': 'International', 'p-settings': 'Settings'
+  'p-honours': 'Trophy Cabinet', 'p-international': 'International', 'p-settings': 'Settings'
 };
 
 function switchTab(tab) {
@@ -1149,13 +1149,23 @@ function renderTotals() {
 
 /* ---------------- Trophy cabinet ---------------- */
 
-function trophyEmoji(name) {
-  const n = name.toLowerCase();
-  if (n.includes('title') || n.includes('league')) return '👑';
-  if (n.includes('champions league')) return '🏆';
-  if (n.includes('super cup') || n.includes('shield')) return '🛡️';
-  if (n.includes('world cup')) return '🌍';
-  return '🏆';
+function trophy3dType(competitionType) {
+  if (competitionType === 'League') return 'crown';
+  if (['Champions League', 'Club World Cup', 'Other Continental Cup', 'Europa League', 'Conference League'].includes(competitionType)) return 'continental';
+  if (competitionType === 'Domestic Super Cup') return 'shield';
+  return 'cup'; // Domestic Cup, League Cup, Other
+}
+
+function trophy3dTier(type) {
+  if (type === 'crown' || type === 'continental' || type === 'medal') return 'gold';
+  if (type === 'cup') return 'silver';
+  return 'bronze';
+}
+
+function mountTrophy3dWhenReady(key, container, type, tier) {
+  if (!container) return;
+  if (window.Trophy3D) window.Trophy3D.mountTrophy(key, container, type, tier);
+  else window.addEventListener('trophy3d-ready', () => window.Trophy3D.mountTrophy(key, container, type, tier), { once: true });
 }
 
 function renderTrophies() {
@@ -1163,20 +1173,31 @@ function renderTrophies() {
   const t = computeCareerTotals();
   const entries = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count);
 
+  if (window.Trophy3D) window.Trophy3D.unmountAll();
+
   el.innerHTML = `
     <div class="view-header">
-      <div class="hint">${t.totalTrophies} ${t.totalTrophies === 1 ? 'trophy' : 'trophies'} won across ${t.totalSeasons} season${t.totalSeasons === 1 ? '' : 's'}</div>
+      <div class="hint">${t.totalTrophies} ${t.totalTrophies === 1 ? 'trophy' : 'trophies'} won across ${t.totalSeasons} season${t.totalSeasons === 1 ? '' : 's'} · drag a trophy to spin it</div>
     </div>
     ${entries.length ? `<div class="trophy-grid">
-      ${entries.map(([name, d]) => `
+      ${entries.map(([name, d], i) => `
         <div class="trophy-card">
-          <div class="trophy-emoji">${trophyEmoji(name)}</div>
-          <div class="trophy-count">×${d.count}</div>
-          <div class="trophy-name">${esc(name)}</div>
-          <div class="trophy-list-detail">${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join('<br>')}</div>
+          <div class="trophy3d-slot" id="trophy3d-m-${i}">
+            <span class="trophy-card-count">×${d.count}</span>
+            <span class="trophy3d-hint">Drag to rotate</span>
+          </div>
+          <div class="trophy-card-info">
+            <div class="trophy-name">${esc(name)}</div>
+            <div class="trophy-list-detail">${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join('<br>')}</div>
+          </div>
         </div>`).join('')}
     </div>` : `<div class="empty-state card card-pad"><div class="empty-icon">🏆</div><h3>Trophy cabinet is empty</h3><p>Win a league title or cup and it'll show up here.</p></div>`}
   `;
+
+  entries.forEach(([name, d], i) => {
+    const type = trophy3dType(d.type);
+    mountTrophy3dWhenReady('m-' + i, document.getElementById('trophy3d-m-' + i), type, trophy3dTier(type));
+  });
 }
 
 /* ---------------- Transfers tab ---------------- */
@@ -1258,6 +1279,13 @@ function renderSettings() {
           <button data-theme="dark" class="${s.theme === 'dark' ? 'active' : ''}">Dark</button>
           <button data-theme="light" class="${s.theme === 'light' ? 'active' : ''}">Light</button>
           <button data-theme="system" class="${s.theme === 'system' ? 'active' : ''}">System</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Layout</h4><p>Switch to a touch-friendly mobile layout with a bottom tab bar, or use the full desktop layout.</p></div>
+        <div class="layout-toggle">
+          <button data-layout="desktop" class="${s.layout === 'mobile' ? '' : 'active'}">Desktop</button>
+          <button data-layout="mobile" class="${s.layout === 'mobile' ? 'active' : ''}">Mobile</button>
         </div>
       </div>
       <div class="settings-row">
@@ -1518,36 +1546,46 @@ function renderPlayerHonours() {
   const entries = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count);
 
   const individualCards = [
-    { count: t.awards.potsClub, name: 'Club Player of the Season', emoji: '🏅' },
-    { count: t.awards.yotsClub, name: 'Young Player of the Season', emoji: '🌟' },
-    { count: t.awards.teamOfSeason, name: 'Team of the Season', emoji: '🎽' },
-    { count: t.awards.goldenBoot, name: 'Golden Boot', emoji: '👟' },
-    { count: t.awards.goldenGlove, name: 'Golden Glove', emoji: '🧤' }
+    { count: t.awards.potsClub, name: 'Club Player of the Season' },
+    { count: t.awards.yotsClub, name: 'Young Player of the Season' },
+    { count: t.awards.teamOfSeason, name: 'Team of the Season' },
+    { count: t.awards.goldenBoot, name: 'Golden Boot' },
+    { count: t.awards.goldenGlove, name: 'Golden Glove' }
   ].filter(a => a.count > 0);
+
+  if (window.Trophy3D) window.Trophy3D.unmountAll();
 
   el.innerHTML = `
     <div class="view-header">
-      <div class="hint">${t.totalTrophies} team ${t.totalTrophies === 1 ? 'trophy' : 'trophies'} · ${individualCards.reduce((a, c) => a + c.count, 0)} individual awards</div>
+      <div class="hint">${t.totalTrophies} team ${t.totalTrophies === 1 ? 'trophy' : 'trophies'} · ${individualCards.reduce((a, c) => a + c.count, 0)} individual awards · drag a trophy to spin it</div>
     </div>
 
     <div class="section-title">Team Trophies</div>
     ${entries.length ? `<div class="trophy-grid">
-      ${entries.map(([name, d]) => `
+      ${entries.map(([name, d], i) => `
         <div class="trophy-card">
-          <div class="trophy-emoji">${trophyEmoji(name)}</div>
-          <div class="trophy-count">×${d.count}</div>
-          <div class="trophy-name">${esc(name)}</div>
-          <div class="trophy-list-detail">${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join('<br>')}</div>
+          <div class="trophy3d-slot" id="trophy3d-p-${i}">
+            <span class="trophy-card-count">×${d.count}</span>
+            <span class="trophy3d-hint">Drag to rotate</span>
+          </div>
+          <div class="trophy-card-info">
+            <div class="trophy-name">${esc(name)}</div>
+            <div class="trophy-list-detail">${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join('<br>')}</div>
+          </div>
         </div>`).join('')}
-    </div>` : `<div class="empty-state card card-pad"><div class="empty-icon">🏆</div><h3>No team honours yet</h3><p>Win a league title or cup with your club and it'll show up here.</p></div>`}
+    </div>` : `<div class="empty-state card card-pad"><div class="empty-icon">🏆</div><h3>No team trophies yet</h3><p>Win a league title or cup with your club and it'll show up here.</p></div>`}
 
     <div class="section-title">Individual Awards</div>
     ${individualCards.length ? `<div class="trophy-grid">
-      ${individualCards.map(a => `
+      ${individualCards.map((a, i) => `
         <div class="trophy-card">
-          <div class="trophy-emoji">${a.emoji}</div>
-          <div class="trophy-count">×${a.count}</div>
-          <div class="trophy-name">${esc(a.name)}</div>
+          <div class="trophy3d-slot" id="trophy3d-pa-${i}">
+            <span class="trophy-card-count">×${a.count}</span>
+            <span class="trophy3d-hint">Drag to rotate</span>
+          </div>
+          <div class="trophy-card-info">
+            <div class="trophy-name">${esc(a.name)}</div>
+          </div>
         </div>`).join('')}
     </div>` : `<div class="empty-state card card-pad"><div class="empty-icon">🏅</div><h3>No individual awards yet</h3><p>Log a Player of the Season or Golden Boot win in a season's Awards section.</p></div>`}
 
@@ -1560,6 +1598,14 @@ function renderPlayerHonours() {
       </table>
     </div>` : ''}
   `;
+
+  entries.forEach(([name, d], i) => {
+    const type = trophy3dType(d.type);
+    mountTrophy3dWhenReady('p-' + i, document.getElementById('trophy3d-p-' + i), type, trophy3dTier(type));
+  });
+  individualCards.forEach((a, i) => {
+    mountTrophy3dWhenReady('pa-' + i, document.getElementById('trophy3d-pa-' + i), 'medal', 'gold');
+  });
 }
 
 function renderPlayerInternational() {
@@ -1631,6 +1677,13 @@ function renderPlayerSettings() {
           <button data-theme="dark" class="${s.theme === 'dark' ? 'active' : ''}">Dark</button>
           <button data-theme="light" class="${s.theme === 'light' ? 'active' : ''}">Light</button>
           <button data-theme="system" class="${s.theme === 'system' ? 'active' : ''}">System</button>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Layout</h4><p>Switch to a touch-friendly mobile layout with a bottom tab bar, or use the full desktop layout.</p></div>
+        <div class="layout-toggle">
+          <button data-layout="desktop" class="${s.layout === 'mobile' ? '' : 'active'}">Desktop</button>
+          <button data-layout="mobile" class="${s.layout === 'mobile' ? 'active' : ''}">Mobile</button>
         </div>
       </div>
       <div class="settings-row">
@@ -2332,10 +2385,26 @@ function applyTheme() {
   else document.documentElement.setAttribute('data-theme', theme);
 }
 
+function applyLayout(layout) {
+  appSettings.layout = layout === 'mobile' ? 'mobile' : 'desktop';
+  saveAppSettings();
+  document.documentElement.setAttribute('data-layout', appSettings.layout);
+  syncMobileNavClones();
+}
+
+function syncMobileNavClones() {
+  const tabs = $('#main-tabs'), mobileTabs = $('#mobile-tabbar');
+  if (tabs && mobileTabs) mobileTabs.innerHTML = tabs.innerHTML;
+  const modeSwitch = $('#mode-switch'), mobileModeSwitch = $('#mode-switch-mobile');
+  if (modeSwitch && mobileModeSwitch) mobileModeSwitch.innerHTML = modeSwitch.innerHTML;
+}
+
 /* ---------------- Event wiring ---------------- */
 
 function wireEvents() {
-  $('#main-tabs').addEventListener('click', e => {
+  // Delegated on document so this covers both the sidebar nav and the
+  // cloned mobile-mode bottom tab bar / mode switch without duplicate listeners.
+  document.addEventListener('click', e => {
     const btn = e.target.closest('.tab-btn');
     if (btn) switchTab(btn.dataset.tab);
   });
@@ -2346,10 +2415,12 @@ function wireEvents() {
   $('#mobile-nav-close').addEventListener('click', closeSidebar);
   $('#sidebar-backdrop').addEventListener('click', closeSidebar);
 
-  $('#mode-switch').addEventListener('click', e => {
+  document.addEventListener('click', e => {
     const btn = e.target.closest('.mode-switch-btn');
     if (btn) switchMode(btn.dataset.mode);
   });
+
+  $('#fab-add-season').addEventListener('click', () => openAnySeasonModal());
 
   function openAnySeasonModal() { appSettings.mode === 'player' ? openPlayerSeasonModal(null) : openSeasonModal(null); }
   $('#add-season-btn').addEventListener('click', openAnySeasonModal);
@@ -2559,6 +2630,13 @@ function wireEvents() {
       renderCurrentTab();
     }
   });
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.layout-toggle button');
+    if (btn) {
+      applyLayout(btn.dataset.layout);
+      renderCurrentTab();
+    }
+  });
   document.addEventListener('change', e => {
     if (e.target.matches('.currency-select')) {
       appSettings.currency = e.target.value;
@@ -2613,7 +2691,9 @@ function init() {
   pState = getActiveSave('player');
   applyTheme();
   document.documentElement.setAttribute('data-app-mode', appSettings.mode);
+  document.documentElement.setAttribute('data-layout', appSettings.layout);
   $$('.mode-switch-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === appSettings.mode));
+  syncMobileNavClones();
   wireEvents();
   registerServiceWorker();
   wireInstallPrompt();

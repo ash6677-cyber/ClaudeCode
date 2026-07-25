@@ -13,7 +13,8 @@
   },
   "devDependencies": {
     "electron": "^33.2.0",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^25.1.8",
+    "three": "^0.185.1"
   },
   "build": {
     "appId": "com.fccareertracker.app",
@@ -30,8 +31,18 @@
     },
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "assets/icons/icon.ico"
     },
@@ -44,7 +55,9 @@
       "shortcutName": "FC Career Tracker"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "icon": "assets/icons/icon-512.png",
       "category": "Game"
     }
