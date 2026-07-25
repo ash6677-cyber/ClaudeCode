@@ -16,9 +16,9 @@ import * as THREE from './vendor/three.module.min.js';
    =========================================================== */
 
 const TIER_MATERIAL = {
-  gold:   { color: 0xffc21f, metalness: 1, roughness: 0.2, emissive: 0x4a2c00, emissiveIntensity: 0.24 },
-  silver: { color: 0xdde1ea, metalness: 1, roughness: 0.14, emissive: 0x0d0f18, emissiveIntensity: 0.1 },
-  bronze: { color: 0xcd8a54, metalness: 1, roughness: 0.26, emissive: 0x2a1300, emissiveIntensity: 0.18 }
+  gold:   { color: 0xcda44d, metalness: 1, roughness: 0.32, emissive: 0x000000, emissiveIntensity: 0 },
+  silver: { color: 0xc6cad2, metalness: 1, roughness: 0.28, emissive: 0x000000, emissiveIntensity: 0 },
+  bronze: { color: 0xa9754e, metalness: 1, roughness: 0.38, emissive: 0x000000, emissiveIntensity: 0 }
 };
 
 const FLOOR_Y = -1.28;
@@ -56,31 +56,69 @@ function ensureSharedResources() {
   sharedShadowGeometry = new THREE.PlaneGeometry(1.9, 1.9);
 }
 
+function makeSoftGradientTexture(size, innerHex, outerHex, stopPos) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  grad.addColorStop(0, innerHex);
+  grad.addColorStop(stopPos != null ? stopPos : 0.65, innerHex);
+  grad.addColorStop(1, outerHex);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(c);
+}
+
+function makeStudioGridTexture(size, cells, cellHex, gapHex) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = gapHex;
+  ctx.fillRect(0, 0, size, size);
+  const cell = size / cells;
+  ctx.fillStyle = cellHex;
+  const pad = cell * 0.1;
+  for (let y = 0; y < cells; y++) {
+    for (let x = 0; x < cells; x++) {
+      ctx.fillRect(x * cell + pad, y * cell + pad, cell - pad * 2, cell - pad * 2);
+    }
+  }
+  return new THREE.CanvasTexture(c);
+}
+
 function buildEnvScene() {
   const envScene = new THREE.Scene();
-  envScene.background = new THREE.Color(0x0b0d16);
+  envScene.background = new THREE.Color(0x14161e);
 
   const planeGeo = new THREE.PlaneGeometry(9, 9);
-  const softbox = (color, x, y, z, rx, ry, intensity) => {
-    const mat = new THREE.MeshBasicMaterial({ color });
+  const panel = (texture, tint, x, y, z, rx, ry, scale) => {
+    const mat = new THREE.MeshBasicMaterial({ map: texture, color: tint || 0xffffff });
     const mesh = new THREE.Mesh(planeGeo, mat);
     mesh.position.set(x, y, z);
     mesh.rotation.set(rx, ry, 0);
-    mesh.scale.setScalar(intensity || 1);
+    mesh.scale.setScalar(scale || 1);
     envScene.add(mesh);
   };
-  softbox(0xfff8e8, 0, 5, -1.5, Math.PI / 2.2, 0, 1.3);
-  softbox(0xcfe6ff, -4.5, 0.5, 2, 0, Math.PI / 2.05, 1.1);
-  softbox(0xffffff, 4.5, -0.5, 2, 0, -Math.PI / 2.05, 1.2);
-  softbox(0x554c3a, 0, -4.5, 2, -Math.PI / 2.2, 0, 1);
-  softbox(0xffe2b0, 0, 1, 4.5, Math.PI, 0, 0.7);
+
+  // Large soft overhead key light — gentle gradient, not a flat color block.
+  panel(makeSoftGradientTexture(512, '#fbf3e4', '#14161e', 0.35), 0xffffff, 0, 5.5, -1, Math.PI / 2.15, 0, 1.4);
+  // Studio window/grid banks either side, the classic reason polished metal
+  // reads as "real" instead of "plastic" — reflections pick up many small
+  // panes rather than one solid color.
+  panel(makeStudioGridTexture(512, 5, '#eef2f8', '#1a1c24'), 0xffffff, -4.6, 0.4, 1.5, 0, Math.PI / 2.05, 1.15);
+  panel(makeStudioGridTexture(512, 6, '#f4efe6', '#20222c'), 0xffffff, 4.6, -0.3, 1.5, 0, -Math.PI / 2.05, 1.05);
+  // Dim, muted ground bounce so undersides aren't pitch black.
+  panel(makeSoftGradientTexture(512, '#3a3428', '#0c0d12', 0.5), 0xffffff, 0, -4.6, 1.5, -Math.PI / 2.2, 0, 1);
+  // Subtle rear fill, kept neutral rather than saturated.
+  panel(makeSoftGradientTexture(512, '#e7e2da', '#14161e', 0.4), 0xffffff, 0, 0.8, 4.8, Math.PI, 0, 0.85);
+
   return envScene;
 }
 
 function buildSharedEnvMap() {
   const pmrem = new THREE.PMREMGenerator(renderer);
   pmrem.compileCubemapShader();
-  const rt = pmrem.fromScene(buildEnvScene(), 0.03);
+  const rt = pmrem.fromScene(buildEnvScene(), 0.18);
   pmrem.dispose();
   return rt.texture;
 }
@@ -90,7 +128,7 @@ function makeMaterial(tier) {
   return new THREE.MeshPhysicalMaterial({
     color: t.color, metalness: t.metalness, roughness: t.roughness,
     emissive: t.emissive, emissiveIntensity: t.emissiveIntensity,
-    clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1.25
+    clearcoat: 0.55, clearcoatRoughness: 0.28, envMapIntensity: 1.05
   });
 }
 
@@ -106,6 +144,46 @@ function latheCup(rawPoints, material, segments, samples) {
   const geo = new THREE.LatheGeometry(pts, segments || 80);
   geo.computeVertexNormals();
   return new THREE.Mesh(geo, material);
+}
+
+// A flat extruded cap (e.g. the shield's front face) has no interior
+// vertices — it's a handful of large triangles fanned across the boundary —
+// so it can only ever catch one or two flat patches of reflection, reading
+// as a shiny cardboard cutout. This builds a real subdivided grid clipped to
+// a width profile and bulged into a shallow dome, so it shades like a
+// pressed metal plate instead.
+function buildDomedPanel(widthFn, yBottom, yTop, rows, cols, bulge) {
+  const positions = [];
+  const yMid = (yTop + yBottom) / 2;
+  const yHalf = (yTop - yBottom) / 2;
+  for (let iy = 0; iy <= rows; iy++) {
+    const y = yBottom + (iy / rows) * (yTop - yBottom);
+    const w = Math.max(0.001, widthFn(y));
+    for (let ix = 0; ix <= cols; ix++) {
+      const x = -w + (ix / cols) * (2 * w);
+      const rx = x / w;
+      const ry = (y - yMid) / yHalf;
+      const r = Math.min(1, Math.sqrt(rx * rx + ry * ry));
+      const z = bulge * (1 - r * r);
+      positions.push(x, y, z);
+    }
+  }
+  const indices = [];
+  const stride = cols + 1;
+  for (let iy = 0; iy < rows; iy++) {
+    for (let ix = 0; ix < cols; ix++) {
+      const a = ix + stride * iy;
+      const b = ix + stride * (iy + 1);
+      const c = (ix + 1) + stride * (iy + 1);
+      const d = (ix + 1) + stride * iy;
+      indices.push(a, b, d, b, c, d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
 }
 
 function plinth(radius, height) {
@@ -274,19 +352,33 @@ function buildShield(material) {
   shape.bezierCurveTo(0.5, -0.5, 0.28, -0.66, 0.0, -0.82);
   shape.bezierCurveTo(-0.28, -0.66, -0.5, -0.5, -0.5, -0.05);
   shape.lineTo(-0.5, 0.6);
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.035, bevelSegments: 6, curveSegments: 24 });
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.045, bevelSegments: 6, curveSegments: 24 });
   geo.center();
   const mesh = new THREE.Mesh(geo, material);
   mesh.position.y = 0.55;
   g.add(mesh);
 
+  // Raised, domed face plaque inset within the shield frame — the frame's
+  // own front cap is a flat, un-subdivided triangle fan and can't shade like
+  // metal, so the visible "face" of the shield is this separate subdivided
+  // panel instead.
+  const plaqueWidth = (y) => {
+    if (y >= 0.62) return 0.36;
+    const t = Math.max(0, Math.min(1, (y - 0.08) / 0.54));
+    return 0.36 * Math.pow(t, 0.6);
+  };
+  const plaqueGeo = buildDomedPanel(plaqueWidth, 0.08, 1.02, 20, 16, 0.11);
+  const plaque = new THREE.Mesh(plaqueGeo, material);
+  plaque.position.z = 0.14;
+  g.add(plaque);
+
   const badgeGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.045, 48);
   const badge = new THREE.Mesh(badgeGeo, sharedPlinthMaterial);
   badge.rotation.x = Math.PI / 2;
-  badge.position.set(0, 0.62, 0.115);
+  badge.position.set(0, 0.62, 0.29);
   g.add(badge);
   const badgeRing = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 12, 48), material);
-  badgeRing.position.set(0, 0.62, 0.12);
+  badgeRing.position.set(0, 0.62, 0.295);
   g.add(badgeRing);
 
   const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.42, 24), material);
@@ -300,7 +392,7 @@ function buildShield(material) {
 function buildMedal(material) {
   ensureSharedResources();
   const g = new THREE.Group();
-  const ribbonMat = new THREE.MeshPhysicalMaterial({ color: 0x2f4fd6, metalness: 0.05, roughness: 0.55, clearcoat: 0.3 });
+  const ribbonMat = new THREE.MeshPhysicalMaterial({ color: 0x33437a, metalness: 0.05, roughness: 0.6, clearcoat: 0.2 });
   const ribbonGeo = new THREE.BoxGeometry(0.46, 0.72, 0.05);
   const ribbonL = new THREE.Mesh(ribbonGeo, ribbonMat);
   ribbonL.position.set(-0.15, 0.52, -0.02);
@@ -357,7 +449,7 @@ function ensureRenderer() {
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.05;
   sharedEnvMap = buildSharedEnvMap();
   resize();
   window.addEventListener('resize', resize);
@@ -371,18 +463,18 @@ function resize() {
 }
 
 function addLights(scene) {
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1a2a, 0.9);
+  const hemi = new THREE.HemisphereLight(0xf5f3ef, 0x24242e, 0.7);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xffffff, 2.6);
+  const key = new THREE.DirectionalLight(0xfff6e8, 2.1);
   key.position.set(2.2, 3.2, 3);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0x6fd0ff, 1.5);
+  const rim = new THREE.DirectionalLight(0xcfe3f2, 1.0);
   rim.position.set(-3, 1.5, -2.5);
   scene.add(rim);
-  const fill = new THREE.PointLight(0xffe9b0, 0.9, 10);
+  const fill = new THREE.PointLight(0xfff2dc, 0.6, 10);
   fill.position.set(-1.5, -1, 2.5);
   scene.add(fill);
-  const kicker = new THREE.PointLight(0xffffff, 0.5, 8);
+  const kicker = new THREE.PointLight(0xffffff, 0.35, 8);
   kicker.position.set(0, -1.5, 3.5);
   scene.add(kicker);
 }
