@@ -16,9 +16,9 @@ import * as THREE from './vendor/three.module.min.js';
    =========================================================== */
 
 const TIER_MATERIAL = {
-  gold:   { color: 0xcda44d, metalness: 1, roughness: 0.32, emissive: 0x000000, emissiveIntensity: 0 },
-  silver: { color: 0xc6cad2, metalness: 1, roughness: 0.28, emissive: 0x000000, emissiveIntensity: 0 },
-  bronze: { color: 0xa9754e, metalness: 1, roughness: 0.38, emissive: 0x000000, emissiveIntensity: 0 }
+  gold:   { color: 0xcda44d, metalness: 1, roughness: 0.24, emissive: 0x000000, emissiveIntensity: 0 },
+  silver: { color: 0xc6cad2, metalness: 1, roughness: 0.2, emissive: 0x000000, emissiveIntensity: 0 },
+  bronze: { color: 0xa9754e, metalness: 1, roughness: 0.28, emissive: 0x000000, emissiveIntensity: 0 }
 };
 
 const FLOOR_Y = -1.28;
@@ -128,7 +128,7 @@ function makeMaterial(tier) {
   return new THREE.MeshPhysicalMaterial({
     color: t.color, metalness: t.metalness, roughness: t.roughness,
     emissive: t.emissive, emissiveIntensity: t.emissiveIntensity,
-    clearcoat: 0.55, clearcoatRoughness: 0.28, envMapIntensity: 1.05
+    clearcoat: 0.7, clearcoatRoughness: 0.18, envMapIntensity: 1.2
   });
 }
 
@@ -237,9 +237,8 @@ function buildClassicCup(material) {
     new THREE.Vector2(0.22, stemTop + 0.14),
     new THREE.Vector2(0.44, stemTop + 0.3),
     new THREE.Vector2(0.5, stemTop + 0.52),
-    new THREE.Vector2(0.46, stemTop + 0.74),
-    new THREE.Vector2(0.36, stemTop + 0.86),
-    new THREE.Vector2(0.4, stemTop + 0.92),
+    new THREE.Vector2(0.42, stemTop + 0.72),
+    new THREE.Vector2(0.26, stemTop + 0.87),
     new THREE.Vector2(0.0, stemTop + 0.95)
   ];
   const cupY = 0.2 + 0.16;
@@ -247,6 +246,7 @@ function buildClassicCup(material) {
   cup.position.y = cupY;
   g.add(cup);
   g.add(neckBand(0.135, cupY + stemTop * 0.55, material));
+  g.add(neckBand(0.26, cupY + stemTop + 0.87, material));
 
   const h1 = handle(0.4, 0.045, cupY + stemTop + 0.22, 1, material);
   const h2 = handle(0.4, 0.045, cupY + stemTop + 0.22, -1, material);
@@ -272,8 +272,8 @@ function buildCrownTitle(material) {
     new THREE.Vector2(0.24, stemTop + 0.16),
     new THREE.Vector2(0.42, stemTop + 0.42),
     new THREE.Vector2(0.46, stemTop + 0.64),
-    new THREE.Vector2(0.38, stemTop + 0.8),
-    new THREE.Vector2(0.42, stemTop + 0.86),
+    new THREE.Vector2(0.38, stemTop + 0.78),
+    new THREE.Vector2(0.2, stemTop + 0.86),
     new THREE.Vector2(0.0, stemTop + 0.88)
   ];
   const cupY = 0.22 + 0.16;
@@ -281,6 +281,7 @@ function buildCrownTitle(material) {
   cup.position.y = cupY;
   g.add(cup);
   g.add(neckBand(0.115, cupY + stemTop * 0.5, material));
+  g.add(neckBand(0.38, cupY + stemTop + 0.78, material));
 
   const spikeGeo = new THREE.ConeGeometry(0.065, 0.24, 12);
   const rimY = cupY + stemTop + 0.88;
@@ -317,8 +318,8 @@ function buildContinental(material) {
     new THREE.Vector2(0.24, stemTop + 0.22),
     new THREE.Vector2(0.42, stemTop + 0.4),
     new THREE.Vector2(0.5, stemTop + 0.6),
-    new THREE.Vector2(0.34, stemTop + 0.8),
-    new THREE.Vector2(0.4, stemTop + 0.9),
+    new THREE.Vector2(0.36, stemTop + 0.78),
+    new THREE.Vector2(0.18, stemTop + 0.88),
     new THREE.Vector2(0.0, stemTop + 0.92)
   ];
   const cupY = 0.22 + 0.18;
@@ -326,6 +327,7 @@ function buildContinental(material) {
   cup.position.y = cupY;
   g.add(cup);
   g.add(neckBand(0.09, cupY + stemTop * 0.55, material));
+  g.add(neckBand(0.36, cupY + stemTop + 0.78, material));
 
   const h1 = handle(0.35, 0.04, cupY + stemTop + 0.3, 1, material);
   const h2 = handle(0.35, 0.04, cupY + stemTop + 0.3, -1, material);
@@ -345,46 +347,70 @@ function buildContinental(material) {
 function buildShield(material) {
   ensureSharedResources();
   const g = new THREE.Group();
+
+  const plinthH = 0.2;
+  const standH = 0.36;
+  const shieldBottomWorld = plinthH + standH; // top of the stand — shield sits fully above it, no overlap
+
+  // Heraldic shield outline: short flat header, then sides that curve
+  // inward to a rounded point — proportioned so the curve (not the flat
+  // top) dominates the silhouette, the way an actual shield reads at a
+  // glance instead of a flat-topped slab.
+  const halfW = 0.5, topY = 0.55, shoulderY = 0.12, tipY = -0.62;
   const shape = new THREE.Shape();
-  shape.moveTo(-0.5, 0.6);
-  shape.lineTo(0.5, 0.6);
-  shape.lineTo(0.5, -0.05);
-  shape.bezierCurveTo(0.5, -0.5, 0.28, -0.66, 0.0, -0.82);
-  shape.bezierCurveTo(-0.28, -0.66, -0.5, -0.5, -0.5, -0.05);
-  shape.lineTo(-0.5, 0.6);
-  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.045, bevelSegments: 6, curveSegments: 24 });
+  shape.moveTo(-halfW, topY);
+  shape.lineTo(halfW, topY);
+  shape.lineTo(halfW, shoulderY);
+  shape.bezierCurveTo(halfW, -0.28, 0.32, -0.58, 0.0, tipY);
+  shape.bezierCurveTo(-0.32, -0.58, -halfW, -0.28, -halfW, shoulderY);
+  shape.lineTo(-halfW, topY);
+
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 6, curveSegments: 32 });
+  geo.computeBoundingBox();
+  const shapeCenterY = (geo.boundingBox.min.y + geo.boundingBox.max.y) / 2;
+  const shieldHeight = geo.boundingBox.max.y - geo.boundingBox.min.y;
   geo.center();
+
+  const meshY = shieldBottomWorld + shieldHeight / 2;
+  const toWorldY = shapeY => shapeY - shapeCenterY + meshY;
+
   const mesh = new THREE.Mesh(geo, material);
-  mesh.position.y = 0.55;
+  mesh.position.y = meshY;
   g.add(mesh);
 
-  // Raised, domed face plaque inset within the shield frame — the frame's
-  // own front cap is a flat, un-subdivided triangle fan and can't shade like
-  // metal, so the visible "face" of the shield is this separate subdivided
-  // panel instead.
-  const plaqueWidth = (y) => {
-    if (y >= 0.62) return 0.36;
-    const t = Math.max(0, Math.min(1, (y - 0.08) / 0.54));
-    return 0.36 * Math.pow(t, 0.6);
+  // Raised, domed face plaque covering almost the entire shield, inset
+  // slightly from the edge so a thin metal frame remains visible — the
+  // extrude's own front cap is a flat, un-subdivided triangle fan and can't
+  // shade like metal no matter how curvy the outline is, so this
+  // separately-subdivided panel (following the same taper) is the actual
+  // visible "face" of the shield.
+  const inset = 0.06;
+  const plaqueTopY = topY - 0.05;
+  const plaqueBottomY = tipY + 0.07;
+  const plaqueWidth = y => {
+    if (y >= shoulderY) return halfW - inset;
+    const t = Math.max(0, Math.min(1, (y - tipY) / (shoulderY - tipY)));
+    return (halfW - inset) * Math.pow(t, 0.6);
   };
-  const plaqueGeo = buildDomedPanel(plaqueWidth, 0.08, 1.02, 20, 16, 0.11);
+  const plaqueGeo = buildDomedPanel(plaqueWidth, plaqueBottomY, plaqueTopY, 22, 16, 0.1);
   const plaque = new THREE.Mesh(plaqueGeo, material);
-  plaque.position.z = 0.14;
+  plaque.position.y = meshY - shapeCenterY;
+  plaque.position.z = 0.11;
   g.add(plaque);
 
-  const badgeGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.045, 48);
-  const badge = new THREE.Mesh(badgeGeo, sharedPlinthMaterial);
+  const badgeY = toWorldY((topY + shoulderY) / 2);
+  const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.04, 48), sharedPlinthMaterial);
   badge.rotation.x = Math.PI / 2;
-  badge.position.set(0, 0.62, 0.29);
+  badge.position.set(0, badgeY, 0.22);
   g.add(badge);
-  const badgeRing = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 12, 48), material);
-  badgeRing.position.set(0, 0.62, 0.295);
+  const badgeRing = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.018, 12, 48), material);
+  badgeRing.position.set(0, badgeY, 0.225);
   g.add(badgeRing);
 
-  const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.42, 24), material);
-  stand.position.y = 0.02;
+  const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, standH, 24), material);
+  stand.position.y = plinthH + standH / 2;
   g.add(stand);
-  g.add(plinth(0.46, 0.2));
+  g.add(plinth(0.46, plinthH));
 
   return g;
 }
@@ -455,7 +481,7 @@ function ensureRenderer() {
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.15;
   sharedEnvMap = buildSharedEnvMap();
   resize();
   window.addEventListener('resize', resize);
@@ -469,15 +495,15 @@ function resize() {
 }
 
 function addLights(scene) {
-  const hemi = new THREE.HemisphereLight(0xf5f3ef, 0x24242e, 0.7);
+  const hemi = new THREE.HemisphereLight(0xf5f3ef, 0x24242e, 0.55);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xfff6e8, 2.1);
+  const key = new THREE.DirectionalLight(0xfff6e8, 2.6);
   key.position.set(2.2, 3.2, 3);
   scene.add(key);
-  const rim = new THREE.DirectionalLight(0xcfe3f2, 1.0);
+  const rim = new THREE.DirectionalLight(0xcfe3f2, 1.2);
   rim.position.set(-3, 1.5, -2.5);
   scene.add(rim);
-  const fill = new THREE.PointLight(0xfff2dc, 0.6, 10);
+  const fill = new THREE.PointLight(0xfff2dc, 0.5, 10);
   fill.position.set(-1.5, -1, 2.5);
   scene.add(fill);
   const kicker = new THREE.PointLight(0xffffff, 0.35, 8);
