@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FC Career Tracker</title>
+<meta name="description" content="Track every stat from your football manager career mode — season by season, and across your whole career." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>" />
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-mark">⚽</span>
+      <div class="brand-text">
+        <h1>FC Career Tracker</h1>
+        <p id="manager-subtitle" class="brand-subtitle">Set up your manager profile to get started</p>
+      </div>
+    </div>
+    <nav class="tabs" id="main-tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn" data-tab="dashboard" role="tab">Dashboard</button>
+      <button class="tab-btn" data-tab="seasons" role="tab">Seasons</button>
+      <button class="tab-btn" data-tab="totals" role="tab">Career Totals</button>
+      <button class="tab-btn" data-tab="trophies" role="tab">Trophy Cabinet</button>
+      <button class="tab-btn" data-tab="transfers" role="tab">Transfers</button>
+      <button class="tab-btn" data-tab="settings" role="tab">Settings</button>
+    </nav>
+    <button id="add-season-btn" class="btn btn-primary btn-header">+ Add Season</button>
+    <button id="mobile-nav-toggle" class="mobile-nav-toggle" aria-label="Toggle menu">☰</button>
+  </div>
+</header>
+
+<main id="app-main" class="app-main">
+
+  <!-- DASHBOARD -->
+  <section id="view-dashboard" class="view">
+    <div id="dashboard-content"></div>
+  </section>
+
+  <!-- SEASONS -->
+  <section id="view-seasons" class="view">
+    <div class="view-header">
+      <h2>Seasons</h2>
+      <div class="view-header-actions">
+        <input id="season-search" class="input" type="text" placeholder="Search club, season, competition..." />
+        <select id="season-sort" class="input select">
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="position">Best league position</option>
+          <option value="trophies">Most trophies</option>
+        </select>
+      </div>
+    </div>
+    <div id="seasons-list" class="seasons-list"></div>
+  </section>
+
+  <!-- CAREER TOTALS -->
+  <section id="view-totals" class="view">
+    <div id="totals-content"></div>
+  </section>
+
+  <!-- TROPHY CABINET -->
+  <section id="view-trophies" class="view">
+    <div id="trophies-content"></div>
+  </section>
+
+  <!-- TRANSFERS -->
+  <section id="view-transfers" class="view">
+    <div id="transfers-content"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="view-settings" class="view">
+    <div id="settings-content"></div>
+  </section>
+
+</main>
+
+<!-- Season Form Modal -->
+<div id="season-modal" class="modal-overlay" hidden>
+  <div class="modal season-modal" role="dialog" aria-modal="true" aria-labelledby="season-modal-title">
+    <div class="modal-header">
+      <h2 id="season-modal-title">Add Season</h2>
+      <button class="modal-close" id="season-modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="season-form-body"></div>
+  </div>
+</div>
+
+<!-- Generic Confirm Modal -->
+<div id="confirm-modal" class="modal-overlay" hidden>
+  <div class="modal confirm-modal" role="dialog" aria-modal="true">
+    <p id="confirm-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-modal-cancel">Cancel</button>
+      <button class="btn btn-danger" id="confirm-modal-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
