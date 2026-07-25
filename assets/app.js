@@ -1308,7 +1308,7 @@ function renderSettings() {
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><h4>Reset This Save</h4><p>Permanently clear the manager profile and every season in this save. Cannot be undone.</p></div>
-        <button class="btn btn-danger" data-action="reset-all">Reset Everything</button>
+        <button class="btn btn-danger" data-action="reset-all">Reset This Save</button>
       </div>
     </div>
   `;
@@ -1706,7 +1706,7 @@ function renderPlayerSettings() {
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><h4>Reset This Save</h4><p>Permanently clear the player profile and every season in this save. Cannot be undone.</p></div>
-        <button class="btn btn-danger" data-action="reset-all">Reset Everything</button>
+        <button class="btn btn-danger" data-action="reset-all">Reset This Save</button>
       </div>
     </div>
   `;
