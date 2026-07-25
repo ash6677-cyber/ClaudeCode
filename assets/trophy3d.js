@@ -529,9 +529,20 @@ export function unmountAll() {
 
 function renderLoop() {
   requestAnimationFrame(renderLoop);
-  if (!renderer || !instances.size) return;
+  if (!renderer) return;
   const canvasHeight = renderer.domElement.clientHeight;
   const canvasWidth = renderer.domElement.clientWidth;
+
+  // Each render() below only clears its own scissored viewport, so any
+  // pixels not covered by a currently-visible trophy slot this frame (e.g.
+  // a card that just left the DOM, or a slot that moved) would otherwise
+  // keep showing whatever was drawn there last — a persistent ghost image.
+  // A full-canvas clear up front guarantees nothing lingers between frames.
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, canvasWidth, canvasHeight);
+  renderer.clear();
+
+  if (!instances.size) return;
 
   instances.forEach(inst => {
     if (!inst.container.isConnected) { unmountTrophy(inst.container.dataset.trophy3d); return; }
