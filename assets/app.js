@@ -744,6 +744,30 @@ function toast(msg, kind) {
   }, 2400);
 }
 
+// Highlights the specific field(s) a validation error is about — a toast
+// alone tells you something's wrong but not where, especially inside a long
+// multi-section form. Opens the field's collapsed section if needed, marks
+// it red with a small shake, scrolls the first one into view, and clears
+// itself the moment the user edits that field.
+function focusFieldErrors(...ids) {
+  let firstEl = null;
+  ids.filter(Boolean).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const details = el.closest('details');
+    if (details) details.open = true;
+    el.classList.remove('field-error');
+    void el.offsetWidth; // restart the shake animation if it's already marked
+    el.classList.add('field-error');
+    el.addEventListener('input', function clear() {
+      el.classList.remove('field-error');
+      el.removeEventListener('input', clear);
+    }, { once: true });
+    if (!firstEl) firstEl = el;
+  });
+  if (firstEl) firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 /* ---------------- Confirm modal ---------------- */
 
 function confirmDialog(text, onConfirm) {
@@ -2053,12 +2077,17 @@ function saveSeasonDraft() {
   collectSeasonFormIntoDraft();
   if (!seasonDraft.seasonLabel || !seasonDraft.club) {
     toast('Season and club are required', 'danger');
+    focusFieldErrors(
+      !seasonDraft.seasonLabel ? 'f-seasonLabel' : null,
+      !seasonDraft.club ? 'f-club' : null
+    );
     return;
   }
   const L = seasonDraft.league;
   const sumWDL = num(L.won) + num(L.drawn) + num(L.lost);
   if (num(L.played) !== sumWDL) {
     toast(`League Played (${num(L.played)}) doesn't match Won+Drawn+Lost (${sumWDL}) — please fix your league record`, 'danger');
+    focusFieldErrors('f-league-played', 'f-league-won', 'f-league-drawn', 'f-league-lost');
     return;
   }
   const idx = state.seasons.findIndex(s => s.id === seasonDraft.id);
@@ -2370,6 +2399,10 @@ function savePlayerSeasonDraft() {
   collectPlayerSeasonFormIntoDraft();
   if (!playerSeasonDraft.seasonLabel || !playerSeasonDraft.club) {
     toast('Season and club are required', 'danger');
+    focusFieldErrors(
+      !playerSeasonDraft.seasonLabel ? 'pf-seasonLabel' : null,
+      !playerSeasonDraft.club ? 'pf-club' : null
+    );
     return;
   }
   const idx = pState.seasons.findIndex(s => s.id === playerSeasonDraft.id);

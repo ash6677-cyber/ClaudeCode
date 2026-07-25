@@ -606,6 +606,11 @@ a { color: var(--accent-2); }
   background: var(--glass-bg-hover);
 }
 .input::placeholder { color: var(--text-faint); }
+.input.field-error, textarea.input.field-error, select.input.field-error {
+  border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft);
+  animation: fieldErrorShake 0.35s var(--ease-out);
+}
+@keyframes fieldErrorShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 textarea.input { resize: vertical; min-height: 64px; }
 select.input { cursor: pointer; }
 
