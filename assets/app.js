@@ -1047,6 +1047,7 @@ function renderSeasons() {
       <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       <div class="season-card-actions">
         <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-season" data-id="${s.id}" title="Edit">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-season" data-id="${s.id}" title="Start next season from this one">⧉</button>
         <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-season" data-id="${s.id}" title="Delete">🗑</button>
       </div>
     </div>`;
@@ -1442,6 +1443,7 @@ function renderPlayerSeasons() {
       <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       <div class="season-card-actions">
         <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-player-season" data-id="${s.id}" title="Edit">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-player-season" data-id="${s.id}" title="Start next season from this one">⧉</button>
         <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-player-season" data-id="${s.id}" title="Delete">🗑</button>
       </div>
     </div>`;
@@ -1713,6 +1715,55 @@ function renderPlayerSettings() {
 }
 
 /* ---------------- Season form (add/edit modal) ---------------- */
+
+// "2024/25" -> "2025/26", "2024" -> "2025", anything else -> append " (copy)"
+// so duplicating a season as a template for the next one doesn't leave the
+// label untouched (which would read as a duplicate season, not a new one).
+function nextSeasonLabel(label) {
+  if (!label) return '';
+  const slash = label.match(/^(\d{4})\s*\/\s*(\d{2,4})$/);
+  if (slash) {
+    const startYear = parseInt(slash[1], 10);
+    const endLen = slash[2].length;
+    const nextStart = startYear + 1;
+    const nextEndFull = nextStart + 1;
+    const nextEnd = endLen === 2 ? String(nextEndFull).slice(-2) : String(nextEndFull);
+    return `${nextStart}/${nextEnd}`;
+  }
+  const single = label.match(/^(\d{4})$/);
+  if (single) return String(parseInt(single[1], 10) + 1);
+  return label + ' (copy)';
+}
+
+function duplicateSeasonAsTemplate(id) {
+  const s = state.seasons.find(s => s.id === id);
+  if (!s) return;
+  openSeasonModal(null);
+  const draft = emptySeason();
+  draft.seasonLabel = nextSeasonLabel(s.seasonLabel);
+  draft.club = s.club;
+  draft.country = s.country;
+  draft.divisionTier = s.divisionTier;
+  seasonDraft = draft;
+  $('#season-form-body').innerHTML = renderSeasonFormHTML(seasonDraft, false);
+  toast('Season duplicated as a template — review and save');
+}
+
+function duplicatePlayerSeasonAsTemplate(id) {
+  const s = pState.seasons.find(s => s.id === id);
+  if (!s) return;
+  openPlayerSeasonModal(null);
+  const draft = emptyPlayerSeason();
+  draft.seasonLabel = nextSeasonLabel(s.seasonLabel);
+  draft.club = s.club;
+  draft.country = s.country;
+  draft.divisionTier = s.divisionTier;
+  draft.age = s.age !== '' && s.age != null ? String(num(s.age, 0) + 1) : s.age;
+  draft.shirtNumber = s.shirtNumber;
+  playerSeasonDraft = draft;
+  $('#season-form-body').innerHTML = renderPlayerSeasonFormHTML(playerSeasonDraft);
+  toast('Season duplicated as a template — review and save');
+}
 
 function openSeasonModal(season) {
   seasonModalMode = 'manager';
@@ -2475,12 +2526,16 @@ function wireEvents() {
     else if (action === 'edit-season') {
       const s = state.seasons.find(s => s.id === t.dataset.id);
       if (s) openSeasonModal(s);
+    } else if (action === 'duplicate-season') {
+      duplicateSeasonAsTemplate(t.dataset.id);
     } else if (action === 'delete-season') {
       const s = state.seasons.find(s => s.id === t.dataset.id);
       confirmDialog(`Delete ${s ? s.seasonLabel + ' at ' + s.club : 'this season'}? This cannot be undone.`, () => deleteSeason(t.dataset.id));
     } else if (action === 'edit-player-season') {
       const s = pState.seasons.find(s => s.id === t.dataset.id);
       if (s) openPlayerSeasonModal(s);
+    } else if (action === 'duplicate-player-season') {
+      duplicatePlayerSeasonAsTemplate(t.dataset.id);
     } else if (action === 'delete-player-season') {
       const s = pState.seasons.find(s => s.id === t.dataset.id);
       confirmDialog(`Delete ${s ? s.seasonLabel + ' at ' + s.club : 'this season'}? This cannot be undone.`, () => deletePlayerSeason(t.dataset.id));
