@@ -511,7 +511,8 @@ function savePlayerState() { persistActiveSave('player', pState); }
 
 function seasonTrophyList(season) {
   const trophies = [];
-  if (num(season.league.position) === 1 && season.league.position !== '') {
+  const league = season.league || {};
+  if (num(league.position) === 1 && league.position !== '') {
     trophies.push({ name: (season.divisionTier || 'League') + ' Title', type: 'League' });
   }
   (season.competitions || []).forEach(c => {
@@ -586,7 +587,7 @@ function computeCareerTotals() {
     clubMap[clubKey].trophies += seasonTrophyCount(s);
   });
 
-  let bestSeason = null, bestScore = -1;
+  let bestSeason = null, bestScore = -Infinity;
   seasons.forEach(s => {
     const score = seasonTrophyCount(s) * 100 + (num(s.league.position) ? (100 - num(s.league.position)) : 0);
     if (score > bestScore) { bestScore = score; bestSeason = s; }
@@ -624,7 +625,8 @@ function computeCareerTotals() {
 
 function playerSeasonTrophyList(season) {
   const trophies = [];
-  if (num(season.league.position) === 1 && season.league.position !== '') {
+  const league = season.league || {};
+  if (num(league.position) === 1 && league.position !== '') {
     trophies.push({ name: (season.divisionTier || 'League') + ' Title', type: 'League' });
   }
   (season.competitions || []).forEach(c => {
@@ -703,7 +705,7 @@ function computePlayerCareerTotals() {
     clubMap[clubKey].trophies += playerSeasonTrophyCount(s);
   });
 
-  let bestSeason = null, bestScore = -1;
+  let bestSeason = null, bestScore = -Infinity;
   seasons.forEach(s => {
     const score = playerSeasonTrophyCount(s) * 100 + num(s.attack.goals) * 2 + num(s.attack.assists);
     if (score > bestScore) { bestScore = score; bestSeason = s; }
@@ -1063,7 +1065,7 @@ function renderTotals() {
   const currency = appSettings.currency;
 
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
-    `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => esc(e.season)).join(', ')}</td></tr>`
+    `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join(', ')}</td></tr>`
   ).join('') || `<tr><td colspan="3" class="hint">No trophies yet</td></tr>`;
 
   const clubRows = t.clubHistory.map(c => `
@@ -1357,7 +1359,7 @@ function renderPlayerDashboard() {
     <div class="stat-grid">
       <div class="stat-tile"><div class="stat-label">Seasons Played</div><div class="stat-value">${t.totalSeasons}</div><div class="stat-sub">${t.totalClubs} club${t.totalClubs === 1 ? '' : 's'}</div></div>
       <div class="stat-tile"><div class="stat-label">Appearances</div><div class="stat-value">${fmtNum(t.appearances.played)}</div><div class="stat-sub">${fmtNum(t.appearances.minutes)} minutes</div></div>
-      <div class="stat-tile"><div class="stat-label">Goals + Assists</div><div class="stat-value">${t.goalContributions}</div><div class="stat-sub">${t.attack.goals}G ${t.attack.assists}A</div></div>
+      <div class="stat-tile"><div class="stat-label">Goals + Assists</div><div class="stat-value">${fmtNum(t.goalContributions)}</div><div class="stat-sub">${fmtNum(t.attack.goals)}G ${fmtNum(t.attack.assists)}A</div></div>
       <div class="stat-tile"><div class="stat-label">Trophies Won</div><div class="stat-value">${t.totalTrophies}</div><div class="stat-sub">${t.awards.potsClub} POTS award${t.awards.potsClub === 1 ? '' : 's'}</div></div>
       <div class="stat-tile"><div class="stat-label">Avg. Match Rating</div><div class="stat-value">${t.avgRating ? t.avgRating.toFixed(2) : '—'}</div><div class="stat-sub">${t.motmTotal} MOTM</div></div>
       <div class="stat-tile"><div class="stat-label">International Caps</div><div class="stat-value">${t.intl.caps}</div><div class="stat-sub">${t.intl.goals} goals</div></div>
@@ -1455,7 +1457,7 @@ function renderPlayerTotals() {
   const t = computePlayerCareerTotals();
 
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
-    `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => esc(e.season)).join(', ')}</td></tr>`
+    `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join(', ')}</td></tr>`
   ).join('') || `<tr><td colspan="3" class="hint">No trophies yet</td></tr>`;
 
   const clubRows = t.clubHistory.map(c => `
@@ -2002,6 +2004,12 @@ function saveSeasonDraft() {
     toast('Season and club are required', 'danger');
     return;
   }
+  const L = seasonDraft.league;
+  const sumWDL = num(L.won) + num(L.drawn) + num(L.lost);
+  if (num(L.played) !== sumWDL) {
+    toast(`League Played (${num(L.played)}) doesn't match Won+Drawn+Lost (${sumWDL}) — please fix your league record`, 'danger');
+    return;
+  }
   const idx = state.seasons.findIndex(s => s.id === seasonDraft.id);
   if (idx >= 0) state.seasons[idx] = seasonDraft;
   else state.seasons.push(seasonDraft);
@@ -2361,17 +2369,25 @@ function importJSON(file) {
       if (!parsed || typeof parsed !== 'object') throw new Error('Invalid file');
       if (mode === 'player') {
         pState.player = Object.assign(emptyPlayerProfile(), parsed.player || {});
-        pState.seasons = Array.isArray(parsed.seasons) ? parsed.seasons : [];
+        pState.seasons = Array.isArray(parsed.seasons) ? parsed.seasons.map(s => Object.assign(emptyPlayerSeason(), s)) : [];
         savePlayerState();
       } else {
         state.manager = Object.assign(emptyManagerProfile(), parsed.manager || {});
-        state.seasons = Array.isArray(parsed.seasons) ? parsed.seasons : [];
+        state.seasons = Array.isArray(parsed.seasons) ? parsed.seasons.map(s => Object.assign(emptySeason(), s)) : [];
         saveState();
       }
-      toast('Save data imported');
-      renderCurrentTab();
     } catch (e) {
       toast('Import failed — invalid JSON file', 'danger');
+      return;
+    }
+    // Data is already persisted at this point — a render hiccup afterwards
+    // isn't an import failure, so it gets its own message rather than the
+    // contradictory "imported" + "failed" pair a shared catch would produce.
+    try {
+      renderCurrentTab();
+      toast('Save data imported');
+    } catch (e) {
+      toast('Data imported, but the view failed to refresh — try reloading', 'danger');
     }
   };
   reader.readAsText(file);
@@ -2471,7 +2487,7 @@ function wireEvents() {
     } else if (action === 'add-row') {
       const kind = t.dataset.repeat;
       if (kind === 'pcompetitions') {
-        playerSeasonDraft[kind].push(emptyPlayerCompetition());
+        playerSeasonDraft.competitions.push(emptyPlayerCompetition());
         reRenderPlayerRepeatSection();
       } else {
         const factory = kind === 'competitions' ? emptyCompetition : kind === 'boardObjectives' ? emptyObjective : emptyTransfer;
@@ -2481,7 +2497,7 @@ function wireEvents() {
     } else if (action === 'remove-row') {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10);
       if (kind === 'pcompetitions') {
-        playerSeasonDraft[kind].splice(idx, 1);
+        playerSeasonDraft.competitions.splice(idx, 1);
         reRenderPlayerRepeatSection();
       } else {
         seasonDraft[kind].splice(idx, 1);
@@ -2569,8 +2585,9 @@ function wireEvents() {
     if (t.matches('[data-repeat][data-field]')) {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10), field = t.dataset.field;
       const draft = kind === 'pcompetitions' ? playerSeasonDraft : seasonDraft;
-      if (!draft || !draft[kind] || !draft[kind][idx]) return;
-      draft[kind][idx][field] = t.type === 'checkbox' ? t.checked : t.value;
+      const key = kind === 'pcompetitions' ? 'competitions' : kind;
+      if (!draft || !draft[key] || !draft[key][idx]) return;
+      draft[key][idx][field] = t.type === 'checkbox' ? t.checked : t.value;
     }
     if (t.id === 'save-manager-search') refreshSaveListOnly(t.value);
   });
@@ -2586,8 +2603,9 @@ function wireEvents() {
     if (t.matches('[data-repeat][data-field][type="checkbox"]')) {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10), field = t.dataset.field;
       const draft = kind === 'pcompetitions' ? playerSeasonDraft : seasonDraft;
-      if (!draft || !draft[kind] || !draft[kind][idx]) return;
-      draft[kind][idx][field] = t.checked;
+      const key = kind === 'pcompetitions' ? 'competitions' : kind;
+      if (!draft || !draft[key] || !draft[key][idx]) return;
+      draft[key][idx][field] = t.checked;
     }
     if (t.id === 'theme-toggle' || t.closest?.('#theme-toggle')) return;
   });
