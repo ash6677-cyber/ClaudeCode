@@ -1092,6 +1092,61 @@ function svgBarChart(groups, opts) {
   </svg>`;
 }
 
+// Growing-window rolling average — the first point is just itself, the
+// second is the average of the first two, and so on until the window
+// fills, rather than leaving early seasons blank for lack of history.
+function rollingAverage(values, window) {
+  return values.map((_, i) => {
+    const start = Math.max(0, i - window + 1);
+    const slice = values.slice(start, i + 1);
+    return slice.reduce((a, b) => a + b, 0) / slice.length;
+  });
+}
+
+// Multiple overlaid polylines sharing one set of axes — a single flat
+// per-season line/bar chart (the existing svgLineChart/svgBarChart) doesn't
+// make a long career's trend any easier to read than the raw table would;
+// overlaying a rolling average does.
+function svgMultiLineChart(labels, series, opts) {
+  opts = opts || {};
+  const w = opts.width || 640, h = opts.height || 220;
+  const padL = 34, padR = 14, padT = 16, padB = 26;
+  const innerW = w - padL - padR, innerH = h - padT - padB;
+  if (!labels.length) return '<div class="empty-state" style="padding:30px;"><p>No data yet.</p></div>';
+
+  const allVals = series.flatMap(s => s.values);
+  let min = Math.min(...allVals), max = Math.max(...allVals);
+  if (min === max) { min -= 1; max += 1; }
+  const yFor = v => padT + (1 - (v - min) / (max - min || 1)) * innerH;
+  const xFor = i => padL + (labels.length === 1 ? innerW / 2 : (i / (labels.length - 1)) * innerW);
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(t => {
+    const y = padT + t * innerH;
+    return `<line class="grid-line" x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}"/>`;
+  }).join('');
+
+  const lines = series.map(s => {
+    const pts = s.values.map((v, i) => `${xFor(i)},${yFor(v)}`).join(' ');
+    return `<polyline class="line-path" points="${pts}" stroke="${s.color}"${s.dashed ? ' stroke-dasharray="6,5"' : ''}></polyline>`;
+  }).join('');
+
+  const dots = series.filter(s => !s.dashed).flatMap(s =>
+    s.values.map((v, i) => `<circle class="data-dot" cx="${xFor(i)}" cy="${yFor(v)}" r="3.5" fill="${s.color}"><title>${esc(s.name)} · ${esc(labels[i])}: ${v.toFixed(1)}</title></circle>`)
+  ).join('');
+
+  const xLabels = labels.map((l, i) => {
+    if (labels.length > 10 && i % Math.ceil(labels.length / 8) !== 0 && i !== labels.length - 1) return '';
+    return `<text class="axis-label" x="${xFor(i)}" y="${h - 6}" text-anchor="middle">${esc(l)}</text>`;
+  }).join('');
+
+  const legend = series.map(s => `<span style="display:inline-flex;align-items:center;gap:6px;margin-right:16px;"><span style="width:10px;height:10px;border-radius:50%;background:${s.color};display:inline-block;"></span>${esc(s.name)}</span>`).join('');
+
+  return `<div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;display:flex;flex-wrap:wrap;">${legend}</div>
+  <svg class="svg-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+    ${gridLines}${lines}${dots}${xLabels}
+  </svg>`;
+}
+
 /* ---------------- Dashboard ---------------- */
 
 function renderDashboard() {
@@ -1244,6 +1299,20 @@ function renderTotals() {
   const currency = appSettings.currency;
   const recordsHtml = recordsSectionHtml(computeCareerRecords(t.seasonsChrono));
 
+  let trendHtml = '';
+  if (t.seasonsChrono.length >= 2) {
+    const labels = t.seasonsChrono.map(s => s.seasonLabel);
+    const winRates = t.seasonsChrono.map(s => winPct(num(s.league.won), num(s.league.drawn), num(s.league.lost)));
+    trendHtml = `
+    <div class="section-title">Win Rate Trend</div>
+    <div class="card card-pad">
+      ${svgMultiLineChart(labels, [
+        { name: 'Season Win Rate', color: 'var(--accent-2)', values: winRates },
+        { name: '3-Season Rolling Avg', color: 'var(--accent)', values: rollingAverage(winRates, 3), dashed: true }
+      ])}
+    </div>`;
+  }
+
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
     `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join(', ')}</td></tr>`
   ).join('') || `<tr><td colspan="3" class="hint">No trophies yet</td></tr>`;
@@ -1274,6 +1343,8 @@ function renderTotals() {
       <div class="stat-tile"><div class="stat-label">Goals Against</div><div class="stat-value">${fmtNum(t.matches.ga)}</div></div>
       <div class="stat-tile"><div class="stat-label">Goal Difference</div><div class="stat-value">${t.goalDiff > 0 ? '+' : ''}${t.goalDiff}</div></div>
     </div>
+
+    ${trendHtml}
 
     <div class="section-title">League-Only Record</div>
     <div class="stat-grid">
@@ -1648,6 +1719,20 @@ function renderPlayerTotals() {
   const t = computePlayerCareerTotals();
   const recordsHtml = recordsSectionHtml(playerCareerRecords(t.seasonsChrono));
 
+  let trendHtml = '';
+  if (t.seasonsChrono.length >= 2) {
+    const labels = t.seasonsChrono.map(s => s.seasonLabel);
+    const contributions = t.seasonsChrono.map(s => num(s.attack.goals) + num(s.attack.assists));
+    trendHtml = `
+    <div class="section-title">Goal Contribution Trend</div>
+    <div class="card card-pad">
+      ${svgMultiLineChart(labels, [
+        { name: 'Goals + Assists', color: 'var(--accent-2)', values: contributions },
+        { name: '3-Season Rolling Avg', color: 'var(--accent)', values: rollingAverage(contributions, 3), dashed: true }
+      ])}
+    </div>`;
+  }
+
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
     `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join(', ')}</td></tr>`
   ).join('') || `<tr><td colspan="3" class="hint">No trophies yet</td></tr>`;
@@ -1678,6 +1763,8 @@ function renderPlayerTotals() {
       <div class="stat-tile"><div class="stat-label">Goals per Game</div><div class="stat-value">${t.goalsPerGame.toFixed(2)}</div></div>
       <div class="stat-tile"><div class="stat-label">Avg. Match Rating</div><div class="stat-value">${t.avgRating ? t.avgRating.toFixed(2) : '—'}</div></div>
     </div>
+
+    ${trendHtml}
 
     <div class="section-title">Shooting &amp; Creation</div>
     <div class="stat-grid">
