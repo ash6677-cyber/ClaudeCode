@@ -116,3 +116,24 @@ test('every mobile sheet renders fully inside the viewport', async ({ page }) =>
     await page.waitForTimeout(100);
   }
 });
+
+// Regression coverage: the topbar title held its full intrinsic width, which
+// pushed the save button past the right edge and gave the whole page a few
+// pixels of horizontal scroll on narrow screens.
+test('no page-level horizontal overflow on any tab in mobile layout', async ({ page }) => {
+  await mobileLayout(page);
+  await page.evaluate(() => {
+    const s = emptySeason();
+    Object.assign(s, { seasonLabel: '2025/26', club: 'Riverside United Football Club' });
+    s.league = { played: 38, won: 24, drawn: 8, lost: 6, gf: 78, ga: 34, points: 80, position: 2, leagueSize: 20 };
+    state.seasons = [s];
+    saveState();
+  });
+  for (const tab of ['dashboard', 'seasons', 'totals', 'transfers', 'settings']) {
+    await page.evaluate(t => switchTab(t), tab);
+    await page.waitForTimeout(200);
+    const overflow = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `${tab} overflows horizontally`).toBeLessThanOrEqual(2);
+  }
+});
