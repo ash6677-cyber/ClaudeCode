@@ -22,6 +22,7 @@ async function seedManagerSeason(page, overrides) {
     if (o.competitions) s.competitions = o.competitions;
     if (o.transfersIn) s.transfersIn = o.transfersIn;
     if (o.transfersOut) s.transfersOut = o.transfersOut;
+    if (o.matches) s.matches = o.matches;
     state.seasons = [s];
     saveState();
   }, overrides || {});
@@ -34,6 +35,7 @@ async function seedPlayerSeason(page, overrides) {
     if (o.attack) s.attack = Object.assign(s.attack, o.attack);
     if (o.appearances) s.appearances = Object.assign(s.appearances, o.appearances);
     if (o.international) s.international = Object.assign(s.international, o.international);
+    if (o.matches) s.matches = o.matches;
     pState.seasons = [s];
     savePlayerState();
   }, overrides || {});

@@ -25,6 +25,7 @@ const PLAYER_POSITIONS = ['GK','CB','LB','RB','LWB','RWB','CDM','CM','CAM','LM',
 const SEASON_SECTIONS = [
   { id: 'fs-basics', label: 'Basics', icon: '📋' },
   { id: 'fs-league', label: 'League', icon: '🏟️' },
+  { id: 'fs-matches', label: 'Matches', icon: '📅' },
   { id: 'fs-competitions', label: 'Cups', icon: '🏆' },
   { id: 'fs-awards', label: 'Awards', icon: '⭐' },
   { id: 'fs-standing', label: 'Standing', icon: '📈' },
@@ -40,6 +41,7 @@ const PLAYER_SEASON_SECTIONS = [
   { id: 'pfs-basics', label: 'Basics', icon: '📋' },
   { id: 'pfs-ratings', label: 'Ratings', icon: '📊' },
   { id: 'pfs-appearances', label: 'Apps', icon: '👟' },
+  { id: 'pfs-matches', label: 'Matches', icon: '📅' },
   { id: 'pfs-attack', label: 'Attacking', icon: '⚽' },
   { id: 'pfs-defending', label: 'Defending', icon: '🛡️' },
   { id: 'pfs-goalkeeping', label: 'Goalkeeping', icon: '🧤' },
@@ -145,6 +147,7 @@ function emptySeason() {
       position: '', leagueSize: '', promoted: false, relegated: false, playoff: false
     },
     competitions: [],
+    matches: [],
     playerAwards: {
       topScorerName: '', topScorerGoals: '', topAssisterName: '', topAssisterAssists: '',
       playerOfTheSeason: '', youngPlayerOfTheSeason: '', teamOfTheSeason: '',
@@ -168,6 +171,19 @@ function emptyTransfer() {
 }
 function emptyObjective() {
   return { id: uid('obj'), description: '', achieved: false };
+}
+function emptyMatch() {
+  return { id: uid('match'), date: '', competition: '', opponent: '', venue: 'Home', gf: '', ga: '' };
+}
+
+// null (not W/D/L) until both scores are filled in, so a half-entered row
+// doesn't render a misleading result badge.
+function matchResult(gf, ga) {
+  if (gf === '' || gf == null || ga === '' || ga == null) return null;
+  const a = num(gf), b = num(ga);
+  if (a > b) return 'W';
+  if (a < b) return 'L';
+  return 'D';
 }
 
 /* ---------------- Player Career data model ---------------- */
@@ -193,6 +209,7 @@ function emptyPlayerSeason() {
     form: { avgRating: '', motmCount: 0 },
     league: { position: '', leagueSize: '', promoted: false, relegated: false },
     competitions: [],
+    matches: [],
     awards: {
       potsClub: false, yotsClub: false, teamOfSeason: false,
       goldenBoot: false, goldenGlove: false, ballonDorRank: '', otherAwards: ''
@@ -206,6 +223,9 @@ function emptyPlayerSeason() {
 
 function emptyPlayerCompetition() {
   return { id: uid('pcomp'), name: '', type: 'Domestic Cup', result: 'Winner', apps: '', goals: '', assists: '' };
+}
+function emptyPlayerMatch() {
+  return { id: uid('pmatch'), date: '', competition: '', opponent: '', venue: 'Home', gf: '', ga: '', goals: '', assists: '', rating: '' };
 }
 
 /* ---------------- Storage: global settings + per-mode save slots ---------------- */
@@ -1253,6 +1273,18 @@ function renderDashboard() {
   `;
 }
 
+// A quick "form guide" strip (last up to 8 results) from the optional match
+// log — skipped entirely for seasons with no logged matches, since most
+// seasons will only ever have the aggregate League Record.
+function recentFormHTML(matches) {
+  if (!matches || !matches.length) return '';
+  const chips = matches.slice(-8).map(m => {
+    const r = matchResult(m.gf, m.ga);
+    return r ? `<span class="form-chip form-chip-${r.toLowerCase()}">${r}</span>` : '';
+  }).join('');
+  return chips ? `<div class="season-card-form"><span class="hint">Form</span>${chips}</div>` : '';
+}
+
 /* ---------------- Seasons list ---------------- */
 
 function renderSeasons() {
@@ -1301,6 +1333,7 @@ function renderSeasons() {
         <span class="pill pill-d">${num(L.drawn)}D</span>
         <span class="pill pill-l">${num(L.lost)}L</span>
       </div>
+      ${recentFormHTML(s.matches)}
       <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       <div class="season-card-actions">
         <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-season" data-id="${s.id}" title="Edit" aria-label="Edit season">✎</button>
@@ -1724,6 +1757,7 @@ function renderPlayerSeasons() {
         <span class="pill pill-d">${num(s.attack.assists)}A</span>
         <span class="pill pill-l">${num(s.appearances.played)} apps</span>
       </div>
+      ${recentFormHTML(s.matches)}
       <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       <div class="season-card-actions">
         <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-player-season" data-id="${s.id}" title="Edit" aria-label="Edit season">✎</button>
@@ -2156,6 +2190,48 @@ function objectiveRowHTML(o, i) {
   </div>`;
 }
 
+function matchResultBadgeHTML(gf, ga) {
+  const r = matchResult(gf, ga);
+  return r ? `<span class="match-result-badge match-result-${r.toLowerCase()}">${r}</span>` : '';
+}
+
+function matchRowHTML(m, i) {
+  return `<div class="repeat-row match-row">
+    <div class="field" style="flex-basis:90px;"><label>Date</label><input class="input" data-repeat="matches" data-index="${i}" data-field="date" value="${esc(m.date)}" placeholder="12 Aug" /></div>
+    <div class="field"><label>Competition</label><input class="input" data-repeat="matches" data-index="${i}" data-field="competition" value="${esc(m.competition)}" placeholder="League" /></div>
+    <div class="field"><label>Opponent</label><input class="input" data-repeat="matches" data-index="${i}" data-field="opponent" value="${esc(m.opponent)}" placeholder="Opponent" /></div>
+    <div class="field" style="flex-basis:105px;"><label>Venue</label>
+      <select class="input select" data-repeat="matches" data-index="${i}" data-field="venue">
+        ${['Home', 'Away', 'Neutral'].map(v => `<option value="${v}" ${m.venue === v ? 'selected' : ''}>${v}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field" style="flex-basis:64px;"><label>GF</label><input class="input" type="number" min="0" data-repeat="matches" data-index="${i}" data-field="gf" value="${esc(m.gf)}" /></div>
+    <div class="field" style="flex-basis:64px;"><label>GA</label><input class="input" type="number" min="0" data-repeat="matches" data-index="${i}" data-field="ga" value="${esc(m.ga)}" /></div>
+    <div class="field match-result-field" style="flex-basis:44px;align-self:end;padding-bottom:9px;">${matchResultBadgeHTML(m.gf, m.ga)}</div>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="matches" data-index="${i}" title="Remove" aria-label="Remove match row">✕</button>
+  </div>`;
+}
+
+function playerMatchRowHTML(m, i) {
+  return `<div class="repeat-row match-row">
+    <div class="field" style="flex-basis:90px;"><label>Date</label><input class="input" data-repeat="pmatches" data-index="${i}" data-field="date" value="${esc(m.date)}" placeholder="12 Aug" /></div>
+    <div class="field"><label>Competition</label><input class="input" data-repeat="pmatches" data-index="${i}" data-field="competition" value="${esc(m.competition)}" placeholder="League" /></div>
+    <div class="field"><label>Opponent</label><input class="input" data-repeat="pmatches" data-index="${i}" data-field="opponent" value="${esc(m.opponent)}" placeholder="Opponent" /></div>
+    <div class="field" style="flex-basis:105px;"><label>Venue</label>
+      <select class="input select" data-repeat="pmatches" data-index="${i}" data-field="venue">
+        ${['Home', 'Away', 'Neutral'].map(v => `<option value="${v}" ${m.venue === v ? 'selected' : ''}>${v}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field" style="flex-basis:58px;"><label>GF</label><input class="input" type="number" min="0" data-repeat="pmatches" data-index="${i}" data-field="gf" value="${esc(m.gf)}" /></div>
+    <div class="field" style="flex-basis:58px;"><label>GA</label><input class="input" type="number" min="0" data-repeat="pmatches" data-index="${i}" data-field="ga" value="${esc(m.ga)}" /></div>
+    <div class="field" style="flex-basis:58px;"><label>Goals</label><input class="input" type="number" min="0" data-repeat="pmatches" data-index="${i}" data-field="goals" value="${esc(m.goals)}" /></div>
+    <div class="field" style="flex-basis:58px;"><label>Assists</label><input class="input" type="number" min="0" data-repeat="pmatches" data-index="${i}" data-field="assists" value="${esc(m.assists)}" /></div>
+    <div class="field" style="flex-basis:58px;"><label>Rating</label><input class="input" type="number" step="0.1" min="0" max="10" data-repeat="pmatches" data-index="${i}" data-field="rating" value="${esc(m.rating)}" /></div>
+    <div class="field match-result-field" style="flex-basis:44px;align-self:end;padding-bottom:9px;">${matchResultBadgeHTML(m.gf, m.ga)}</div>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="pmatches" data-index="${i}" title="Remove" aria-label="Remove match row">✕</button>
+  </div>`;
+}
+
 function detailsOpen(o) { return o ? 'open' : ''; }
 
 function renderSeasonFormHTML(d) {
@@ -2203,6 +2279,15 @@ function renderSeasonFormHTML(d) {
         <div class="field checkbox-field"><input type="checkbox" id="f-league-relegated" ${L.relegated ? 'checked' : ''} /><label for="f-league-relegated">Relegated</label></div>
         <div class="field checkbox-field"><input type="checkbox" id="f-league-playoff" ${L.playoff ? 'checked' : ''} /><label for="f-league-playoff">Reached Playoffs</label></div>
       </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="fs-matches" ${detailsOpen(d.matches.length > 0)}>
+      <summary><span class="legend-icon">📅</span> Match Log ${d.matches.length ? `<span class="chip-count">${d.matches.length}</span>` : ''}</summary>
+      <div class="form-section-body">
+      <p class="hint" style="margin-bottom:10px;">Optional — log individual results if you want a match-by-match history for this season.</p>
+      <div class="repeat-list" id="repeat-matches">${repeatRowsHTML('matches', d.matches, matchRowHTML)}</div>
+      <button type="button" class="add-row-btn" data-action="add-row" data-repeat="matches">+ Add Match</button>
       </div>
     </details>
 
@@ -2313,7 +2398,10 @@ function renderSeasonFormHTML(d) {
 function reRenderRepeatSection(kind) {
   const container = $('#repeat-' + kind);
   if (!container) return;
-  const fn = kind === 'competitions' ? competitionRowHTML : kind === 'boardObjectives' ? objectiveRowHTML : transferRowHTML;
+  const fn = kind === 'competitions' ? competitionRowHTML
+    : kind === 'boardObjectives' ? objectiveRowHTML
+    : kind === 'matches' ? matchRowHTML
+    : transferRowHTML;
   container.innerHTML = repeatRowsHTML(kind, seasonDraft[kind], fn);
 }
 
@@ -2429,10 +2517,14 @@ function playerCompetitionRowHTML(c, i) {
   </div>`;
 }
 
-function reRenderPlayerRepeatSection() {
-  const container = $('#repeat-pcompetitions');
+function reRenderPlayerRepeatSection(kind) {
+  const container = $('#repeat-' + kind);
   if (!container) return;
-  container.innerHTML = repeatRowsHTML('pcompetitions', playerSeasonDraft.competitions, playerCompetitionRowHTML);
+  if (kind === 'pmatches') {
+    container.innerHTML = repeatRowsHTML('pmatches', playerSeasonDraft.matches, playerMatchRowHTML);
+  } else {
+    container.innerHTML = repeatRowsHTML('pcompetitions', playerSeasonDraft.competitions, playerCompetitionRowHTML);
+  }
 }
 
 function renderPlayerSeasonFormHTML(d) {
@@ -2490,6 +2582,15 @@ function renderPlayerSeasonFormHTML(d) {
         <div class="field"><label>Sub Appearances</label><input class="input" type="number" min="0" id="pf-app-subApps" value="${esc(A.subApps)}" /></div>
         <div class="field"><label>Minutes Played</label><input class="input" type="number" min="0" id="pf-app-minutes" value="${esc(A.minutes)}" /></div>
       </div>
+      </div>
+    </details>
+
+    <details class="form-section" id="pfs-matches" ${detailsOpen(d.matches.length > 0)}>
+      <summary><span class="legend-icon">📅</span> Match Log ${d.matches.length ? `<span class="chip-count">${d.matches.length}</span>` : ''}</summary>
+      <div class="form-section-body">
+      <p class="hint" style="margin-bottom:10px;">Optional — log individual appearances if you want a match-by-match history for this season.</p>
+      <div class="repeat-list" id="repeat-pmatches">${repeatRowsHTML('pmatches', d.matches, playerMatchRowHTML)}</div>
+      <button type="button" class="add-row-btn" data-action="add-row" data-repeat="pmatches">+ Add Match</button>
       </div>
     </details>
 
@@ -2912,9 +3013,15 @@ function wireEvents() {
       const kind = t.dataset.repeat;
       if (kind === 'pcompetitions') {
         playerSeasonDraft.competitions.push(emptyPlayerCompetition());
-        reRenderPlayerRepeatSection();
+        reRenderPlayerRepeatSection('pcompetitions');
+      } else if (kind === 'pmatches') {
+        playerSeasonDraft.matches.push(emptyPlayerMatch());
+        reRenderPlayerRepeatSection('pmatches');
       } else {
-        const factory = kind === 'competitions' ? emptyCompetition : kind === 'boardObjectives' ? emptyObjective : emptyTransfer;
+        const factory = kind === 'competitions' ? emptyCompetition
+          : kind === 'boardObjectives' ? emptyObjective
+          : kind === 'matches' ? emptyMatch
+          : emptyTransfer;
         seasonDraft[kind].push(factory());
         reRenderRepeatSection(kind);
       }
@@ -2922,7 +3029,10 @@ function wireEvents() {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10);
       if (kind === 'pcompetitions') {
         playerSeasonDraft.competitions.splice(idx, 1);
-        reRenderPlayerRepeatSection();
+        reRenderPlayerRepeatSection('pcompetitions');
+      } else if (kind === 'pmatches') {
+        playerSeasonDraft.matches.splice(idx, 1);
+        reRenderPlayerRepeatSection('pmatches');
       } else {
         seasonDraft[kind].splice(idx, 1);
         reRenderRepeatSection(kind);
@@ -3012,10 +3122,18 @@ function wireEvents() {
     const t = e.target;
     if (t.matches('[data-repeat][data-field]')) {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10), field = t.dataset.field;
-      const draft = kind === 'pcompetitions' ? playerSeasonDraft : seasonDraft;
-      const key = kind === 'pcompetitions' ? 'competitions' : kind;
+      const draft = (kind === 'pcompetitions' || kind === 'pmatches') ? playerSeasonDraft : seasonDraft;
+      const key = kind === 'pcompetitions' ? 'competitions' : kind === 'pmatches' ? 'matches' : kind;
       if (!draft || !draft[key] || !draft[key][idx]) return;
       draft[key][idx][field] = t.type === 'checkbox' ? t.checked : t.value;
+      // The W/D/L badge is derived from gf/ga, not stored — patch just this
+      // row's badge in place rather than re-rendering the whole list, which
+      // would drop focus out of the input on every keystroke.
+      if ((kind === 'matches' || kind === 'pmatches') && (field === 'gf' || field === 'ga')) {
+        const row = t.closest('.repeat-row');
+        const badgeEl = row && row.querySelector('.match-result-field');
+        if (badgeEl) badgeEl.innerHTML = matchResultBadgeHTML(draft[key][idx].gf, draft[key][idx].ga);
+      }
     }
     if (t.id === 'save-manager-search') refreshSaveListOnly(t.value);
   });

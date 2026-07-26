@@ -697,6 +697,25 @@ details.form-section > summary:hover { color: var(--accent); }
 }
 .add-row-btn:hover { color: var(--accent-2); border-color: var(--accent-2); background: rgba(var(--accent-2-rgb), 0.08); }
 
+.match-result-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--radius-pill);
+  font-size: 11.5px; font-weight: 800;
+}
+.match-result-w { background: rgba(var(--accent-rgb), 0.18); color: var(--accent); }
+.match-result-d { background: rgba(255, 214, 10, 0.16); color: var(--accent-3); }
+.match-result-l { background: var(--danger-soft); color: var(--danger); }
+
+.season-card-form { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+.form-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; border-radius: 50%;
+  font-size: 9.5px; font-weight: 800;
+}
+.form-chip-w { background: rgba(var(--accent-rgb), 0.18); color: var(--accent); }
+.form-chip-d { background: rgba(255, 214, 10, 0.16); color: var(--accent-3); }
+.form-chip-l { background: var(--danger-soft); color: var(--danger); }
+
 .modal-footer-actions {
   display: flex; justify-content: space-between; align-items: center;
   gap: 12px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--glass-border);
