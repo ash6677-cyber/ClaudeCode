@@ -1624,6 +1624,7 @@ function renderSettings() {
         <div class="settings-row-text"><h4>Import Data</h4><p>Restore this save from a previously exported JSON backup. This replaces its current data.</p></div>
         <label class="btn btn-ghost" style="cursor:pointer;">Import JSON<input type="file" class="import-file-input" accept="application/json" style="display:none;" /></label>
       </div>
+      ${transferCodeSettingsHTML()}
       <div class="settings-row">
         <div class="settings-row-text"><h4>Reset This Save</h4><p>Permanently clear the manager profile and every season in this save. Cannot be undone.</p></div>
         <button class="btn btn-danger" data-action="reset-all">Reset This Save</button>
@@ -2051,6 +2052,7 @@ function renderPlayerSettings() {
         <div class="settings-row-text"><h4>Import Data</h4><p>Restore this save from a previously exported JSON backup. This replaces its current data.</p></div>
         <label class="btn btn-ghost" style="cursor:pointer;">Import JSON<input type="file" class="import-file-input" accept="application/json" style="display:none;" /></label>
       </div>
+      ${transferCodeSettingsHTML()}
       <div class="settings-row">
         <div class="settings-row-text"><h4>Reset This Save</h4><p>Permanently clear the player profile and every season in this save. Cannot be undone.</p></div>
         <button class="btn btn-danger" data-action="reset-all">Reset This Save</button>
@@ -2820,6 +2822,34 @@ function backupStatusLine() {
   return `Last backup: ${timeAgo(appSettings.lastBackupAt)}.`;
 }
 
+// Shared by both Manager and Player Settings — a JSON file is the most
+// reliable way to move a save, but pulling up a Files app or Downloads
+// folder is real friction on a phone. A code you can select and paste
+// directly between two open tabs/apps sidesteps that.
+function transferCodeSettingsHTML() {
+  return `
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+        <div class="settings-row-text"><h4>Transfer Code</h4><p>Move this save to another device without a file — generate a code here, then paste it into "Import Transfer Code" on the other device.</p></div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-ghost" data-action="generate-transfer-code">Generate Code</button>
+        </div>
+      </div>
+      <div class="settings-row" id="transfer-code-out-row" style="flex-direction:column;align-items:stretch;" hidden>
+        <div class="settings-row-text">
+          <label>Your Transfer Code</label>
+          <textarea class="input" id="transfer-code-output" readonly rows="3" data-action="select-transfer-code-output"></textarea>
+        </div>
+        <button class="btn btn-ghost" style="align-self:flex-start;margin-top:8px;" data-action="copy-transfer-code">Copy Code</button>
+      </div>
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;">
+        <div class="settings-row-text">
+          <label>Import Transfer Code</label>
+          <textarea class="input" id="transfer-code-input" rows="3" placeholder="Paste a transfer code here"></textarea>
+        </div>
+        <button class="btn btn-ghost" style="align-self:flex-start;margin-top:8px;" data-action="import-transfer-code">Import Code</button>
+      </div>`;
+}
+
 function exportJSON() {
   const mode = appSettings.mode;
   const active = mode === 'player' ? pState : state;
@@ -2881,37 +2911,91 @@ function snoozeBackupNudge() {
   hideBackupNudge();
 }
 
-function importJSON(file) {
+// Shared by both file-based import and transfer-code import below — takes
+// an already-parsed plain object and applies it to whichever mode is
+// currently active. Assumed valid; callers are responsible for validating
+// `parsed` first so a bad payload here fails loudly instead of half-applying.
+function applyImportedSaveData(parsed) {
   const mode = appSettings.mode;
+  if (mode === 'player') {
+    pState.player = Object.assign(emptyPlayerProfile(), parsed.player || {});
+    pState.seasons = Array.isArray(parsed.seasons) ? parsed.seasons.map(s => Object.assign(emptyPlayerSeason(), s)) : [];
+    savePlayerState();
+  } else {
+    state.manager = Object.assign(emptyManagerProfile(), parsed.manager || {});
+    state.seasons = Array.isArray(parsed.seasons) ? parsed.seasons.map(s => Object.assign(emptySeason(), s)) : [];
+    saveState();
+  }
+  // Data is already persisted at this point — a render hiccup afterwards
+  // isn't an import failure, so it gets its own message rather than the
+  // contradictory "imported" + "failed" pair a shared catch would produce.
+  try {
+    renderCurrentTab();
+    toast('Save data imported');
+  } catch (e) {
+    toast('Data imported, but the view failed to refresh — try reloading', 'danger');
+  }
+}
+
+function importJSON(file) {
   const reader = new FileReader();
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
       if (!parsed || typeof parsed !== 'object') throw new Error('Invalid file');
-      if (mode === 'player') {
-        pState.player = Object.assign(emptyPlayerProfile(), parsed.player || {});
-        pState.seasons = Array.isArray(parsed.seasons) ? parsed.seasons.map(s => Object.assign(emptyPlayerSeason(), s)) : [];
-        savePlayerState();
-      } else {
-        state.manager = Object.assign(emptyManagerProfile(), parsed.manager || {});
-        state.seasons = Array.isArray(parsed.seasons) ? parsed.seasons.map(s => Object.assign(emptySeason(), s)) : [];
-        saveState();
-      }
+      applyImportedSaveData(parsed);
     } catch (e) {
       toast('Import failed — invalid JSON file', 'danger');
-      return;
-    }
-    // Data is already persisted at this point — a render hiccup afterwards
-    // isn't an import failure, so it gets its own message rather than the
-    // contradictory "imported" + "failed" pair a shared catch would produce.
-    try {
-      renderCurrentTab();
-      toast('Save data imported');
-    } catch (e) {
-      toast('Data imported, but the view failed to refresh — try reloading', 'danger');
     }
   };
   reader.readAsText(file);
+}
+
+/* ---------------- Cross-device transfer codes ---------------- */
+
+// A compact, copy-pasteable stand-in for real cloud sync: everything here
+// lives in localStorage with no account or server behind it, so moving a
+// save to another device/browser means physically carrying the data over
+// yourself. JSON export already does that via a file; this covers the case
+// where shuffling a file between two devices is more friction than just
+// selecting and pasting a block of text (e.g. phone to phone).
+const TRANSFER_CODE_PREFIX = 'FCTC1:';
+
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = '';
+  bytes.forEach(b => { binary += String.fromCharCode(b); });
+  return btoa(binary);
+}
+
+function base64ToUtf8(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+function generateTransferCode() {
+  const mode = appSettings.mode;
+  const active = mode === 'player' ? pState : state;
+  const payload = mode === 'player'
+    ? { player: active.player, seasons: active.seasons }
+    : { manager: active.manager, seasons: active.seasons };
+  return TRANSFER_CODE_PREFIX + utf8ToBase64(JSON.stringify(payload));
+}
+
+function importTransferCode(code) {
+  let parsed;
+  try {
+    const trimmed = (code || '').trim();
+    if (!trimmed.startsWith(TRANSFER_CODE_PREFIX)) throw new Error('Not a transfer code');
+    parsed = JSON.parse(base64ToUtf8(trimmed.slice(TRANSFER_CODE_PREFIX.length)));
+    if (!parsed || typeof parsed !== 'object') throw new Error('Invalid code');
+  } catch (e) {
+    toast('Import failed — invalid or corrupted transfer code', 'danger');
+    return;
+  }
+  applyImportedSaveData(parsed);
 }
 
 /* ---------------- Theme ---------------- */
@@ -3071,6 +3155,28 @@ function wireEvents() {
       exportJSON();
     } else if (action === 'backup-nudge-dismiss') {
       snoozeBackupNudge();
+    } else if (action === 'select-transfer-code-output') {
+      t.select();
+    } else if (action === 'generate-transfer-code') {
+      const code = generateTransferCode();
+      const outputEl = $('#transfer-code-output');
+      if (outputEl) outputEl.value = code;
+      const outRow = $('#transfer-code-out-row');
+      if (outRow) outRow.hidden = false;
+      toast('Transfer code generated below');
+    } else if (action === 'copy-transfer-code') {
+      const outputEl = $('#transfer-code-output');
+      if (outputEl && outputEl.value) {
+        navigator.clipboard.writeText(outputEl.value)
+          .then(() => toast('Transfer code copied'))
+          .catch(() => toast('Could not copy — select the text and copy manually', 'danger'));
+      }
+    } else if (action === 'import-transfer-code') {
+      const inputEl = $('#transfer-code-input');
+      const code = inputEl ? inputEl.value : '';
+      if (!code.trim()) { toast('Paste a transfer code first', 'danger'); return; }
+      importTransferCode(code);
+      if (inputEl) inputEl.value = '';
     } else if (action === 'reset-all') {
       const mode = appSettings.mode;
       const label = mode === 'player' ? 'this player save' : 'this manager save';
