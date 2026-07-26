@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FC Career Tracker</title>
+<meta name="description" content="Track every stat from your football manager or player career mode — season by season, and across your whole career. Up to 100 saves per mode." />
+<meta name="theme-color" content="#0b1020" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="assets/icons/icon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png" />
+<link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+
+<div class="bg-mesh" aria-hidden="true">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="blob blob-4"></div>
+</div>
+
+<div id="toast-root" class="toast-root" aria-live="polite"></div>
+
+<div id="backup-nudge" class="backup-nudge glass" role="status" hidden>
+  <span class="backup-nudge-icon" aria-hidden="true">💾</span>
+  <span class="backup-nudge-text">It's been a while since your last backup — everything here only lives in this browser. Export a copy so you don't lose your progress.</span>
+  <button class="btn btn-primary btn-sm" data-action="backup-nudge-export">Export Now</button>
+  <button class="backup-nudge-dismiss" data-action="backup-nudge-dismiss" aria-label="Dismiss, remind me later">✕</button>
+</div>
+
+<div class="app-shell">
+
+  <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
+  <aside id="sidebar" class="sidebar glass">
+    <div class="sidebar-brand">
+      <span class="brand-mark">⚽</span>
+      <span class="brand-name">FC Career<br>Tracker</span>
+      <button id="mobile-nav-close" class="sidebar-close" aria-label="Close menu">✕</button>
+    </div>
+
+    <div class="mode-switch" id="mode-switch" role="tablist" aria-label="Career mode">
+      <button class="mode-switch-btn" data-mode="manager" role="tab">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20v-2a4 4 0 0 1 4-4h1"/><circle cx="8.5" cy="7.5" r="3"/><path d="M13 20v-1a4 4 0 0 1 4-4h1a2 2 0 0 0 2-2V9"/><circle cx="17" cy="6" r="2.2"/></svg>
+        Manager
+      </button>
+      <button class="mode-switch-btn" data-mode="player" role="tab">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3.2"/><path d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/></svg>
+        Player
+      </button>
+    </div>
+
+    <nav class="sidebar-nav" id="main-tabs" role="tablist" aria-label="Sections">
+      <button class="tab-btn" data-mode="manager" data-tab="dashboard" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg></span>
+        <span>Dashboard</span>
+      </button>
+      <button class="tab-btn" data-mode="manager" data-tab="seasons" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg></span>
+        <span>Seasons</span>
+      </button>
+      <button class="tab-btn" data-mode="manager" data-tab="totals" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V12"/><path d="M12 20V6"/><path d="M20 20v-9"/><path d="M2 20h20"/></svg></span>
+        <span>Career Totals</span>
+      </button>
+      <button class="tab-btn" data-mode="manager" data-tab="trophies" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v3.5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4.5A2.5 2.5 0 0 0 7 8"/><path d="M17 5h2.5A2.5 2.5 0 0 1 17 8"/><path d="M12 12.5V15"/><path d="M8.5 20h7"/><path d="M9.5 16.5h5l.6 3.5h-6.2z"/></svg></span>
+        <span>Trophy Cabinet</span>
+      </button>
+      <button class="tab-btn" data-mode="manager" data-tab="transfers" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7.5h12l-3.5-3.5"/><path d="M17.5 16.5h-12l3.5 3.5"/></svg></span>
+        <span>Transfers</span>
+      </button>
+      <button class="tab-btn" data-mode="manager" data-tab="settings" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span>Settings</span>
+      </button>
+
+      <button class="tab-btn" data-mode="player" data-tab="p-dashboard" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="5" rx="2"/><rect x="13" y="10" width="8" height="11" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/></svg></span>
+        <span>Dashboard</span>
+      </button>
+      <button class="tab-btn" data-mode="player" data-tab="p-seasons" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/></svg></span>
+        <span>Seasons</span>
+      </button>
+      <button class="tab-btn" data-mode="player" data-tab="p-totals" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V12"/><path d="M12 20V6"/><path d="M20 20v-9"/><path d="M2 20h20"/></svg></span>
+        <span>Career Totals</span>
+      </button>
+      <button class="tab-btn" data-mode="player" data-tab="p-honours" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v3.5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4.5A2.5 2.5 0 0 0 7 8"/><path d="M17 5h2.5A2.5 2.5 0 0 1 17 8"/><path d="M12 12.5V15"/><path d="M8.5 20h7"/><path d="M9.5 16.5h5l.6 3.5h-6.2z"/></svg></span>
+        <span>Trophy Cabinet</span>
+      </button>
+      <button class="tab-btn" data-mode="player" data-tab="p-international" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+        <span>International</span>
+      </button>
+      <button class="tab-btn" data-mode="player" data-tab="p-settings" role="tab">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <button id="add-season-btn-side" class="btn btn-primary btn-block sidebar-add-btn">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add Season
+    </button>
+
+    <button id="manager-mini" class="sidebar-footer" data-action="open-save-manager" title="Switch or manage saves">
+      <span class="manager-avatar" id="manager-avatar">?</span>
+      <span class="manager-mini-text">
+        <span class="manager-mini-name" id="manager-mini-name">Set up profile</span>
+        <span class="manager-mini-sub" id="manager-subtitle">Tap to switch saves</span>
+      </span>
+      <svg class="sidebar-footer-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8l5 5 5-5"/></svg>
+    </button>
+  </aside>
+
+  <div class="main-col">
+    <header class="topbar glass">
+      <button id="mobile-nav-toggle" class="mobile-nav-toggle" aria-label="Toggle menu">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <span class="brand-mark topbar-brand-mark">⚽</span>
+      <h1 id="page-title">Dashboard</h1>
+      <div class="topbar-spacer"></div>
+      <div class="mode-switch topbar-mode-switch" id="mode-switch-mobile" role="tablist" aria-label="Career mode"></div>
+      <button id="save-switcher-mobile" class="btn btn-ghost btn-icon topbar-save-btn" data-action="open-save-manager" aria-label="Switch or manage saves">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg>
+      </button>
+      <button id="add-season-btn" class="btn btn-primary btn-header">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Add Season
+      </button>
+    </header>
+
+    <main id="app-main" class="app-main">
+
+      <!-- ============ MANAGER MODE VIEWS ============ -->
+
+      <section id="view-dashboard" class="view">
+        <div id="dashboard-content"></div>
+      </section>
+
+      <section id="view-seasons" class="view">
+        <div class="view-header">
+          <div class="view-header-actions">
+            <input id="season-search" class="input" type="text" placeholder="Search club, season, competition…" />
+            <select id="season-sort" class="input select">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="position">Best league position</option>
+              <option value="trophies">Most trophies</option>
+            </select>
+          </div>
+        </div>
+        <div id="seasons-list" class="seasons-list"></div>
+      </section>
+
+      <section id="view-totals" class="view">
+        <div id="totals-content"></div>
+      </section>
+
+      <section id="view-trophies" class="view">
+        <div id="trophies-content"></div>
+      </section>
+
+      <section id="view-transfers" class="view">
+        <div id="transfers-content"></div>
+      </section>
+
+      <section id="view-settings" class="view">
+        <div id="settings-content"></div>
+      </section>
+
+      <!-- ============ PLAYER MODE VIEWS ============ -->
+
+      <section id="view-p-dashboard" class="view">
+        <div id="p-dashboard-content"></div>
+      </section>
+
+      <section id="view-p-seasons" class="view">
+        <div class="view-header">
+          <div class="view-header-actions">
+            <input id="p-season-search" class="input" type="text" placeholder="Search club, season, competition…" />
+            <select id="p-season-sort" class="input select">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="goals">Most goals</option>
+              <option value="rating">Best average rating</option>
+            </select>
+          </div>
+        </div>
+        <div id="p-seasons-list" class="seasons-list"></div>
+      </section>
+
+      <section id="view-p-totals" class="view">
+        <div id="p-totals-content"></div>
+      </section>
+
+      <section id="view-p-honours" class="view">
+        <div id="p-honours-content"></div>
+      </section>
+
+      <section id="view-p-international" class="view">
+        <div id="p-international-content"></div>
+      </section>
+
+      <section id="view-p-settings" class="view">
+        <div id="p-settings-content"></div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Mobile Mode bottom tab bar + FAB (populated from #main-tabs; only shown when data-layout="mobile") -->
+<nav class="mobile-tabbar glass" id="mobile-tabbar" role="tablist" aria-label="Sections"></nav>
+<button id="fab-add-season" class="fab-add-season" aria-label="Add season">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- Season Form Modal (reused by both Manager and Player mode) -->
+<div id="season-modal" class="modal-overlay" hidden>
+  <div class="modal season-modal glass" role="dialog" aria-modal="true" aria-labelledby="season-modal-title">
+    <div class="modal-header">
+      <h2 id="season-modal-title">Add Season</h2>
+      <button class="modal-close" id="season-modal-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="season-form-body"></div>
+  </div>
+</div>
+
+<!-- Save Manager Modal -->
+<div id="save-manager-modal" class="modal-overlay" hidden>
+  <div class="modal save-manager-modal glass" role="dialog" aria-modal="true" aria-labelledby="save-manager-title">
+    <div class="modal-header">
+      <h2 id="save-manager-title">Manager Saves</h2>
+      <button class="modal-close" id="save-manager-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="save-manager-body"></div>
+  </div>
+</div>
+
+<!-- Generic Confirm Modal -->
+<div id="confirm-modal" class="modal-overlay" hidden>
+  <div class="modal confirm-modal glass" role="dialog" aria-modal="true">
+    <p id="confirm-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="confirm-modal-cancel">Cancel</button>
+      <button class="btn btn-danger" id="confirm-modal-ok">Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/app.js"></script>
+<script type="module" src="assets/trophy3d.js"></script>
+</body>
+</html>
