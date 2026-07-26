@@ -217,7 +217,11 @@ const LEGACY_STATE_KEY = 'fc-career-tracker:v1';
 const MAX_SAVES_PER_MODE = 100;
 
 function defaultAppSettings() {
-  return { theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', renderQuality: 'auto', activeManagerSaveId: null, activePlayerSaveId: null };
+  return {
+    theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', renderQuality: 'auto',
+    activeManagerSaveId: null, activePlayerSaveId: null,
+    lastBackupAt: null, backupNudgeSnoozedUntil: null
+  };
 }
 
 function loadAppSettings() {
@@ -1580,7 +1584,7 @@ function renderSettings() {
         </div>
       </div>
       <div class="settings-row">
-        <div class="settings-row-text"><h4>Export Data</h4><p>Download this save as a JSON backup file.</p></div>
+        <div class="settings-row-text"><h4>Export Data</h4><p>${backupStatusLine()} Everything here lives only in this browser — export a copy so a clear-cache or reinstall can't lose it.</p></div>
         <button class="btn btn-ghost" data-action="export-json">Export JSON</button>
       </div>
       <div class="settings-row">
@@ -2006,7 +2010,7 @@ function renderPlayerSettings() {
         </div>
       </div>
       <div class="settings-row">
-        <div class="settings-row-text"><h4>Export Data</h4><p>Download this save as a JSON backup file.</p></div>
+        <div class="settings-row-text"><h4>Export Data</h4><p>${backupStatusLine()} Everything here lives only in this browser — export a copy so a clear-cache or reinstall can't lose it.</p></div>
         <button class="btn btn-ghost" data-action="export-json">Export JSON</button>
       </div>
       <div class="settings-row">
@@ -2710,6 +2714,11 @@ function deletePlayerSeason(id) {
 
 /* ---------------- Import / Export ---------------- */
 
+function backupStatusLine() {
+  if (!appSettings.lastBackupAt) return 'You have never exported a backup.';
+  return `Last backup: ${timeAgo(appSettings.lastBackupAt)}.`;
+}
+
 function exportJSON() {
   const mode = appSettings.mode;
   const active = mode === 'player' ? pState : state;
@@ -2727,7 +2736,48 @@ function exportJSON() {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  appSettings.lastBackupAt = Date.now();
+  saveAppSettings();
+  hideBackupNudge();
   toast('Exported save data');
+}
+
+/* ---------------- Backup nudge ---------------- */
+
+const BACKUP_NUDGE_INTERVAL = 14 * 86400000; // remind every 14 days without a backup
+const BACKUP_NUDGE_SNOOZE = 7 * 86400000;    // "Later" waits a week before asking again
+
+// Everything in this app lives in localStorage only — there's no account or
+// cloud sync, so a cleared cache, browser reset, or device change silently
+// wipes a save with no way back short of a JSON export the user made
+// themselves. This nudges toward that habit without nagging: only once data
+// actually exists to lose, never more than every two weeks, and a "Later"
+// tap buys a full extra week of silence.
+function maybeShowBackupNudge() {
+  const hasData = (state && state.seasons && state.seasons.length) || (pState && pState.seasons && pState.seasons.length);
+  if (!hasData) return;
+  const now = Date.now();
+  if (appSettings.backupNudgeSnoozedUntil && now < appSettings.backupNudgeSnoozedUntil) return;
+  const sinceBackup = appSettings.lastBackupAt ? now - appSettings.lastBackupAt : Infinity;
+  if (sinceBackup < BACKUP_NUDGE_INTERVAL) return;
+  showBackupNudge();
+}
+
+function showBackupNudge() {
+  const el = $('#backup-nudge');
+  if (!el) return;
+  el.hidden = false;
+}
+
+function hideBackupNudge() {
+  const el = $('#backup-nudge');
+  if (el) el.hidden = true;
+}
+
+function snoozeBackupNudge() {
+  appSettings.backupNudgeSnoozedUntil = Date.now() + BACKUP_NUDGE_SNOOZE;
+  saveAppSettings();
+  hideBackupNudge();
 }
 
 function importJSON(file) {
@@ -2907,6 +2957,10 @@ function wireEvents() {
       updateHeaderSubtitle();
     } else if (action === 'export-json') {
       exportJSON();
+    } else if (action === 'backup-nudge-export') {
+      exportJSON();
+    } else if (action === 'backup-nudge-dismiss') {
+      snoozeBackupNudge();
     } else if (action === 'reset-all') {
       const mode = appSettings.mode;
       const label = mode === 'player' ? 'this player save' : 'this manager save';
@@ -3109,6 +3163,7 @@ function init() {
   else window.addEventListener('trophy3d-ready', () => window.Trophy3D.setQuality(appSettings.renderQuality), { once: true });
   switchTab(appSettings.mode === 'player' ? 'p-dashboard' : 'dashboard');
   applyLaunchShortcut();
+  maybeShowBackupNudge();
 }
 
 // Handles PWA manifest "shortcuts" (long-press the home-screen icon) —

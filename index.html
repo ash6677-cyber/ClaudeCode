@@ -24,6 +24,13 @@
 
 <div id="toast-root" class="toast-root" aria-live="polite"></div>
 
+<div id="backup-nudge" class="backup-nudge glass" role="status" hidden>
+  <span class="backup-nudge-icon" aria-hidden="true">💾</span>
+  <span class="backup-nudge-text">It's been a while since your last backup — everything here only lives in this browser. Export a copy so you don't lose your progress.</span>
+  <button class="btn btn-primary btn-sm" data-action="backup-nudge-export">Export Now</button>
+  <button class="backup-nudge-dismiss" data-action="backup-nudge-dismiss" aria-label="Dismiss, remind me later">✕</button>
+</div>
+
 <div class="app-shell">
 
   <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
