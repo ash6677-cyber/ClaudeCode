@@ -32,6 +32,15 @@ let sharedShadowGeometry = null;
 let qualityLevel = 'auto';
 const instances = new Map();
 
+// Users with a system-level "reduce motion" preference get static trophies:
+// the auto-rotate spin is a purely decorative touch, not something conveying
+// information, so it's the first thing to drop.
+const reduceMotionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+let prefersReducedMotion = reduceMotionQuery ? reduceMotionQuery.matches : false;
+if (reduceMotionQuery) {
+  reduceMotionQuery.addEventListener('change', e => { prefersReducedMotion = e.matches; });
+}
+
 // 'auto' (default) floors supersampling at 2x even on standard 1x monitors —
 // antialiasing alone can't fix a screen rendering exactly one sample per
 // pixel, so cards looked soft compared to the rest of the UI otherwise.
@@ -673,7 +682,7 @@ function renderLoop() {
     const rect = inst.container.getBoundingClientRect();
     if (rect.bottom < 0 || rect.top > canvasHeight || rect.right < 0 || rect.left > canvasWidth || rect.width < 2) return;
 
-    if (!inst.dragging && inst.autoRotate) inst.rotY += 0.0045;
+    if (!inst.dragging && inst.autoRotate && !prefersReducedMotion) inst.rotY += 0.0045;
     inst.group.rotation.y = inst.rotY;
     inst.group.rotation.x = inst.rotX;
 

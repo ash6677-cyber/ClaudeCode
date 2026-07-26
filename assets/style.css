@@ -61,7 +61,7 @@
   --glass-saturate: 120%;
   --text: #10142b;
   --text-dim: #565f8a;
-  --text-faint: #8890b8;
+  --text-faint: #626a91;
   --accent: #06a45f;
   --accent-2: #0a6fd6;
   --danger: #e0392f;
@@ -80,7 +80,7 @@
     --glass-shadow: 0 20px 50px -14px rgba(30, 41, 90, 0.16), 0 2px 10px rgba(30, 41, 90, 0.05);
     --glass-shadow-sm: 0 8px 22px -10px rgba(30, 41, 90, 0.12);
     --glass-saturate: 120%;
-    --text: #10142b; --text-dim: #565f8a; --text-faint: #8890b8;
+    --text: #10142b; --text-dim: #565f8a; --text-faint: #626a91;
     --accent: #06a45f; --accent-2: #0a6fd6;
     --danger: #e0392f; --danger-soft: rgba(224, 57, 47, 0.1);
   }
@@ -141,6 +141,12 @@ a { color: var(--accent-2); }
 @keyframes floatC { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(3vw,-3vw) scale(0.95); } }
 
 @media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
   .blob { animation: none !important; }
 }
 

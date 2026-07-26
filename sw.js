@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_VERSION = 'fc-career-tracker-v8';
+const CACHE_VERSION = 'fc-career-tracker-v9';
 const CORE_ASSETS = [
   './',
   './index.html',

@@ -401,11 +401,13 @@ function openSaveManagerModal() {
   renderSaveManagerList();
   $('#save-manager-modal').hidden = false;
   document.body.style.overflow = 'hidden';
+  focusModal($('#save-manager-modal'));
 }
 
 function closeSaveManagerModal() {
   $('#save-manager-modal').hidden = true;
   document.body.style.overflow = '';
+  restoreFocusAfterModal();
 }
 
 function saveListCardsHTML(mode, query) {
@@ -426,10 +428,10 @@ function saveListCardsHTML(mode, query) {
         <div class="save-card-meta">${saveStatsLine(mode, s)} · updated ${timeAgo(s.updatedAt)}</div>
       </div>
       <div class="save-card-actions">
-        ${isActive ? '' : `<button class="btn btn-ghost btn-sm btn-icon" data-action="switch-save" data-id="${s.id}" title="Switch to this save">⇄</button>`}
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="rename-save" data-id="${s.id}" title="Rename">✎</button>
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-save" data-id="${s.id}" title="Duplicate">⧉</button>
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-save" data-id="${s.id}" title="Delete">🗑</button>
+        ${isActive ? '' : `<button class="btn btn-ghost btn-sm btn-icon" data-action="switch-save" data-id="${s.id}" title="Switch to this save" aria-label="Switch to this save">⇄</button>`}
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="rename-save" data-id="${s.id}" title="Rename" aria-label="Rename save">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-save" data-id="${s.id}" title="Duplicate" aria-label="Duplicate save">⧉</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-save" data-id="${s.id}" title="Delete" aria-label="Delete save">🗑</button>
       </div>
     </div>`;
   }).join('') : `<div class="empty-state" style="padding:40px 20px;"><p>No saves match your search.</p></div>`;
@@ -922,16 +924,34 @@ function focusFieldErrors(...ids) {
   if (firstEl) firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/* ---------------- Modal focus management ---------------- */
+
+// Keyboard/screen-reader users land inside the dialog the moment it opens
+// (rather than staying on whatever was focused behind it), and get their
+// focus restored to the control that opened it once it closes.
+let lastFocusedBeforeModal = null;
+function focusModal(modalEl) {
+  lastFocusedBeforeModal = document.activeElement;
+  const target = modalEl.querySelector('[autofocus]') || modalEl.querySelector('input, select, textarea, button, [tabindex]');
+  if (target) target.focus();
+}
+function restoreFocusAfterModal() {
+  if (lastFocusedBeforeModal && document.body.contains(lastFocusedBeforeModal)) lastFocusedBeforeModal.focus();
+  lastFocusedBeforeModal = null;
+}
+
 /* ---------------- Confirm modal ---------------- */
 
 function confirmDialog(text, onConfirm) {
   $('#confirm-modal-text').textContent = text;
   confirmAction = onConfirm;
   $('#confirm-modal').hidden = false;
+  focusModal($('#confirm-modal'));
 }
 function closeConfirmModal() {
   $('#confirm-modal').hidden = true;
   confirmAction = null;
+  restoreFocusAfterModal();
 }
 
 /* ---------------- Tabs / routing ---------------- */
@@ -1279,9 +1299,9 @@ function renderSeasons() {
       </div>
       <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       <div class="season-card-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-season" data-id="${s.id}" title="Edit">✎</button>
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-season" data-id="${s.id}" title="Start next season from this one">⧉</button>
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-season" data-id="${s.id}" title="Delete">🗑</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-season" data-id="${s.id}" title="Edit" aria-label="Edit season">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-season" data-id="${s.id}" title="Start next season from this one" aria-label="Duplicate season as template">⧉</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-season" data-id="${s.id}" title="Delete" aria-label="Delete season">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -1702,9 +1722,9 @@ function renderPlayerSeasons() {
       </div>
       <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       <div class="season-card-actions">
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-player-season" data-id="${s.id}" title="Edit">✎</button>
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-player-season" data-id="${s.id}" title="Start next season from this one">⧉</button>
-        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-player-season" data-id="${s.id}" title="Delete">🗑</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-player-season" data-id="${s.id}" title="Edit" aria-label="Edit season">✎</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-player-season" data-id="${s.id}" title="Start next season from this one" aria-label="Duplicate season as template">⧉</button>
+        <button class="btn btn-ghost btn-sm btn-icon" data-action="delete-player-season" data-id="${s.id}" title="Delete" aria-label="Delete season">🗑</button>
       </div>
     </div>`;
   }).join('');
@@ -2060,6 +2080,7 @@ function openSeasonModal(season) {
   $('#season-form-body').innerHTML = renderSeasonFormHTML(seasonDraft, !!season);
   $('#season-modal').hidden = false;
   document.body.style.overflow = 'hidden';
+  focusModal($('#season-modal'));
 }
 
 function closeSeasonModal() {
@@ -2069,6 +2090,7 @@ function closeSeasonModal() {
   editingSeasonId = null;
   playerSeasonDraft = null;
   editingPlayerSeasonId = null;
+  restoreFocusAfterModal();
 }
 
 function repeatRowsHTML(kind, items, rowFieldsFn) {
@@ -2095,7 +2117,7 @@ function competitionRowHTML(c, i) {
     <div class="field"><label>L</label><input class="input" type="number" min="0" data-repeat="competitions" data-index="${i}" data-field="lost" value="${esc(c.lost)}" /></div>
     <div class="field"><label>GF</label><input class="input" type="number" min="0" data-repeat="competitions" data-index="${i}" data-field="gf" value="${esc(c.gf)}" /></div>
     <div class="field"><label>GA</label><input class="input" type="number" min="0" data-repeat="competitions" data-index="${i}" data-field="ga" value="${esc(c.ga)}" /></div>
-    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="competitions" data-index="${i}" title="Remove">✕</button>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="competitions" data-index="${i}" title="Remove" aria-label="Remove competition row">✕</button>
   </div>`;
 }
 
@@ -2115,7 +2137,7 @@ function transferRowHTML(tr, i, kind) {
       </select>
     </div>
     <div class="field"><label>Fee (${appSettings.currency}M)</label><input class="input" type="number" step="0.1" min="0" data-repeat="${kind}" data-index="${i}" data-field="fee" value="${esc(tr.fee)}" /></div>
-    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="${kind}" data-index="${i}" title="Remove">✕</button>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="${kind}" data-index="${i}" title="Remove" aria-label="Remove row">✕</button>
   </div>`;
 }
 
@@ -2126,7 +2148,7 @@ function objectiveRowHTML(o, i) {
       <input type="checkbox" id="obj-ach-${i}" data-repeat="boardObjectives" data-index="${i}" data-field="achieved" ${o.achieved ? 'checked' : ''} />
       <label for="obj-ach-${i}">Achieved</label>
     </div>
-    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="boardObjectives" data-index="${i}" title="Remove">✕</button>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="boardObjectives" data-index="${i}" title="Remove" aria-label="Remove board objective row">✕</button>
   </div>`;
 }
 
@@ -2380,6 +2402,7 @@ function openPlayerSeasonModal(season) {
   $('#season-form-body').innerHTML = renderPlayerSeasonFormHTML(playerSeasonDraft);
   $('#season-modal').hidden = false;
   document.body.style.overflow = 'hidden';
+  focusModal($('#season-modal'));
 }
 
 function playerCompetitionRowHTML(c, i) {
@@ -2398,7 +2421,7 @@ function playerCompetitionRowHTML(c, i) {
     <div class="field"><label>Apps</label><input class="input" type="number" min="0" data-repeat="pcompetitions" data-index="${i}" data-field="apps" value="${esc(c.apps)}" /></div>
     <div class="field"><label>Goals</label><input class="input" type="number" min="0" data-repeat="pcompetitions" data-index="${i}" data-field="goals" value="${esc(c.goals)}" /></div>
     <div class="field"><label>Assists</label><input class="input" type="number" min="0" data-repeat="pcompetitions" data-index="${i}" data-field="assists" value="${esc(c.assists)}" /></div>
-    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="pcompetitions" data-index="${i}" title="Remove">✕</button>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="pcompetitions" data-index="${i}" title="Remove" aria-label="Remove competition row">✕</button>
   </div>`;
 }
 
