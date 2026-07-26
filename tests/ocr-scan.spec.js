@@ -142,3 +142,59 @@ test('a photo with no recognizable stats shows a toast and opens no modal', asyn
   await expect(page.locator('.toast').last()).toContainText('No recognizable stats', { timeout: 30000 });
   await expect(page.locator('#ocr-review-modal')).toBeHidden();
 });
+
+// Regression coverage for the layouts real in-game screens actually use.
+// The original matcher only understood "<label> <value>" on one line, so a
+// column header over its values, or a stat card with the label above the
+// number, matched nothing at all -- the feature looked completely broken on
+// exactly the screens it exists to read. OCR was never the problem; these
+// fixtures are read near-perfectly, so they pin the *matching* behaviour.
+test('a tabular league table (headers over values) fills the league record', async ({ page }) => {
+  await freshApp(page);
+  await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
+  await page.evaluate(() => openSeasonModal(null));
+  await page.waitForTimeout(150);
+
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.click('[data-action="scan-photo"]'),
+  ]);
+  await chooser.setFiles(path.join(__dirname, 'fixtures', 'game-league-table.png'));
+  await expect(page.locator('#ocr-review-modal')).toBeVisible({ timeout: 30000 });
+  await page.click('[data-action="ocr-review-apply"]');
+  await page.waitForTimeout(200);
+
+  await page.evaluate(() => document.querySelectorAll('#season-modal details').forEach(d => d.open = true));
+  expect(await page.inputValue('#f-league-played')).toBe('38');
+  expect(await page.inputValue('#f-league-won')).toBe('25');
+  expect(await page.inputValue('#f-league-drawn')).toBe('8');
+  expect(await page.inputValue('#f-league-lost')).toBe('5');
+  expect(await page.inputValue('#f-league-gf')).toBe('90');
+  expect(await page.inputValue('#f-league-ga')).toBe('30');
+  expect(await page.inputValue('#f-league-points')).toBe('83');
+});
+
+test('stat cards with the label above the number fill the player stats', async ({ page }) => {
+  await freshApp(page);
+  await switchToPlayerMode(page);
+  await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
+  await page.evaluate(() => openPlayerSeasonModal(null));
+  await page.waitForTimeout(150);
+
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.click('[data-action="scan-photo"]'),
+  ]);
+  await chooser.setFiles(path.join(__dirname, 'fixtures', 'game-stat-cards.png'));
+  await expect(page.locator('#ocr-review-modal')).toBeVisible({ timeout: 30000 });
+  await page.click('[data-action="ocr-review-apply"]');
+  await page.waitForTimeout(200);
+
+  await page.evaluate(() => document.querySelectorAll('#season-modal details').forEach(d => d.open = true));
+  expect(await page.inputValue('#pf-atk-goals')).toBe('22');
+  expect(await page.inputValue('#pf-atk-assists')).toBe('10');
+  expect(await page.inputValue('#pf-app-played')).toBe('34');
+  expect(await page.inputValue('#pf-form-avgRating')).toBe('7.6');
+});

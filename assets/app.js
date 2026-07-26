@@ -2837,13 +2837,13 @@ const OCR_FIELD_DICTIONARY = {
     { id: 'f-club', type: 'text', labels: ['club', 'team'] },
     { id: 'f-country', type: 'text', labels: ['country', 'nation'] },
     { id: 'f-divisionTier', type: 'text', labels: ['division', 'tier', 'league'] },
-    { id: 'f-league-played', type: 'number', labels: ['played', 'pld', 'apps'] },
-    { id: 'f-league-won', type: 'number', labels: ['won', 'wins'] },
-    { id: 'f-league-drawn', type: 'number', labels: ['drawn', 'draws'] },
-    { id: 'f-league-lost', type: 'number', labels: ['lost', 'losses'] },
+    { id: 'f-league-played', type: 'number', labels: ['played', 'pld', 'pl', 'mp', 'apps', 'matches played'] },
+    { id: 'f-league-won', type: 'number', labels: ['won', 'wins', 'w'] },
+    { id: 'f-league-drawn', type: 'number', labels: ['drawn', 'draws', 'd'] },
+    { id: 'f-league-lost', type: 'number', labels: ['lost', 'losses', 'l'] },
     { id: 'f-league-gf', type: 'number', labels: ['goals for', 'gf'] },
     { id: 'f-league-ga', type: 'number', labels: ['goals against', 'ga'] },
-    { id: 'f-league-points', type: 'number', labels: ['points', 'pts'] },
+    { id: 'f-league-points', type: 'number', labels: ['points', 'pts', 'pt'] },
     { id: 'f-league-position', type: 'number', labels: ['finishing position', 'league position', 'position', 'pos'] },
     { id: 'f-league-leagueSize', type: 'number', labels: ['teams in league', 'league size'] },
     { id: 'f-league-promoted', type: 'checkbox', labels: ['promoted', 'promotion'] },
@@ -2881,10 +2881,10 @@ const OCR_FIELD_DICTIONARY = {
     { id: 'pf-rat-potential', type: 'number', labels: ['potential'] },
     { id: 'pf-rat-skillMoves', type: 'number', labels: ['skill moves'] },
     { id: 'pf-rat-weakFoot', type: 'number', labels: ['weak foot'] },
-    { id: 'pf-app-played', type: 'number', labels: ['appearances', 'apps', 'played'] },
+    { id: 'pf-app-played', type: 'number', labels: ['appearances', 'apps', 'played', 'matches'] },
     { id: 'pf-app-started', type: 'number', labels: ['starts', 'started'] },
     { id: 'pf-app-subApps', type: 'number', labels: ['sub appearances', 'substitute appearances', 'subs'] },
-    { id: 'pf-app-minutes', type: 'number', labels: ['minutes played', 'minutes'] },
+    { id: 'pf-app-minutes', type: 'number', labels: ['minutes played', 'minutes', 'mins'] },
     { id: 'pf-atk-goals', type: 'number', labels: ['goals'] },
     { id: 'pf-atk-assists', type: 'number', labels: ['assists'] },
     { id: 'pf-atk-shotsOnTarget', type: 'number', labels: ['shots on target'] },
@@ -2900,7 +2900,7 @@ const OCR_FIELD_DICTIONARY = {
     { id: 'pf-dis-yellow', type: 'number', labels: ['yellow cards', 'yellows'] },
     { id: 'pf-dis-red', type: 'number', labels: ['red cards', 'reds'] },
     { id: 'pf-dis-fouls', type: 'number', labels: ['fouls committed', 'fouls'] },
-    { id: 'pf-form-avgRating', type: 'number', labels: ['average match rating', 'average rating', 'avg rating'] },
+    { id: 'pf-form-avgRating', type: 'number', labels: ['average match rating', 'average rating', 'avg rating', 'match rating', 'rating'] },
     { id: 'pf-form-motmCount', type: 'number', labels: ['man of the match', 'motm'] },
     { id: 'pf-league-position', type: 'number', labels: ['league position'] },
     { id: 'pf-league-leagueSize', type: 'number', labels: ['teams in league'] },
@@ -2967,12 +2967,17 @@ function ocrMatchAt(normTokens, pos, dictionary) {
       if (field.labels.includes(phrase)) return { field, len };
     }
   }
+  // Fuzzy rescue for a single misread word. Skipped entirely for very short
+  // tokens and labels: at 1-2 characters almost anything is within edit
+  // distance of a column abbreviation like "W" or "PL", which produced
+  // confident nonsense matches rather than useful ones.
   const token = normTokens[pos];
-  if (token) {
+  if (token && token.length > 2) {
     const maxDist = token.length <= 4 ? 1 : token.length <= 9 ? 2 : 3;
     for (const field of dictionary) {
       for (const label of field.labels) {
-        if (label.indexOf(' ') === -1 && Math.abs(label.length - token.length) <= maxDist
+        if (label.length > 2 && label.indexOf(' ') === -1
+          && Math.abs(label.length - token.length) <= maxDist
           && ocrLevenshtein(token, label) <= maxDist) {
           return { field, len: 1 };
         }
@@ -2982,41 +2987,131 @@ function ocrMatchAt(normTokens, pos, dictionary) {
   return null;
 }
 
-// Scans OCR'd text line by line for "<label> <value>" patterns -- the
-// layout most stat screens use, whether label and value share a line
-// ("Played 38 Won 25") or value sits alone on the next line.
-function ocrTextToCandidates(text, dictionary) {
+// A numeric field paired with a non-numeric neighbour is a mis-pair, not a
+// value. Rejecting it here lets the label fall through to positional
+// matching instead of locking in garbage.
+function ocrValueOkFor(field, rawValue) {
+  const v = String(rawValue).trim();
+  if (!v) return false;
+  if (field.type !== 'number') return true;
+  const cleaned = v.replace(/[^0-9.-]/g, '');
+  return /\d/.test(cleaned) && !Number.isNaN(Number(cleaned));
+}
+
+// Normalises Tesseract's block/paragraph/line/word tree into flat lines of
+// positioned words. Falls back to plain text (no geometry, so same-line
+// pairing only) when word boxes aren't available.
+function ocrLinesFromData(data) {
+  const lines = [];
+  (data.blocks || []).forEach(bl => (bl.paragraphs || []).forEach(par => (par.lines || []).forEach(ln => {
+    const words = (ln.words || []).map(w => ({
+      raw: w.text, norm: ocrNormalize(w.text),
+      x0: w.bbox.x0, x1: w.bbox.x1, y0: w.bbox.y0, y1: w.bbox.y1,
+      cx: (w.bbox.x0 + w.bbox.x1) / 2
+    })).filter(w => w.norm);
+    if (words.length) {
+      lines.push({
+        words, positioned: true,
+        y0: Math.min.apply(null, words.map(w => w.y0)),
+        y1: Math.max.apply(null, words.map(w => w.y1))
+      });
+    }
+  })));
+
+  if (!lines.length) {
+    String(data.text || '').split('\n').forEach((raw, i) => {
+      const words = raw.trim().split(/\s+/)
+        .map(t => ({ raw: t, norm: ocrNormalize(t), x0: 0, x1: 0, y0: i, y1: i, cx: 0 }))
+        .filter(w => w.norm);
+      if (words.length) lines.push({ words, positioned: false, y0: i, y1: i });
+    });
+  }
+  lines.sort((a, b) => a.y0 - b.y0);
+  return lines;
+}
+
+// Finds a value sitting *below* a label rather than beside it -- the layout
+// every table header ("PL W D L" over "38 25 8 5") and every stat card
+// ("GOALS" over "22") uses, and which same-line scanning alone cannot see.
+// Candidates must line up horizontally with the label and satisfy the
+// field's type; the nearest qualifying line wins.
+function ocrFindValueBelow(pending, lines, dictionary) {
+  const lw = pending.labelWords;
+  if (!lw.length || !pending.positioned) return null;
+  const lx0 = Math.min.apply(null, lw.map(w => w.x0));
+  const lx1 = Math.max.apply(null, lw.map(w => w.x1));
+  const lcx = (lx0 + lx1) / 2;
+  const labelBottom = Math.max.apply(null, lw.map(w => w.y1));
+  const labelH = Math.max(8, Math.max.apply(null, lw.map(w => w.y1 - w.y0)));
+  const maxDrop = labelH * 6;
+
+  let best = null;
+  for (let li = pending.lineIndex + 1; li < lines.length; li++) {
+    const line = lines[li];
+    if (!line.positioned) break;
+    if (line.y0 - labelBottom > maxDrop) break;
+    const norms = line.words.map(w => w.norm);
+    for (let k = 0; k < line.words.length; k++) {
+      if (ocrMatchAt(norms, k, dictionary)) continue; // another label, not a value
+      const w = line.words[k];
+      if (!ocrValueOkFor(pending.field, w.raw)) continue;
+      const overlap = Math.min(lx1, w.x1) - Math.max(lx0, w.x0);
+      const centreDist = Math.abs(w.cx - lcx);
+      const tolerance = Math.max(lx1 - lx0, w.x1 - w.x0) * 0.9 + 12;
+      if (overlap <= 0 && centreDist > tolerance) continue;
+      const score = (line.y0 - labelBottom) * 2 + centreDist;
+      if (!best || score < best.score) best = { score, raw: w.raw };
+    }
+    if (best) break;
+  }
+  return best ? best.raw : null;
+}
+
+// Two passes: read "<label> <value>" pairs that share a line, then resolve
+// any label left without one against the words positioned beneath it.
+function ocrExtractCandidates(data, dictionary) {
+  const lines = ocrLinesFromData(data);
   const candidates = [];
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const pending = [];
 
-  lines.forEach(line => {
-    const rawTokens = line.split(/\s+/);
-    const normTokens = rawTokens.map(ocrNormalize).filter(Boolean);
-    if (normTokens.length !== rawTokens.length) return; // skip lines with empty-normalized tokens (punctuation-only)
-
+  lines.forEach((line, lineIndex) => {
+    const norms = line.words.map(w => w.norm);
     let i = 0;
-    while (i < normTokens.length) {
-      const hit = ocrMatchAt(normTokens, i, dictionary);
+    while (i < norms.length) {
+      const hit = ocrMatchAt(norms, i, dictionary);
       if (!hit) { i++; continue; }
-      const matched = hit.field, matchLen = hit.len;
+      const field = hit.field, matchLen = hit.len;
 
-      if (matched.type === 'checkbox') {
-        candidates.push({ field: matched, rawValue: '' });
+      if (field.type === 'checkbox') {
+        candidates.push({ field, rawValue: '' });
         i += matchLen;
         continue;
       }
 
       let j = i + matchLen;
       const valueTokens = [];
-      while (j < normTokens.length) {
-        if (ocrMatchAt(normTokens, j, dictionary)) break;
-        valueTokens.push(rawTokens[j]);
+      while (j < norms.length) {
+        if (ocrMatchAt(norms, j, dictionary)) break;
+        valueTokens.push(line.words[j].raw);
         j++;
-        if (matched.type !== 'text' || valueTokens.length >= 5) break;
+        if (field.type !== 'text' || valueTokens.length >= 5) break;
       }
-      if (valueTokens.length) candidates.push({ field: matched, rawValue: valueTokens.join(' ') });
+      const sameLine = valueTokens.join(' ');
+      if (valueTokens.length && ocrValueOkFor(field, sameLine)) {
+        candidates.push({ field, rawValue: sameLine });
+      } else {
+        pending.push({
+          field, lineIndex, positioned: line.positioned,
+          labelWords: line.words.slice(i, i + matchLen)
+        });
+      }
       i = Math.max(j, i + matchLen);
     }
+  });
+
+  pending.forEach(p => {
+    const below = ocrFindValueBelow(p, lines, dictionary);
+    if (below !== null) candidates.push({ field: p.field, rawValue: below });
   });
 
   // First match wins per field -- later duplicate mentions of the same
@@ -3028,6 +3123,11 @@ function ocrTextToCandidates(text, dictionary) {
     seen.add(c.field.id);
     return true;
   });
+}
+
+// Text-only entry point kept for callers without word geometry.
+function ocrTextToCandidates(text, dictionary) {
+  return ocrExtractCandidates({ text }, dictionary);
 }
 
 function ocrCoerceValue(candidate) {
@@ -3119,9 +3219,11 @@ async function runOcrScan(file) {
       gzip: true,
       cacheMethod: 'none',
     });
-    const { data } = await worker.recognize(canvas);
+    // blocks:true yields per-word bounding boxes, which the matcher needs to
+    // pair a column header or card label with the value positioned under it.
+    const { data } = await worker.recognize(canvas, {}, { text: true, blocks: true });
     const dictionary = OCR_FIELD_DICTIONARY[seasonModalMode];
-    const candidates = ocrTextToCandidates(data.text, dictionary);
+    const candidates = ocrExtractCandidates(data, dictionary);
     hideOcrProgress();
     if (!candidates.length) {
       toast('No recognizable stats found in that photo', 'danger');
