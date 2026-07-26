@@ -108,13 +108,19 @@ function winPct(w, d, l) {
 
 function fmtPct(n) { return (isFinite(n) ? n : 0).toFixed(1) + '%'; }
 
+// Amounts are stored in millions, but plenty of clubs never see a million --
+// a 350k budget rendered as "0.4M" was both ugly and lossy. Scales the unit to
+// the number instead of forcing everything through M.
 function fmtM(amount, currency) {
   currency = currency || '£';
   const n = num(amount, 0);
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
   if (abs >= 1000) return sign + currency + (abs / 1000).toFixed(2) + 'B';
-  return sign + currency + abs.toFixed(1) + 'M';
+  if (abs >= 1) return sign + currency + abs.toFixed(1) + 'M';
+  if (abs >= 0.001) return sign + currency + Math.round(abs * 1000).toLocaleString() + 'K';
+  if (abs > 0) return sign + currency + Math.round(abs * 1000000).toLocaleString();
+  return currency + '0';
 }
 
 function fmtNum(n) { return Number(n || 0).toLocaleString(); }
@@ -268,7 +274,7 @@ function defaultAppSettings() {
     theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', renderQuality: 'auto',
     activeManagerSaveId: null, activePlayerSaveId: null,
     lastBackupAt: null, backupNudgeSnoozedUntil: null,
-    hasSeenOcrTutorial: false
+    hasSeenOcrTutorial: false, clubTheme: true
   };
 }
 
@@ -1108,6 +1114,7 @@ function switchMode(mode) {
 }
 
 function renderCurrentTab() {
+  applyClubTheme();
   if (currentTab === 'dashboard') renderDashboard();
   else if (currentTab === 'seasons') renderSeasons();
   else if (currentTab === 'totals') renderTotals();
@@ -1743,6 +1750,13 @@ function renderSettings() {
         </select>
       </div>
       <div class="settings-row">
+        <div class="settings-row-text"><h4>Club Colours</h4><p>Tint the app with colours derived from your current club, and show its initials in the header.</p></div>
+        <div class="club-theme-toggle">
+          <button data-club-theme="on" class="${s.clubTheme === false ? '' : 'active'}">On</button>
+          <button data-club-theme="off" class="${s.clubTheme === false ? 'active' : ''}">Off</button>
+        </div>
+      </div>
+      <div class="settings-row">
         <div class="settings-row-text"><h4>Trophy Render Quality</h4><p>Auto sharpens trophies on any screen; Low favors performance on older devices.</p></div>
         <div class="quality-toggle">
           <button data-quality="low" class="${s.renderQuality === 'low' ? 'active' : ''}">Low</button>
@@ -2171,6 +2185,13 @@ function renderPlayerSettings() {
         </select>
       </div>
       <div class="settings-row">
+        <div class="settings-row-text"><h4>Club Colours</h4><p>Tint the app with colours derived from your current club, and show its initials in the header.</p></div>
+        <div class="club-theme-toggle">
+          <button data-club-theme="on" class="${s.clubTheme === false ? '' : 'active'}">On</button>
+          <button data-club-theme="off" class="${s.clubTheme === false ? 'active' : ''}">Off</button>
+        </div>
+      </div>
+      <div class="settings-row">
         <div class="settings-row-text"><h4>Trophy Render Quality</h4><p>Auto sharpens trophies on any screen; Low favors performance on older devices.</p></div>
         <div class="quality-toggle">
           <button data-quality="low" class="${s.renderQuality === 'low' ? 'active' : ''}">Low</button>
@@ -2524,8 +2545,9 @@ function renderSeasonFormHTML(d) {
     </details>
 
     <details class="form-section" id="fs-finances" ${detailsOpen(openFin)}>
-      <summary><span class="legend-icon">💰</span> Finances (${appSettings.currency}M)</summary>
+      <summary><span class="legend-icon">💰</span> Finances</summary>
       <div class="form-section-body">
+      <p class="hint" style="margin-bottom:10px;">Amounts are in millions — enter 0.35 for ${appSettings.currency}350K. Totals are shown in K, M or B to match the figure.</p>
       <div class="form-grid cols-4">
         <div class="field"><label>Transfer Budget</label><input class="input" type="number" step="0.1" id="f-fin-transferBudget" value="${esc(F.transferBudget)}" /></div>
         <div class="field"><label>Wage Budget</label><input class="input" type="number" step="0.1" id="f-fin-wageBudget" value="${esc(F.wageBudget)}" /></div>
@@ -3754,12 +3776,165 @@ function importTransferCode(code) {
   applyImportedSaveData(parsed);
 }
 
+
+/* ---------------- Club identity ----------------
+   The app is used one career at a time, so it should look like it belongs to
+   that club rather than staying generic. Colours are derived from the club
+   name itself: no crest library to ship or licence, no setup step, and the
+   same club always produces the same palette on every device.
+
+   Hue comes from the name's hash; saturation and lightness are pinned to a
+   narrow, deliberately legible band so a club can never generate an
+   unreadable or eye-searing theme. Semantic colours (win green, loss red)
+   are untouched -- only the app's chrome takes on club colours.
+   ================================================================ */
+
+function clubHash(name) {
+  const str = String(name || '').toLowerCase().trim();
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function clubInitials(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean)
+    // Only true boilerplate is dropped. United/City/Athletic and the like are
+    // part of a club's identity -- stripping them turned "Riverside United"
+    // into "RI" rather than the natural "RU".
+    .filter(w => !/^(fc|afc|cf|sc|ac|club|the|de|of)$/i.test(w));
+  const source = words.length ? words : String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!source.length) return '?';
+  if (source.length === 1) return source[0].slice(0, 2).toUpperCase();
+  return (source[0][0] + source[source.length - 1][0]).toUpperCase();
+}
+
+// A fixed lightness cannot work across the hue circle: at one constant
+// lightness, blues read far darker than yellows, so a single value leaves
+// some club names with unreadable headings (measured: 24 of 72 hues failing
+// AA on the dark background, 60 of 72 on the light one). Lightness is
+// therefore solved per hue against the actual background -- once for text,
+// once for the plate the white monogram sits on.
+
+function hslToRgb(h, s, l) {
+  s /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [f(0) * 255, f(8) * 255, f(4) * 255];
+}
+function relLuminance(rgb) {
+  const c = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contrastRatio(l1, l2) {
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+// Lowest-contrast-cost lightness that still clears AA against `bgLum`,
+// walking away from the background until it passes.
+function solveLightness(hue, sat, bgLum, target, startL, step) {
+  let l = startL;
+  for (let i = 0; i < 60; i++) {
+    if (contrastRatio(relLuminance(hslToRgb(hue, sat, l)), bgLum) >= target) return l;
+    l += step;
+    if (l < 4 || l > 96) break;
+  }
+  return Math.max(4, Math.min(96, l));
+}
+
+function isLightThemeActive() {
+  const t = appSettings.theme;
+  if (t === 'light') return true;
+  if (t === 'dark') return false;
+  return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+}
+
+function clubTheme(name) {
+  if (!String(name || '').trim()) return null;
+  const h = clubHash(name);
+  const hue = h % 360;
+  // Offset rather than random, so the pair always reads as a deliberate
+  // gradient instead of a clash.
+  const hue2 = (hue + 35 + (h % 40)) % 360;
+  const sat = 62;
+
+  const light = isLightThemeActive();
+  const bgLum = relLuminance(light ? [238, 241, 251] : [6, 8, 16]);
+  const whiteLum = relLuminance([255, 255, 255]);
+
+  // Text tint: move away from the background until it clears AA.
+  const inkL = light
+    ? solveLightness(hue, sat, bgLum, 4.5, 46, -2)
+    : solveLightness(hue, sat, bgLum, 4.5, 56, 2);
+
+  // Plate: the monogram on top is white, so the plate must be dark enough for
+  // white to clear AA on it -- independent of the page background.
+  const plateL = solveLightness(hue, sat, whiteLum, 4.5, 52, -2);
+  const plateL2 = solveLightness(hue2, sat, whiteLum, 4.5, 46, -2);
+
+  return {
+    initials: clubInitials(name),
+    c1: `hsl(${hue} ${sat}% ${plateL}%)`,
+    c2: `hsl(${hue2} ${sat}% ${plateL2}%)`,
+    ink: `hsl(${hue} ${sat}% ${inkL}%)`,
+    soft: `hsl(${hue} ${sat}% ${plateL}% / 0.16)`,
+    border: `hsl(${hue} ${sat}% ${inkL}% / 0.38)`
+  };
+}
+
+// The club a save is "about": whatever club the most recent season was played
+// at, falling back to the profile's starting club before any season exists.
+function activeCareerClub() {
+  if (appSettings.mode === 'player') {
+    const latest = pState && pState.seasons && pState.seasons.length
+      ? sortedSeasons(pState.seasons, 'chrono').slice(-1)[0] : null;
+    return (latest && latest.club) || (pState && pState.player && pState.player.startingClub) || '';
+  }
+  const latest = state && state.seasons && state.seasons.length
+    ? sortedSeasons(state.seasons, 'chrono').slice(-1)[0] : null;
+  return (latest && latest.club) || (state && state.manager && state.manager.startingClub) || '';
+}
+
+function applyClubTheme() {
+  const root = document.documentElement;
+  const club = activeCareerClub();
+  const theme = appSettings.clubTheme === false ? null : clubTheme(club);
+
+  if (!theme) {
+    root.style.removeProperty('--club-1');
+    root.style.removeProperty('--club-2');
+    root.style.removeProperty('--club-ink');
+    root.style.removeProperty('--club-soft');
+    root.style.removeProperty('--club-border');
+    root.removeAttribute('data-club-themed');
+  } else {
+    root.style.setProperty('--club-1', theme.c1);
+    root.style.setProperty('--club-2', theme.c2);
+    root.style.setProperty('--club-ink', theme.ink);
+    root.style.setProperty('--club-soft', theme.soft);
+    root.style.setProperty('--club-border', theme.border);
+    root.setAttribute('data-club-themed', 'true');
+  }
+
+  const initials = theme ? theme.initials : '';
+  $$('.brand-mark').forEach(el => {
+    el.textContent = initials;
+    el.classList.toggle('brand-mark-club', !!theme);
+    el.setAttribute('title', club || 'FC Career Tracker');
+  });
+  const nameEl = $('.brand-name');
+  if (nameEl) nameEl.innerHTML = club
+    ? `<span class="brand-club">${esc(club)}</span><span class="brand-sub">Career Tracker</span>`
+    : 'FC Career<br>Tracker';
+}
+
 /* ---------------- Theme ---------------- */
 
 function applyTheme() {
   const theme = appSettings.theme;
   if (theme === 'system') document.documentElement.removeAttribute('data-theme');
   else document.documentElement.setAttribute('data-theme', theme);
+  applyClubTheme();
 }
 
 function applyLayout(layout) {
@@ -4133,6 +4308,14 @@ function wireEvents() {
     }
   });
   document.addEventListener('click', e => {
+    const clubBtn = e.target.closest('.club-theme-toggle button');
+    if (clubBtn) {
+      appSettings.clubTheme = clubBtn.dataset.clubTheme === 'on';
+      saveAppSettings();
+      applyClubTheme();
+      renderCurrentTab();
+      return;
+    }
     const btn = e.target.closest('.quality-toggle button');
     if (btn) {
       appSettings.renderQuality = btn.dataset.quality;

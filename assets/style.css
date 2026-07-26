@@ -208,15 +208,61 @@ a { color: var(--accent-2); }
   gap: 10px;
   padding: 6px 10px 18px;
 }
+/* Monogram plate rather than an emoji: it carries the club's initials and
+   colours, so the header identifies the save at a glance. Falls back to the
+   app's own accent gradient when no club is known yet. */
 .brand-mark {
-  font-size: 20px;
+  position: relative;
   width: 38px; height: 38px;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  border-radius: 12px;
-  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.35);
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
+  border-radius: 11px;
+  box-shadow: 0 6px 16px rgba(var(--accent-rgb), 0.35), inset 0 1px 0 rgba(255,255,255,0.4);
   flex-shrink: 0;
+  font-size: 14px; font-weight: 900; letter-spacing: -0.03em;
+  color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  overflow: hidden;
 }
+/* Angled sheen, so the plate reads as a crest rather than a flat swatch. */
+.brand-mark::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(118deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 42%, transparent 43%);
+  pointer-events: none;
+}
+.brand-mark-club {
+  background: linear-gradient(140deg, var(--club-1), var(--club-2));
+  box-shadow: 0 6px 16px var(--club-soft), inset 0 1px 0 rgba(255,255,255,0.4);
+}
+.brand-club { display: block; font-size: 13px; font-weight: 800; line-height: 1.15; }
+.brand-sub {
+  display: block; font-size: 10px; font-weight: 700; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px;
+}
+
+/* Club accents on the app's chrome only -- win/loss colours stay semantic. */
+:root[data-club-themed] .tab-btn.active {
+  background: linear-gradient(135deg, var(--club-soft), transparent);
+  border-color: var(--club-border);
+}
+:root[data-club-themed] .tab-btn.active .nav-icon { color: var(--club-ink); }
+:root[data-club-themed] .mode-switch-btn.active {
+  background: linear-gradient(135deg, var(--club-soft), transparent);
+}
+:root[data-club-themed] .section-title { color: var(--club-ink); }
+:root[data-club-themed] .topbar { border-bottom-color: var(--club-border); }
+:root[data-club-themed] .sidebar { border-right-color: var(--club-border); }
+
+.club-theme-toggle {
+  display: inline-flex; background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill); padding: 3px; gap: 2px;
+}
+.club-theme-toggle button {
+  background: none; border: none; color: var(--text-dim); cursor: pointer;
+  padding: 6px 14px; border-radius: var(--radius-pill);
+  font-size: 12px; font-weight: 700; font-family: inherit;
+}
+.club-theme-toggle button.active { background: var(--glass-bg-hover); color: var(--text); }
 .brand-name {
   font-size: 14px;
   font-weight: 800;
@@ -386,7 +432,13 @@ a { color: var(--accent-2); }
   border-left: none;
   border-right: none;
 }
-.topbar h1 { font-size: 18px; font-weight: 800; }
+/* Must be allowed to shrink: without min-width:0 the title held its full
+   intrinsic width and pushed the save button past the viewport edge, giving
+   the whole page a few pixels of horizontal scroll on narrow screens. */
+.topbar h1 {
+  font-size: 18px; font-weight: 800;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .topbar-spacer { flex: 1; }
 
 .mobile-nav-toggle {
@@ -1193,7 +1245,7 @@ table.data-table tbody tr:hover { background: var(--glass-bg-hover); }
 }
 .fab-add-season:active { transform: scale(0.92); }
 
-.topbar-brand-mark { display: none; width: 30px; height: 30px; font-size: 15px; border-radius: 9px; flex-shrink: 0; }
+.topbar-brand-mark { display: none; width: 30px; height: 30px; font-size: 11.5px; border-radius: 9px; flex-shrink: 0; }
 .topbar-mode-switch { display: none; margin: 0; }
 .topbar-save-btn { display: none; }
 
