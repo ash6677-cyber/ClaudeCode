@@ -2250,6 +2250,7 @@ function renderSeasonFormHTML(d) {
 
   return quicknav + `
   <form id="season-form">
+    <button type="button" class="btn btn-ghost btn-block scan-photo-btn" data-action="scan-photo">📷 Scan from Photo <span class="beta-tag">Beta</span></button>
     <details class="form-section" id="fs-basics" open>
       <summary><span class="legend-icon">📋</span> Basics</summary>
       <div class="form-section-body">
@@ -2548,6 +2549,7 @@ function renderPlayerSeasonFormHTML(d) {
 
   return quicknav + `
   <form id="player-season-form">
+    <button type="button" class="btn btn-ghost btn-block scan-photo-btn" data-action="scan-photo">📷 Scan from Photo <span class="beta-tag">Beta</span></button>
     <details class="form-section" id="pfs-basics" open>
       <summary><span class="legend-icon">📋</span> Basics</summary>
       <div class="form-section-body">
@@ -2815,6 +2817,367 @@ function deletePlayerSeason(id) {
   renderCurrentTab();
 }
 
+/* ---------------- Scan from Photo (on-device OCR) ----------------
+   Reads a photo of an in-game stats screen and pre-fills matching season
+   form fields. Runs fully on-device via a vendored Tesseract.js build
+   (assets/vendor/tesseract/) -- the photo never leaves the browser. OCR on
+   a photographed screen (glare, angle, stylized game fonts) will misread
+   things, so nothing here is ever written straight into the draft: every
+   match goes through an editable review step before Apply.
+   =================================================================== */
+
+// One dictionary entry per season-form field this feature can fill.
+// `labels` are the phrases (already lowercase/space-normalized) it looks
+// for in the OCR'd text -- the field's own on-screen label plus common
+// in-game abbreviations. Longer/more specific phrases are tried before
+// shorter ones during matching, so e.g. "teams in league" is claimed
+// before a bare "league" ever could be.
+const OCR_FIELD_DICTIONARY = {
+  manager: [
+    { id: 'f-seasonLabel', type: 'text', labels: ['season'] },
+    { id: 'f-club', type: 'text', labels: ['club', 'team'] },
+    { id: 'f-country', type: 'text', labels: ['country', 'nation'] },
+    { id: 'f-divisionTier', type: 'text', labels: ['division', 'tier', 'league'] },
+    { id: 'f-league-played', type: 'number', labels: ['played', 'pld', 'apps'] },
+    { id: 'f-league-won', type: 'number', labels: ['won', 'wins'] },
+    { id: 'f-league-drawn', type: 'number', labels: ['drawn', 'draws'] },
+    { id: 'f-league-lost', type: 'number', labels: ['lost', 'losses'] },
+    { id: 'f-league-gf', type: 'number', labels: ['goals for', 'gf'] },
+    { id: 'f-league-ga', type: 'number', labels: ['goals against', 'ga'] },
+    { id: 'f-league-points', type: 'number', labels: ['points', 'pts'] },
+    { id: 'f-league-position', type: 'number', labels: ['finishing position', 'league position', 'position', 'pos'] },
+    { id: 'f-league-leagueSize', type: 'number', labels: ['teams in league', 'league size'] },
+    { id: 'f-league-promoted', type: 'checkbox', labels: ['promoted', 'promotion'] },
+    { id: 'f-league-relegated', type: 'checkbox', labels: ['relegated', 'relegation'] },
+    { id: 'f-league-playoff', type: 'checkbox', labels: ['reached playoffs', 'playoffs', 'playoff'] },
+    { id: 'f-pa-topScorerName', type: 'text', labels: ['top scorer'] },
+    { id: 'f-pa-topScorerGoals', type: 'number', labels: ['top scorer goals'] },
+    { id: 'f-pa-topAssisterName', type: 'text', labels: ['top assister', 'assist king'] },
+    { id: 'f-pa-topAssisterAssists', type: 'number', labels: ['top assister assists'] },
+    { id: 'f-pa-playerOfTheSeason', type: 'text', labels: ['player of the season', 'pots'] },
+    { id: 'f-pa-youngPlayerOfTheSeason', type: 'text', labels: ['young player of the season', 'yps'] },
+    { id: 'f-pa-teamOfTheSeason', type: 'text', labels: ['team of the season', 'tots'] },
+    { id: 'f-pa-goldenBoot', type: 'checkbox', labels: ['golden boot'] },
+    { id: 'f-pa-goldenGlove', type: 'checkbox', labels: ['golden glove'] },
+    { id: 'f-ms-managerOfTheSeason', type: 'checkbox', labels: ['manager of the season'] },
+    { id: 'f-ms-motmCount', type: 'number', labels: ['manager of the month'] },
+    { id: 'f-ms-reputationStars', type: 'number', labels: ['reputation'] },
+    { id: 'f-ms-jobSecurity', type: 'number', labels: ['job security'] },
+    { id: 'f-fin-transferBudget', type: 'number', labels: ['transfer budget'] },
+    { id: 'f-fin-wageBudget', type: 'number', labels: ['wage budget'] },
+    { id: 'f-fin-prizeMoney', type: 'number', labels: ['prize money'] },
+    { id: 'f-fin-sponsorship', type: 'number', labels: ['sponsorship income', 'sponsorship'] },
+    { id: 'f-youth-playersPromoted', type: 'text', labels: ['players promoted'] },
+    { id: 'f-youth-regensGenerated', type: 'number', labels: ['regens generated', 'regens', 'newgens'] }
+  ],
+  player: [
+    { id: 'pf-seasonLabel', type: 'text', labels: ['season'] },
+    { id: 'pf-club', type: 'text', labels: ['club', 'team'] },
+    { id: 'pf-country', type: 'text', labels: ['country', 'nation'] },
+    { id: 'pf-divisionTier', type: 'text', labels: ['division', 'tier'] },
+    { id: 'pf-age', type: 'number', labels: ['age'] },
+    { id: 'pf-shirtNumber', type: 'number', labels: ['shirt number', 'squad number', 'kit number'] },
+    { id: 'pf-rat-overallStart', type: 'number', labels: ['starting overall', 'overall start'] },
+    { id: 'pf-rat-overallEnd', type: 'number', labels: ['ending overall', 'overall end', 'overall'] },
+    { id: 'pf-rat-potential', type: 'number', labels: ['potential'] },
+    { id: 'pf-rat-skillMoves', type: 'number', labels: ['skill moves'] },
+    { id: 'pf-rat-weakFoot', type: 'number', labels: ['weak foot'] },
+    { id: 'pf-app-played', type: 'number', labels: ['appearances', 'apps', 'played'] },
+    { id: 'pf-app-started', type: 'number', labels: ['starts', 'started'] },
+    { id: 'pf-app-subApps', type: 'number', labels: ['sub appearances', 'substitute appearances', 'subs'] },
+    { id: 'pf-app-minutes', type: 'number', labels: ['minutes played', 'minutes'] },
+    { id: 'pf-atk-goals', type: 'number', labels: ['goals'] },
+    { id: 'pf-atk-assists', type: 'number', labels: ['assists'] },
+    { id: 'pf-atk-shotsOnTarget', type: 'number', labels: ['shots on target'] },
+    { id: 'pf-atk-shotsTotal', type: 'number', labels: ['total shots', 'shots'] },
+    { id: 'pf-atk-keyPasses', type: 'number', labels: ['key passes'] },
+    { id: 'pf-atk-dribbles', type: 'number', labels: ['dribbles completed', 'dribbles'] },
+    { id: 'pf-def-tackles', type: 'number', labels: ['tackles'] },
+    { id: 'pf-def-interceptions', type: 'number', labels: ['interceptions'] },
+    { id: 'pf-def-duelsWon', type: 'number', labels: ['duels won'] },
+    { id: 'pf-gk-saves', type: 'number', labels: ['saves'] },
+    { id: 'pf-gk-goalsConceded', type: 'number', labels: ['goals conceded'] },
+    { id: 'pf-gk-cleanSheets', type: 'number', labels: ['clean sheets'] },
+    { id: 'pf-dis-yellow', type: 'number', labels: ['yellow cards', 'yellows'] },
+    { id: 'pf-dis-red', type: 'number', labels: ['red cards', 'reds'] },
+    { id: 'pf-dis-fouls', type: 'number', labels: ['fouls committed', 'fouls'] },
+    { id: 'pf-form-avgRating', type: 'number', labels: ['average match rating', 'average rating', 'avg rating'] },
+    { id: 'pf-form-motmCount', type: 'number', labels: ['man of the match', 'motm'] },
+    { id: 'pf-league-position', type: 'number', labels: ['league position'] },
+    { id: 'pf-league-leagueSize', type: 'number', labels: ['teams in league'] },
+    { id: 'pf-league-promoted', type: 'checkbox', labels: ['promoted'] },
+    { id: 'pf-league-relegated', type: 'checkbox', labels: ['relegated'] },
+    { id: 'pf-aw-potsClub', type: 'checkbox', labels: ['club player of the season'] },
+    { id: 'pf-aw-yotsClub', type: 'checkbox', labels: ['young player of the season'] },
+    { id: 'pf-aw-teamOfSeason', type: 'checkbox', labels: ['team of the season'] },
+    { id: 'pf-aw-goldenBoot', type: 'checkbox', labels: ['golden boot'] },
+    { id: 'pf-aw-goldenGlove', type: 'checkbox', labels: ['golden glove'] },
+    { id: 'pf-aw-ballonDorRank', type: 'text', labels: ["ballon d or finish", "ballon d or"] },
+    { id: 'pf-tr-fromClub', type: 'text', labels: ['from club'] },
+    { id: 'pf-tr-toClub', type: 'text', labels: ['to club'] },
+    { id: 'pf-tr-fee', type: 'number', labels: ['transfer fee', 'fee'] },
+    { id: 'pf-ct-wage', type: 'number', labels: ['weekly wage', 'wage'] },
+    { id: 'pf-ct-yearsRemaining', type: 'number', labels: ['years remaining'] },
+    { id: 'pf-ct-releaseClause', type: 'number', labels: ['release clause'] },
+    { id: 'pf-intl-team', type: 'text', labels: ['national team'] },
+    { id: 'pf-intl-caps', type: 'number', labels: ['caps'] },
+    { id: 'pf-intl-goals', type: 'number', labels: ['international goals', 'caps goals'] },
+    { id: 'pf-intl-tournament', type: 'text', labels: ['tournament'] },
+    { id: 'pf-intl-tournamentResult', type: 'text', labels: ['tournament result'] }
+  ]
+};
+
+function ocrNormalize(s) {
+  return String(s).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function ocrLevenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+// Exact match first; falls back to a small edit-distance tolerance so
+// single-character OCR misreads (0/O, l/1, etc.) don't sink an otherwise
+// good match. Tolerance scales with phrase length to avoid short labels
+// like "won"/"pts" matching almost anything.
+// Looks for a dictionary label starting at `pos`. Exact matches are tried
+// first, longest phrase down to a single token, before any fuzzy fallback
+// is considered -- trying fuzzy matches at multi-word phrase lengths first
+// let something like "drawn 8" (a real value sitting right after a real
+// label) fuzzy-match the *label* "drawn" on its own, since a couple of
+// appended characters is a small edit distance. Fuzzy matching is further
+// restricted to single-word labels at a single token, so it can only ever
+// rescue one misread word and can never swallow an adjacent value.
+function ocrMatchAt(normTokens, pos, dictionary) {
+  const maxLen = Math.min(4, normTokens.length - pos);
+  for (let len = maxLen; len >= 1; len--) {
+    const phrase = normTokens.slice(pos, pos + len).join(' ');
+    for (const field of dictionary) {
+      if (field.labels.includes(phrase)) return { field, len };
+    }
+  }
+  const token = normTokens[pos];
+  if (token) {
+    const maxDist = token.length <= 4 ? 1 : token.length <= 9 ? 2 : 3;
+    for (const field of dictionary) {
+      for (const label of field.labels) {
+        if (label.indexOf(' ') === -1 && Math.abs(label.length - token.length) <= maxDist
+          && ocrLevenshtein(token, label) <= maxDist) {
+          return { field, len: 1 };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Scans OCR'd text line by line for "<label> <value>" patterns -- the
+// layout most stat screens use, whether label and value share a line
+// ("Played 38 Won 25") or value sits alone on the next line.
+function ocrTextToCandidates(text, dictionary) {
+  const candidates = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  lines.forEach(line => {
+    const rawTokens = line.split(/\s+/);
+    const normTokens = rawTokens.map(ocrNormalize).filter(Boolean);
+    if (normTokens.length !== rawTokens.length) return; // skip lines with empty-normalized tokens (punctuation-only)
+
+    let i = 0;
+    while (i < normTokens.length) {
+      const hit = ocrMatchAt(normTokens, i, dictionary);
+      if (!hit) { i++; continue; }
+      const matched = hit.field, matchLen = hit.len;
+
+      if (matched.type === 'checkbox') {
+        candidates.push({ field: matched, rawValue: '' });
+        i += matchLen;
+        continue;
+      }
+
+      let j = i + matchLen;
+      const valueTokens = [];
+      while (j < normTokens.length) {
+        if (ocrMatchAt(normTokens, j, dictionary)) break;
+        valueTokens.push(rawTokens[j]);
+        j++;
+        if (matched.type !== 'text' || valueTokens.length >= 5) break;
+      }
+      if (valueTokens.length) candidates.push({ field: matched, rawValue: valueTokens.join(' ') });
+      i = Math.max(j, i + matchLen);
+    }
+  });
+
+  // First match wins per field -- later duplicate mentions of the same
+  // stat (e.g. it appearing in a summary strip further down the screen)
+  // don't overwrite an earlier, likely-clearer read.
+  const seen = new Set();
+  return candidates.filter(c => {
+    if (seen.has(c.field.id)) return false;
+    seen.add(c.field.id);
+    return true;
+  });
+}
+
+function ocrCoerceValue(candidate) {
+  if (candidate.field.type === 'number') {
+    const cleaned = candidate.rawValue.replace(/[^0-9.\-]/g, '');
+    return cleaned === '' || Number.isNaN(Number(cleaned)) ? '' : cleaned;
+  }
+  if (candidate.field.type === 'checkbox') return true;
+  return candidate.rawValue.trim();
+}
+
+let ocrLastCandidates = [];
+
+function showOcrProgress(text) {
+  $('#ocr-progress-text').textContent = text;
+  $('#ocr-progress-overlay').hidden = false;
+}
+function hideOcrProgress() {
+  $('#ocr-progress-overlay').hidden = true;
+}
+
+// Downscales large phone photos before OCR -- a 12MP photo is massive
+// overkill for reading on-screen text and would make recognition far
+// slower for no accuracy benefit.
+function ocrPrepareImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 1600;
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas);
+    };
+    img.onerror = () => reject(new Error('Could not load photo'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+async function runOcrScan(file) {
+  if (!window.Tesseract) {
+    toast('OCR engine failed to load', 'danger');
+    return;
+  }
+  showOcrProgress('Preparing photo…');
+  let worker;
+  try {
+    const canvas = await ocrPrepareImage(file);
+    showOcrProgress('Reading photo… this can take a few seconds');
+    worker = await Tesseract.createWorker('eng', 1, {
+      workerPath: 'assets/vendor/tesseract/worker.min.js',
+      corePath: 'assets/vendor/tesseract/',
+      langPath: 'assets/vendor/tesseract/',
+      gzip: true,
+      cacheMethod: 'none',
+    });
+    const { data } = await worker.recognize(canvas);
+    const dictionary = OCR_FIELD_DICTIONARY[seasonModalMode];
+    const candidates = ocrTextToCandidates(data.text, dictionary);
+    hideOcrProgress();
+    if (!candidates.length) {
+      toast('No recognizable stats found in that photo', 'danger');
+      return;
+    }
+    openOcrReviewModal(candidates, data.text);
+  } catch (e) {
+    hideOcrProgress();
+    toast('Could not read that photo — try a clearer, well-lit shot', 'danger');
+  } finally {
+    if (worker) worker.terminate();
+  }
+}
+
+function ocrFieldLabel(fieldId) {
+  const direct = document.querySelector(`#season-form-body label[for="${fieldId}"]`);
+  if (direct) return direct.textContent.trim();
+  const input = document.getElementById(fieldId);
+  const wrapper = input && input.closest('.field, .checkbox-field');
+  const lbl = wrapper && wrapper.querySelector('label');
+  return lbl ? lbl.textContent.trim() : fieldId;
+}
+
+function openOcrReviewModal(candidates, rawText) {
+  ocrLastCandidates = candidates;
+  const rows = candidates.map((c, i) => {
+    const label = ocrFieldLabel(c.field.id);
+    const value = ocrCoerceValue(c);
+    const inputHtml = c.field.type === 'checkbox'
+      ? `<span class="ocr-review-checkbox-note">Will be checked</span>`
+      : `<input class="input" type="${c.field.type === 'number' ? 'number' : 'text'}" id="ocr-review-value-${i}" value="${esc(value)}" />`;
+    return `<div class="ocr-review-row">
+      <label class="checkbox-field">
+        <input type="checkbox" id="ocr-review-include-${i}" checked />
+        <span>${esc(label)}</span>
+      </label>
+      ${inputHtml}
+    </div>`;
+  }).join('');
+
+  $('#ocr-review-body').innerHTML = `
+    <p class="hint" style="margin-bottom:14px;">Found ${candidates.length} field${candidates.length === 1 ? '' : 's'} — check the values below before applying them. OCR from a photo can misread characters.</p>
+    <div class="ocr-review-list">${rows}</div>
+    <details class="form-section" style="margin-top:10px;">
+      <summary><span class="legend-icon">🔎</span> Raw scanned text</summary>
+      <div class="form-section-body"><pre class="ocr-raw-text">${esc(rawText)}</pre></div>
+    </details>
+    <div class="modal-footer-actions" style="margin-top:16px;">
+      <span></span>
+      <div style="display:flex;gap:10px;">
+        <button type="button" class="btn btn-ghost" data-action="ocr-review-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" data-action="ocr-review-apply">Apply Selected</button>
+      </div>
+    </div>
+  `;
+  $('#ocr-review-modal').hidden = false;
+  focusModal($('#ocr-review-modal'));
+}
+
+function closeOcrReviewModal() {
+  $('#ocr-review-modal').hidden = true;
+  ocrLastCandidates = [];
+  restoreFocusAfterModal();
+}
+
+function applyOcrReview() {
+  let applied = 0;
+  ocrLastCandidates.forEach((c, i) => {
+    const includeEl = document.getElementById(`ocr-review-include-${i}`);
+    if (!includeEl || !includeEl.checked) return;
+    const target = document.getElementById(c.field.id);
+    if (!target) return;
+    const details = target.closest('details');
+    if (details) details.open = true;
+    if (c.field.type === 'checkbox') {
+      target.checked = true;
+    } else {
+      const valueEl = document.getElementById(`ocr-review-value-${i}`);
+      target.value = valueEl ? valueEl.value : ocrCoerceValue(c);
+    }
+    applied++;
+  });
+  closeOcrReviewModal();
+  toast(applied ? `Applied ${applied} field${applied === 1 ? '' : 's'} from photo` : 'Nothing selected to apply');
+}
+
 /* ---------------- Import / Export ---------------- */
 
 function backupStatusLine() {
@@ -3053,6 +3416,14 @@ function wireEvents() {
   $('#save-manager-close').addEventListener('click', closeSaveManagerModal);
   $('#save-manager-modal').addEventListener('click', e => { if (e.target.id === 'save-manager-modal') closeSaveManagerModal(); });
 
+  $('#ocr-review-close').addEventListener('click', closeOcrReviewModal);
+  $('#ocr-review-modal').addEventListener('click', e => { if (e.target.id === 'ocr-review-modal') closeOcrReviewModal(); });
+  $('#ocr-photo-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file) runOcrScan(file);
+  });
+
   $('#confirm-modal-cancel').addEventListener('click', closeConfirmModal);
   $('#confirm-modal-ok').addEventListener('click', () => {
     const fn = confirmAction;
@@ -3063,6 +3434,7 @@ function wireEvents() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (!$('#confirm-modal').hidden) closeConfirmModal();
+      else if (!$('#ocr-review-modal').hidden) closeOcrReviewModal();
       else if (!$('#season-modal').hidden) closeSeasonModal();
       else if (!$('#save-manager-modal').hidden) closeSaveManagerModal();
     }
@@ -3121,6 +3493,12 @@ function wireEvents() {
         seasonDraft[kind].splice(idx, 1);
         reRenderRepeatSection(kind);
       }
+    } else if (action === 'scan-photo') {
+      $('#ocr-photo-input').click();
+    } else if (action === 'ocr-review-cancel') {
+      closeOcrReviewModal();
+    } else if (action === 'ocr-review-apply') {
+      applyOcrReview();
     } else if (action === 'jump-section') {
       const target = document.getElementById(t.dataset.target);
       if (target) {
