@@ -804,6 +804,24 @@ details.form-section > summary:hover { color: var(--accent); }
   color: var(--text); border-color: rgba(var(--accent-rgb), 0.4);
 }
 
+/* ---------------- Squad ---------------- */
+
+.squad-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Squad rows carry more columns than the other repeat rows, so the numeric
+   fields are pinned to their basis and only the name is allowed to grow --
+   otherwise Avg Rating stretches across a whole wrapped line. */
+.squad-row .field { flex-grow: 0; }
+.squad-row .field:first-child { flex-grow: 1; min-width: 140px; }
+.squad-status {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: var(--radius-pill);
+  font-size: 10.5px; font-weight: 800; white-space: nowrap;
+}
+.squad-status-in { background: rgba(var(--accent-rgb), 0.18); color: var(--accent); }
+.squad-status-out { background: var(--danger-soft); color: var(--danger); }
+.squad-status-both { background: rgba(255, 214, 10, 0.16); color: var(--accent-3); }
+.squad-status-field { display: flex; align-items: center; }
+
 /* ---------------- Scan from Photo (OCR) ---------------- */
 
 /* Lives in the modal header (not the scrollable body) so it's always

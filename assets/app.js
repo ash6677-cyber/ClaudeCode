@@ -31,6 +31,7 @@ const SEASON_SECTIONS = [
   { id: 'fs-standing', label: 'Standing', icon: '📈' },
   { id: 'fs-transfers-in', label: 'Signings', icon: '⬇️' },
   { id: 'fs-transfers-out', label: 'Sales', icon: '⬆️' },
+  { id: 'fs-squad', label: 'Squad', icon: '👥' },
   { id: 'fs-finances', label: 'Finances', icon: '💰' },
   { id: 'fs-objectives', label: 'Objectives', icon: '🎯' },
   { id: 'fs-youth', label: 'Youth', icon: '🌱' },
@@ -156,6 +157,7 @@ function emptySeason() {
     managerStanding: { managerOfTheSeason: false, motmCount: 0, reputationStars: 3, jobSecurity: 70 },
     transfersIn: [],
     transfersOut: [],
+    squad: [],
     finances: { transferBudget: '', wageBudget: '', prizeMoney: '', sponsorship: '' },
     boardObjectives: [],
     youth: { playersPromoted: '', regensGenerated: '', notes: '' },
@@ -171,6 +173,31 @@ function emptyTransfer() {
 }
 function emptyObjective() {
   return { id: uid('obj'), description: '', achieved: false };
+}
+function emptySquadPlayer() {
+  return { id: uid('sq'), name: '', position: 'ST', apps: '', goals: '', assists: '', rating: '' };
+}
+
+// Squad entries and transfer entries are linked by player name rather than by
+// id: transfers are often logged first (or in a different season from when the
+// player is added to the squad), so there is no shared id to rely on. Names
+// are compared loosely so "M. Rashford" and "m rashford" still match.
+function normalizePlayerName(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+// Derives whether a squad player arrived or left in this season from the
+// season's own transfer lists, so the two can never drift out of sync the way
+// a manually-set status field would.
+function squadPlayerTransferStatus(season, playerName) {
+  const key = normalizePlayerName(playerName);
+  if (!key) return null;
+  const inDeal = (season.transfersIn || []).find(t => normalizePlayerName(t.name) === key);
+  const outDeal = (season.transfersOut || []).find(t => normalizePlayerName(t.name) === key);
+  if (inDeal && outDeal) return { kind: 'both', label: 'In & Out', inDeal, outDeal };
+  if (inDeal) return { kind: 'in', label: 'Signed', inDeal };
+  if (outDeal) return { kind: 'out', label: 'Sold', outDeal };
+  return null;
 }
 function emptyMatch() {
   return { id: uid('match'), date: '', competition: '', opponent: '', venue: 'Home', gf: '', ga: '' };
@@ -617,6 +644,74 @@ function seasonTrophyList(season) {
 
 function seasonTrophyCount(season) { return seasonTrophyList(season).length; }
 
+
+// Rolls the per-season squads up into one career-long register, folding in
+// each player's transfer record so a name carries its whole story: when they
+// arrived, what they cost, what they returned, and when they left. Players
+// who only ever appear in a transfer list (signed but never added to a
+// squad) still get a row, so the register can't silently omit a signing.
+function computePlayerRegister(seasons) {
+  const byPlayer = {};
+
+  function entryFor(name) {
+    const key = normalizePlayerName(name);
+    if (!key) return null;
+    if (!byPlayer[key]) {
+      byPlayer[key] = {
+        key, name: name, position: '',
+        apps: 0, goals: 0, assists: 0,
+        ratingSum: 0, ratingCount: 0,
+        seasons: [], seasonCount: 0,
+        signedIn: null, soldIn: null,
+        feePaid: 0, feeReceived: 0
+      };
+    }
+    return byPlayer[key];
+  }
+
+  seasons.forEach(s => {
+    (s.squad || []).forEach(sp => {
+      const e = entryFor(sp.name);
+      if (!e) return;
+      if (sp.position) e.position = sp.position;
+      e.apps += num(sp.apps);
+      e.goals += num(sp.goals);
+      e.assists += num(sp.assists);
+      if (sp.rating !== '' && sp.rating != null && num(sp.rating) > 0) {
+        e.ratingSum += num(sp.rating); e.ratingCount++;
+      }
+      if (e.seasons.indexOf(s.seasonLabel) === -1) {
+        e.seasons.push(s.seasonLabel); e.seasonCount++;
+      }
+    });
+
+    (s.transfersIn || []).forEach(tr => {
+      const e = entryFor(tr.name);
+      if (!e) return;
+      if (!e.position && tr.position) e.position = tr.position;
+      e.feePaid += num(tr.fee);
+      if (!e.signedIn) e.signedIn = { season: s.seasonLabel, club: tr.club, fee: tr.fee, type: tr.type };
+    });
+
+    (s.transfersOut || []).forEach(tr => {
+      const e = entryFor(tr.name);
+      if (!e) return;
+      if (!e.position && tr.position) e.position = tr.position;
+      e.feeReceived += num(tr.fee);
+      e.soldIn = { season: s.seasonLabel, club: tr.club, fee: tr.fee, type: tr.type };
+    });
+  });
+
+  return Object.values(byPlayer).map(e => Object.assign(e, {
+    avgRating: e.ratingCount ? (e.ratingSum / e.ratingCount) : null,
+    goalContributions: e.goals + e.assists,
+    firstSeason: e.seasons[0] || (e.signedIn ? e.signedIn.season : null),
+    lastSeason: e.seasons[e.seasons.length - 1] || (e.soldIn ? e.soldIn.season : null)
+  })).sort((a, b) =>
+    b.goalContributions - a.goalContributions || b.apps - a.apps || a.name.localeCompare(b.name)
+  );
+}
+
 function computeCareerTotals() {
   const seasons = sortedSeasons(state.seasons, 'chrono');
   const currency = appSettings.currency;
@@ -698,6 +793,7 @@ function computeCareerTotals() {
 
   return {
     currency,
+    playerRegister: computePlayerRegister(seasons),
     totalSeasons: seasons.length,
     totalClubs: Object.keys(clubMap).length,
     matches, leagueOnly,
@@ -1335,7 +1431,7 @@ function renderSeasons() {
         <span class="pill pill-l">${num(L.lost)}L</span>
       </div>
       ${recentFormHTML(s.matches)}
-      <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
+      <div class="season-card-trophies">${trophies.map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}${(s.squad || []).length ? `<span class="trophy-chip">👥 ${(s.squad || []).length} squad</span>` : ''}</div>
       <div class="season-card-actions">
         <button class="btn btn-ghost btn-sm btn-icon" data-action="edit-season" data-id="${s.id}" title="Edit" aria-label="Edit season">✎</button>
         <button class="btn btn-ghost btn-sm btn-icon" data-action="duplicate-season" data-id="${s.id}" title="Start next season from this one" aria-label="Duplicate season as template">⧉</button>
@@ -1356,6 +1452,7 @@ function renderTotals() {
   const t = computeCareerTotals();
   const currency = appSettings.currency;
   const recordsHtml = recordsSectionHtml(computeCareerRecords(t.seasonsChrono));
+  const registerHtml = playerRegisterSectionHtml(t.playerRegister, t.currency);
 
   let trendHtml = '';
   if (t.seasonsChrono.length >= 2) {
@@ -1457,6 +1554,42 @@ function renderTotals() {
 
     <div class="section-title">Club History</div>
     <div class="club-history">${clubRows}</div>
+    ${registerHtml}
+  `;
+}
+
+// Career-long player table. Rendered only once there is squad or transfer
+// data to show, so careers that never log individual players are unaffected.
+function playerRegisterSectionHtml(register, currency) {
+  if (!register || !register.length) return '';
+  const rows = register.map(p => {
+    const movement = [
+      p.signedIn ? `<span class="squad-status squad-status-in">In ${esc(p.signedIn.season)}${p.signedIn.club ? ' · ' + esc(p.signedIn.club) : ''}</span>` : '',
+      p.soldIn ? `<span class="squad-status squad-status-out">Out ${esc(p.soldIn.season)}${p.soldIn.club ? ' · ' + esc(p.soldIn.club) : ''}</span>` : ''
+    ].filter(Boolean).join(' ') || '<span class="hint">—</span>';
+    const net = p.feeReceived - p.feePaid;
+    return `<tr>
+      <td>${esc(p.name)}</td>
+      <td>${esc(p.position) || '—'}</td>
+      <td>${p.seasonCount || '—'}</td>
+      <td>${p.apps || 0}</td>
+      <td>${p.goals || 0}</td>
+      <td>${p.assists || 0}</td>
+      <td>${p.avgRating != null ? p.avgRating.toFixed(2) : '—'}</td>
+      <td>${movement}</td>
+      <td class="${net > 0 ? 'amount-in' : net < 0 ? 'amount-out' : ''}">${(p.feePaid || p.feeReceived) ? fmtM(net, currency) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="section-title">Player Register</div>
+    <p class="hint" style="margin:-6px 0 12px;">${register.length} player${register.length === 1 ? '' : 's'} from your season squads and transfer dealings, combined across your whole career.</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Player</th><th>Pos</th><th>Seasons</th><th>Apps</th><th>Goals</th><th>Assists</th><th>Avg Rating</th><th>Movement</th><th>Net Fee</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -2193,6 +2326,27 @@ function objectiveRowHTML(o, i) {
   </div>`;
 }
 
+function squadRowHTML(sp, i) {
+  const status = seasonDraft ? squadPlayerTransferStatus(seasonDraft, sp.name) : null;
+  const badge = status
+    ? `<span class="squad-status squad-status-${status.kind}">${status.label}</span>`
+    : '';
+  return `<div class="repeat-row squad-row">
+    <div class="field" style="flex-basis:170px;"><label>Player</label><input class="input" data-repeat="squad" data-index="${i}" data-field="name" value="${esc(sp.name)}" placeholder="Player name" /></div>
+    <div class="field" style="flex-basis:110px;"><label>Position</label>
+      <select class="input select" data-repeat="squad" data-index="${i}" data-field="position">
+        ${PLAYER_POSITIONS.map(p => `<option value="${p}" ${sp.position === p ? 'selected' : ''}>${p}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field" style="flex-basis:70px;"><label>Apps</label><input class="input" type="number" min="0" data-repeat="squad" data-index="${i}" data-field="apps" value="${esc(sp.apps)}" /></div>
+    <div class="field" style="flex-basis:70px;"><label>Goals</label><input class="input" type="number" min="0" data-repeat="squad" data-index="${i}" data-field="goals" value="${esc(sp.goals)}" /></div>
+    <div class="field" style="flex-basis:70px;"><label>Assists</label><input class="input" type="number" min="0" data-repeat="squad" data-index="${i}" data-field="assists" value="${esc(sp.assists)}" /></div>
+    <div class="field" style="flex-basis:78px;"><label>Avg Rating</label><input class="input" type="number" step="0.1" min="0" max="10" data-repeat="squad" data-index="${i}" data-field="rating" value="${esc(sp.rating)}" /></div>
+    <div class="field squad-status-field" style="flex-basis:74px;align-self:end;padding-bottom:9px;">${badge}</div>
+    <button type="button" class="remove-row-btn" data-action="remove-row" data-repeat="squad" data-index="${i}" title="Remove" aria-label="Remove squad player">✕</button>
+  </div>`;
+}
+
 function matchResultBadgeHTML(gf, ga) {
   const r = matchResult(gf, ga);
   return r ? `<span class="match-result-badge match-result-${r.toLowerCase()}">${r}</span>` : '';
@@ -2350,6 +2504,18 @@ function renderSeasonFormHTML(d) {
       </div>
     </details>
 
+    <details class="form-section" id="fs-squad" ${detailsOpen(d.squad.length > 0)}>
+      <summary><span class="legend-icon">👥</span> Squad ${d.squad.length ? `<span class="chip-count">${d.squad.length}</span>` : ''}</summary>
+      <div class="form-section-body">
+      <p class="hint" style="margin-bottom:10px;">Optional — log the individual players in your squad this season. Anyone you signed or sold above is tagged automatically.</p>
+      <div class="repeat-list" id="repeat-squad">${repeatRowsHTML('squad', d.squad, squadRowHTML)}</div>
+      <div class="squad-actions">
+        <button type="button" class="add-row-btn" data-action="add-row" data-repeat="squad">+ Add Player</button>
+        <button type="button" class="add-row-btn" data-action="import-signings-to-squad">⬇️ Add this season's signings</button>
+      </div>
+      </div>
+    </details>
+
     <details class="form-section" id="fs-finances" ${detailsOpen(openFin)}>
       <summary><span class="legend-icon">💰</span> Finances (${appSettings.currency}M)</summary>
       <div class="form-section-body">
@@ -2398,12 +2564,29 @@ function renderSeasonFormHTML(d) {
   </form>`;
 }
 
+// Repaints just the derived Signed/Sold tags on the squad rows.
+function refreshSquadStatusBadges() {
+  if (!seasonDraft) return;
+  const container = $('#repeat-squad');
+  if (!container) return;
+  container.querySelectorAll('.squad-row').forEach(row => {
+    const nameInput = row.querySelector('[data-field="name"]');
+    const cell = row.querySelector('.squad-status-field');
+    if (!nameInput || !cell) return;
+    const status = squadPlayerTransferStatus(seasonDraft, nameInput.value);
+    cell.innerHTML = status
+      ? `<span class="squad-status squad-status-${status.kind}">${status.label}</span>`
+      : '';
+  });
+}
+
 function reRenderRepeatSection(kind) {
   const container = $('#repeat-' + kind);
   if (!container) return;
   const fn = kind === 'competitions' ? competitionRowHTML
     : kind === 'boardObjectives' ? objectiveRowHTML
     : kind === 'matches' ? matchRowHTML
+    : kind === 'squad' ? squadRowHTML
     : transferRowHTML;
   container.innerHTML = repeatRowsHTML(kind, seasonDraft[kind], fn);
 }
@@ -3613,6 +3796,7 @@ function wireEvents() {
         const factory = kind === 'competitions' ? emptyCompetition
           : kind === 'boardObjectives' ? emptyObjective
           : kind === 'matches' ? emptyMatch
+          : kind === 'squad' ? emptySquadPlayer
           : emptyTransfer;
         seasonDraft[kind].push(factory());
         reRenderRepeatSection(kind);
@@ -3629,6 +3813,23 @@ function wireEvents() {
         seasonDraft[kind].splice(idx, 1);
         reRenderRepeatSection(kind);
       }
+    } else if (action === 'import-signings-to-squad') {
+      const existing = new Set((seasonDraft.squad || []).map(sp => normalizePlayerName(sp.name)).filter(Boolean));
+      let added = 0;
+      (seasonDraft.transfersIn || []).forEach(tr => {
+        const key = normalizePlayerName(tr.name);
+        if (!key || existing.has(key)) return;
+        const sp = emptySquadPlayer();
+        sp.name = tr.name;
+        if (tr.position) sp.position = tr.position;
+        seasonDraft.squad.push(sp);
+        existing.add(key);
+        added++;
+      });
+      reRenderRepeatSection('squad');
+      toast(added
+        ? `Added ${added} signing${added === 1 ? '' : 's'} to the squad`
+        : 'No new signings to add — they are all in the squad already');
     } else if (action === 'scan-photo') {
       startPhotoScan();
     } else if (action === 'ocr-tutorial-continue') {
@@ -3760,6 +3961,12 @@ function wireEvents() {
         const row = t.closest('.repeat-row');
         const badgeEl = row && row.querySelector('.match-result-field');
         if (badgeEl) badgeEl.innerHTML = matchResultBadgeHTML(draft[key][idx].gf, draft[key][idx].ga);
+      }
+      // Squad/transfer linkage is derived from names on both sides, so editing
+      // either one can change a squad row's tag. Patch the affected badges in
+      // place rather than re-rendering, which would drop focus mid-typing.
+      if (field === 'name' && (kind === 'squad' || kind === 'transfersIn' || kind === 'transfersOut')) {
+        refreshSquadStatusBadges();
       }
     }
     if (t.id === 'save-manager-search') refreshSaveListOnly(t.value);
