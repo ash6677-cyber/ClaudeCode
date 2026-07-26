@@ -621,6 +621,93 @@ function computeCareerTotals() {
   };
 }
 
+// Auto-detected records, computed from data that's already there — no new
+// input required. Season-level only (no per-match log exists yet), so
+// "biggest win" etc. isn't possible until match-by-match logging exists;
+// these are the records that ARE honestly computable at season grain.
+function computeCareerRecords(seasons) {
+  const records = [];
+  const played = seasons.filter(s => num(s.league.played) > 0);
+
+  if (played.length) {
+    const bestGD = played.reduce((a, b) => (num(a.league.gf) - num(a.league.ga)) >= (num(b.league.gf) - num(b.league.ga)) ? a : b);
+    const gd = num(bestGD.league.gf) - num(bestGD.league.ga);
+    records.push({ icon: '⚡', label: 'Best Goal Difference', value: (gd > 0 ? '+' : '') + gd, detail: `${bestGD.seasonLabel} — ${bestGD.club}` });
+
+    const mostGoals = played.reduce((a, b) => num(a.league.gf) >= num(b.league.gf) ? a : b);
+    records.push({ icon: '⚽', label: 'Most Goals Scored (season)', value: num(mostGoals.league.gf), detail: `${mostGoals.seasonLabel} — ${mostGoals.club}` });
+
+    const fewestConceded = played.reduce((a, b) => num(a.league.ga) <= num(b.league.ga) ? a : b);
+    records.push({ icon: '🧱', label: 'Fewest Goals Conceded (season)', value: num(fewestConceded.league.ga), detail: `${fewestConceded.seasonLabel} — ${fewestConceded.club}` });
+
+    const bestRate = played.reduce((a, b) => winPct(num(a.league.won), num(a.league.drawn), num(a.league.lost)) >= winPct(num(b.league.won), num(b.league.drawn), num(b.league.lost)) ? a : b);
+    records.push({ icon: '📈', label: 'Best Win Rate (season)', value: fmtPct(winPct(num(bestRate.league.won), num(bestRate.league.drawn), num(bestRate.league.lost))), detail: `${bestRate.seasonLabel} — ${bestRate.club}` });
+
+    const invincibles = played.filter(s => num(s.league.lost) === 0);
+    if (invincibles.length) {
+      records.push({ icon: '🛡️', label: invincibles.length > 1 ? 'Invincible Seasons' : 'Invincible Season', value: invincibles.length, detail: invincibles.map(s => `${s.seasonLabel} (${s.club})`).join(', ') });
+    }
+
+    const positioned = played.filter(s => num(s.league.position) > 0);
+    if (positioned.length) {
+      const best = positioned.reduce((a, b) => num(a.league.position) <= num(b.league.position) ? a : b);
+      records.push({ icon: '🏅', label: 'Highest League Finish', value: ordinal(num(best.league.position)), detail: `${best.seasonLabel} — ${best.club}` });
+    }
+  }
+
+  const trophyHauls = seasons.map(s => ({ s, count: seasonTrophyCount(s) })).filter(x => x.count > 0);
+  if (trophyHauls.length) {
+    const best = trophyHauls.reduce((a, b) => a.count >= b.count ? a : b);
+    records.push({ icon: '🏆', label: 'Best Trophy Haul', value: `${best.count} in one season`, detail: `${best.s.seasonLabel} — ${best.s.club}` });
+  }
+
+  return records;
+}
+
+function playerCareerRecords(seasons) {
+  const records = [];
+  const played = seasons.filter(s => num(s.appearances.played) > 0);
+
+  if (played.length) {
+    const mostGoals = played.reduce((a, b) => num(a.attack.goals) >= num(b.attack.goals) ? a : b);
+    records.push({ icon: '⚽', label: 'Most Goals (season)', value: num(mostGoals.attack.goals), detail: `${mostGoals.seasonLabel} — ${mostGoals.club}` });
+
+    const mostAssists = played.reduce((a, b) => num(a.attack.assists) >= num(b.attack.assists) ? a : b);
+    records.push({ icon: '🎯', label: 'Most Assists (season)', value: num(mostAssists.attack.assists), detail: `${mostAssists.seasonLabel} — ${mostAssists.club}` });
+
+    const bestContribution = played.reduce((a, b) => (num(a.attack.goals) + num(a.attack.assists)) >= (num(b.attack.goals) + num(b.attack.assists)) ? a : b);
+    records.push({ icon: '🔥', label: 'Best Goal Contribution (season)', value: num(bestContribution.attack.goals) + num(bestContribution.attack.assists), detail: `${bestContribution.seasonLabel} — ${bestContribution.club}` });
+
+    const rated = played.filter(s => num(s.form.avgRating) > 0);
+    if (rated.length) {
+      const best = rated.reduce((a, b) => num(a.form.avgRating) >= num(b.form.avgRating) ? a : b);
+      records.push({ icon: '⭐', label: 'Highest Avg. Rating (season)', value: num(best.form.avgRating).toFixed(2), detail: `${best.seasonLabel} — ${best.club}` });
+    }
+
+    const mostApps = played.reduce((a, b) => num(a.appearances.played) >= num(b.appearances.played) ? a : b);
+    records.push({ icon: '👟', label: 'Most Appearances (season)', value: num(mostApps.appearances.played), detail: `${mostApps.seasonLabel} — ${mostApps.club}` });
+  }
+
+  const trophyHauls = seasons.map(s => ({ s, count: playerSeasonTrophyCount(s) })).filter(x => x.count > 0);
+  if (trophyHauls.length) {
+    const best = trophyHauls.reduce((a, b) => a.count >= b.count ? a : b);
+    records.push({ icon: '🏆', label: 'Best Trophy Haul', value: `${best.count} in one season`, detail: `${best.s.seasonLabel} — ${best.s.club}` });
+  }
+
+  return records;
+}
+
+function recordsSectionHtml(records) {
+  if (!records.length) return '';
+  const tiles = records.map(r => `
+    <div class="stat-tile">
+      <div class="stat-label">${r.icon} ${esc(r.label)}</div>
+      <div class="stat-value">${esc(String(r.value))}</div>
+      <div class="stat-sub">${esc(r.detail)}</div>
+    </div>`).join('');
+  return `<div class="section-title">Career Records</div><div class="stat-grid">${tiles}</div>`;
+}
+
 /* ---------------- Player Career: trophy / stat computation ---------------- */
 
 function playerSeasonTrophyList(season) {
@@ -1088,6 +1175,7 @@ function renderTotals() {
   }
   const t = computeCareerTotals();
   const currency = appSettings.currency;
+  const recordsHtml = recordsSectionHtml(computeCareerRecords(t.seasonsChrono));
 
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
     `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join(', ')}</td></tr>`
@@ -1160,6 +1248,8 @@ function renderTotals() {
         <div class="season-card-trophies">${seasonTrophyList(t.bestSeason).map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       </div>
     </div>` : ''}
+
+    ${recordsHtml}
 
     <div class="section-title">Trophy Breakdown</div>
     <div class="table-wrap">
@@ -1489,6 +1579,7 @@ function renderPlayerTotals() {
     return;
   }
   const t = computePlayerCareerTotals();
+  const recordsHtml = recordsSectionHtml(playerCareerRecords(t.seasonsChrono));
 
   const trophyRows = Object.entries(t.trophiesByName).sort((a, b) => b[1].count - a[1].count).map(([name, d]) =>
     `<tr><td>${esc(name)}</td><td>${d.count}</td><td>${d.entries.map(e => `${esc(e.season)} (${esc(e.club)})`).join(', ')}</td></tr>`
@@ -1562,6 +1653,8 @@ function renderPlayerTotals() {
         <div class="season-card-trophies">${playerSeasonTrophyList(t.bestSeason).map(tr => `<span class="trophy-chip">🏆 ${esc(tr.name)}</span>`).join('') || '<span class="hint">No trophies</span>'}</div>
       </div>
     </div>` : ''}
+
+    ${recordsHtml}
 
     <div class="section-title">Trophy Breakdown</div>
     <div class="table-wrap">
