@@ -20,6 +20,8 @@
   --glass-shadow-sm: 0 8px 24px -8px rgba(0, 0, 0, 0.45);
   --glass-blur: 34px;
   --glass-saturate: 145%;
+  --modal-bg: rgba(15, 20, 40, 0.72);
+  --modal-bg-solid: rgba(15, 20, 40, 0.94);
 
   --text: #f3f5fc;
   --text-dim: #a8b0d0;
@@ -59,6 +61,8 @@
   --glass-shadow: 0 20px 50px -14px rgba(30, 41, 90, 0.16), 0 2px 10px rgba(30, 41, 90, 0.05);
   --glass-shadow-sm: 0 8px 22px -10px rgba(30, 41, 90, 0.12);
   --glass-saturate: 120%;
+  --modal-bg: rgba(255, 255, 255, 0.75);
+  --modal-bg-solid: rgba(255, 255, 255, 0.96);
   --text: #10142b;
   --text-dim: #565f8a;
   --text-faint: #626a91;
@@ -80,6 +84,8 @@
     --glass-shadow: 0 20px 50px -14px rgba(30, 41, 90, 0.16), 0 2px 10px rgba(30, 41, 90, 0.05);
     --glass-shadow-sm: 0 8px 22px -10px rgba(30, 41, 90, 0.12);
     --glass-saturate: 120%;
+    --modal-bg: rgba(255, 255, 255, 0.75);
+    --modal-bg-solid: rgba(255, 255, 255, 0.96);
     --text: #10142b; --text-dim: #565f8a; --text-faint: #626a91;
     --accent: #06a45f; --accent-2: #0a6fd6;
     --danger: #e0392f; --danger-soft: rgba(224, 57, 47, 0.1);
@@ -737,14 +743,13 @@ details.form-section > summary:hover { color: var(--accent); }
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
-  background: rgba(15, 20, 40, 0.72);
+  background: var(--modal-bg);
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 760px;
   margin: auto;
   animation: modalIn 0.3s var(--ease-spring);
 }
-:root[data-theme="light"] .modal { background: rgba(255, 255, 255, 0.75); }
 @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 .confirm-modal { max-width: 380px; padding: 22px; }
@@ -1206,7 +1211,19 @@ table.data-table tbody tr:hover { background: var(--glass-bg-hover); }
 :root[data-layout="mobile"] .modal-overlay {
   align-items: flex-end;
   padding: 0;
+  /* The sheet is height-capped and scrolls internally, so the overlay itself
+     must never scroll. Left as auto, the entry animation's translateY made
+     the overlay scrollable for the duration of the animation, and the focus
+     call that moves keyboard focus into the dialog scrolled it -- leaving
+     tall sheets displaced with their bottom edge below the viewport. */
+  overflow: hidden;
 }
+/* The sheet is capped at 92vh, so its body has to be the scroll container.
+   Without this the capped .modal kept overflow:visible, so any form taller
+   than the cap spilled outside the box entirely -- and because the overlay
+   aligns the sheet to flex-end, that overflow was unreachable by scrolling
+   in either element. The bottom of every long season form, Save Season
+   button included, was simply stranded off-screen. */
 :root[data-layout="mobile"] .modal {
   max-width: 100%;
   width: 100%;
@@ -1214,10 +1231,44 @@ table.data-table tbody tr:hover { background: var(--glass-bg-hover); }
   margin: 0;
   border-radius: 22px 22px 0 0;
   animation: sheetUp 0.28s var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
+:root[data-layout="mobile"] .modal-header { flex-shrink: 0; }
+:root[data-layout="mobile"] .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  /* A sticky bottom:0 footer aligns to this scrollport's *content* box, so
+     any bottom padding here becomes an uncovered strip that form rows scroll
+     through underneath the action bar. The footer supplies the bottom
+     spacing instead; bodies without one get it back below. */
+  padding-bottom: 0;
+}
+:root[data-layout="mobile"] #save-manager-body { padding-bottom: 22px; }
 :root[data-layout="mobile"] .modal-header,
 :root[data-layout="mobile"] .modal-quicknav {
   border-radius: 0;
+}
+/* The body scrolls independently now, so the pills stick to its top rather
+   than to an offset that assumed the header shared the same scroll flow. */
+:root[data-layout="mobile"] .modal-quicknav { top: 0; }
+
+/* Keep the primary action permanently in reach instead of requiring a scroll
+   to the very bottom of a long form to find it. */
+:root[data-layout="mobile"] .modal-footer-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  margin: 8px -22px 0;
+  padding: 12px 22px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--modal-bg-solid);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
 }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
