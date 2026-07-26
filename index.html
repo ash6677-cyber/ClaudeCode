@@ -271,6 +271,60 @@
   </div>
 </div>
 
+<!-- OCR First-Run Tutorial Modal -->
+<div id="ocr-tutorial-modal" class="modal-overlay" hidden>
+  <div class="modal ocr-tutorial-modal glass" role="dialog" aria-modal="true" aria-labelledby="ocr-tutorial-title">
+    <div class="modal-header">
+      <h2 id="ocr-tutorial-title">📷 Scan from Photo</h2>
+      <button class="modal-close" id="ocr-tutorial-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="ocr-tutorial-intro">Take a photo of any stats screen in your game and the matching fields in this form get filled in for you.</p>
+
+      <ol class="ocr-tutorial-steps">
+        <li>
+          <span class="ocr-tutorial-step-num">1</span>
+          <div>
+            <h4>Photograph the stats screen</h4>
+            <p>Squad hub, end-of-season table, player performance — whatever screen shows the numbers you want to record.</p>
+          </div>
+        </li>
+        <li>
+          <span class="ocr-tutorial-step-num">2</span>
+          <div>
+            <h4>Check what it found</h4>
+            <p>You'll see every stat it recognised, with each value editable. Nothing is saved until you tap Apply — untick anything you don't want.</p>
+          </div>
+        </li>
+        <li>
+          <span class="ocr-tutorial-step-num">3</span>
+          <div>
+            <h4>Fill in the rest by hand</h4>
+            <p>It won't catch everything. Treat it as a head start on typing, not a replacement for checking your own numbers.</p>
+          </div>
+        </li>
+      </ol>
+
+      <div class="ocr-tutorial-tips">
+        <h4>For the best results</h4>
+        <ul>
+          <li>Get the screen square-on rather than at an angle</li>
+          <li>Avoid glare and reflections on the display</li>
+          <li>Fill the frame with just the stats you want</li>
+          <li>A direct screenshot beats a photo of a screen, if your console or PC can share one to this device</li>
+        </ul>
+      </div>
+
+      <p class="ocr-tutorial-privacy">🔒 Your photo is read entirely on this device and is never uploaded anywhere. The first scan takes a few extra seconds while the text-recognition engine downloads.</p>
+
+      <div class="modal-footer-actions">
+        <span></span>
+        <button type="button" class="btn btn-primary" data-action="ocr-tutorial-continue">Got it — choose a photo</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- OCR Review Modal -->
 <div id="ocr-review-modal" class="modal-overlay" hidden>
   <div class="modal ocr-review-modal glass" role="dialog" aria-modal="true" aria-labelledby="ocr-review-title">

@@ -240,7 +240,8 @@ function defaultAppSettings() {
   return {
     theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', renderQuality: 'auto',
     activeManagerSaveId: null, activePlayerSaveId: null,
-    lastBackupAt: null, backupNudgeSnoozedUntil: null
+    lastBackupAt: null, backupNudgeSnoozedUntil: null,
+    hasSeenOcrTutorial: false
   };
 }
 
@@ -3040,6 +3041,37 @@ function ocrCoerceValue(candidate) {
 
 let ocrLastCandidates = [];
 
+// The scan is only as good as the photo it's given, and its output always
+// needs a look-over -- both worth saying *before* someone's first attempt
+// rather than letting a bad first result set the expectation. Shown once,
+// then remembered; re-openable any time from the review screen.
+function startPhotoScan() {
+  if (appSettings.hasSeenOcrTutorial) {
+    $('#ocr-photo-input').click();
+    return;
+  }
+  openOcrTutorialModal();
+}
+
+function openOcrTutorialModal() {
+  $('#ocr-tutorial-modal').hidden = false;
+  focusModal($('#ocr-tutorial-modal'));
+}
+
+function closeOcrTutorialModal() {
+  $('#ocr-tutorial-modal').hidden = true;
+  restoreFocusAfterModal();
+}
+
+// Dismissing without continuing still counts as having seen it -- otherwise
+// it would reappear on every future scan attempt, which is exactly the kind
+// of nagging the backup nudge deliberately avoids.
+function dismissOcrTutorialModal() {
+  appSettings.hasSeenOcrTutorial = true;
+  saveAppSettings();
+  closeOcrTutorialModal();
+}
+
 function showOcrProgress(text) {
   $('#ocr-progress-text').textContent = text;
   $('#ocr-progress-overlay').hidden = false;
@@ -3138,7 +3170,7 @@ function openOcrReviewModal(candidates, rawText) {
       <div class="form-section-body"><pre class="ocr-raw-text">${esc(rawText)}</pre></div>
     </details>
     <div class="modal-footer-actions" style="margin-top:16px;">
-      <span></span>
+      <button type="button" class="ocr-how-it-works" data-action="ocr-show-tutorial">How does this work?</button>
       <div style="display:flex;gap:10px;">
         <button type="button" class="btn btn-ghost" data-action="ocr-review-cancel">Cancel</button>
         <button type="button" class="btn btn-primary" data-action="ocr-review-apply">Apply Selected</button>
@@ -3416,6 +3448,9 @@ function wireEvents() {
 
   $('#ocr-review-close').addEventListener('click', closeOcrReviewModal);
   $('#ocr-review-modal').addEventListener('click', e => { if (e.target.id === 'ocr-review-modal') closeOcrReviewModal(); });
+
+  $('#ocr-tutorial-close').addEventListener('click', dismissOcrTutorialModal);
+  $('#ocr-tutorial-modal').addEventListener('click', e => { if (e.target.id === 'ocr-tutorial-modal') dismissOcrTutorialModal(); });
   $('#ocr-photo-input').addEventListener('change', e => {
     const file = e.target.files[0];
     e.target.value = '';
@@ -3432,6 +3467,7 @@ function wireEvents() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (!$('#confirm-modal').hidden) closeConfirmModal();
+      else if (!$('#ocr-tutorial-modal').hidden) dismissOcrTutorialModal();
       else if (!$('#ocr-review-modal').hidden) closeOcrReviewModal();
       else if (!$('#season-modal').hidden) closeSeasonModal();
       else if (!$('#save-manager-modal').hidden) closeSaveManagerModal();
@@ -3492,7 +3528,14 @@ function wireEvents() {
         reRenderRepeatSection(kind);
       }
     } else if (action === 'scan-photo') {
+      startPhotoScan();
+    } else if (action === 'ocr-tutorial-continue') {
+      appSettings.hasSeenOcrTutorial = true;
+      saveAppSettings();
+      closeOcrTutorialModal();
       $('#ocr-photo-input').click();
+    } else if (action === 'ocr-show-tutorial') {
+      openOcrTutorialModal();
     } else if (action === 'ocr-review-cancel') {
       closeOcrReviewModal();
     } else if (action === 'ocr-review-apply') {
