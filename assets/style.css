@@ -810,6 +810,54 @@ details.form-section > summary:hover { color: var(--accent); }
 .modal-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .scan-photo-btn { font-size: 16px; line-height: 1; }
 
+/* Can be opened on top of the review modal via "How does this work?", so it
+   gets an explicit z-index rather than relying on DOM order to stack. */
+#ocr-tutorial-modal { z-index: 110; }
+.ocr-tutorial-modal { max-width: 560px; }
+.ocr-tutorial-intro {
+  font-size: 14px; color: var(--text-dim); line-height: 1.55; margin-bottom: 20px;
+}
+.ocr-tutorial-steps { list-style: none; display: flex; flex-direction: column; gap: 16px; margin-bottom: 22px; }
+.ocr-tutorial-steps li { display: flex; gap: 13px; align-items: flex-start; }
+.ocr-tutorial-step-num {
+  flex-shrink: 0; width: 25px; height: 25px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, rgba(var(--accent-rgb), 0.28), rgba(var(--accent-2-rgb), 0.2));
+  color: var(--text); font-size: 12px; font-weight: 800;
+}
+.ocr-tutorial-steps h4 { font-size: 13.5px; font-weight: 750; margin-bottom: 3px; }
+.ocr-tutorial-steps p { font-size: 12.5px; color: var(--text-dim); line-height: 1.5; }
+
+.ocr-tutorial-tips {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px; margin-bottom: 16px;
+}
+.ocr-tutorial-tips h4 {
+  font-size: 11px; font-weight: 800; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 9px;
+}
+.ocr-tutorial-tips ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ocr-tutorial-tips li {
+  font-size: 12.5px; color: var(--text-dim); line-height: 1.45;
+  padding-left: 16px; position: relative;
+}
+.ocr-tutorial-tips li::before {
+  content: '✓'; position: absolute; left: 0; color: var(--accent); font-weight: 800;
+}
+.ocr-tutorial-privacy {
+  font-size: 12px; color: var(--text-faint); line-height: 1.5;
+}
+
+.ocr-how-it-works {
+  background: none; border: none; padding: 0;
+  color: var(--accent-2); font-size: 12.5px; font-weight: 650;
+  cursor: pointer; font-family: inherit; text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ocr-how-it-works:hover { color: var(--text); }
+
 .ocr-progress-overlay { align-items: center; }
 .ocr-progress-box {
   margin: auto; padding: 28px 34px; border-radius: var(--radius-lg);

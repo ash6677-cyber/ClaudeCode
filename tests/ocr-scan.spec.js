@@ -4,11 +4,19 @@ const { freshApp, switchToPlayerMode } = require('./helpers');
 
 test.setTimeout(60000);
 
+// These specs exercise the scan/match/apply pipeline, not the first-run
+// tutorial, so they mark it as already seen and go straight to the picker.
+// The tutorial itself is covered in ocr-tutorial.spec.js.
+async function skipOcrTutorial(page) {
+  await page.evaluate(() => { appSettings.hasSeenOcrTutorial = true; saveAppSettings(); });
+}
+
 test('scanning a manager league-stats photo pre-fills the matching fields after review', async ({ page }) => {
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   await freshApp(page);
   await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
 
   await page.click('.btn:has-text("Add Season"), .btn:has-text("Add First Season")');
   await page.waitForTimeout(150);
@@ -45,6 +53,7 @@ test('scanning a player stats photo pre-fills player fields', async ({ page }) =
   await freshApp(page);
   await switchToPlayerMode(page);
   await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
 
   await page.click('.btn:has-text("Add Season"), .btn:has-text("Add First Season")');
   await page.waitForTimeout(150);
@@ -70,6 +79,7 @@ test('scanning a player stats photo pre-fills player fields', async ({ page }) =
 test('unchecking a row and editing a value before Apply is respected', async ({ page }) => {
   await freshApp(page);
   await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
   await page.click('.btn:has-text("Add Season"), .btn:has-text("Add First Season")');
   await page.waitForTimeout(150);
 
@@ -99,6 +109,7 @@ test('unchecking a row and editing a value before Apply is respected', async ({ 
 test('cancelling the review modal applies nothing', async ({ page }) => {
   await freshApp(page);
   await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
   await page.click('.btn:has-text("Add Season"), .btn:has-text("Add First Season")');
   await page.waitForTimeout(150);
 
@@ -118,6 +129,7 @@ test('cancelling the review modal applies nothing', async ({ page }) => {
 test('a photo with no recognizable stats shows a toast and opens no modal', async ({ page }) => {
   await freshApp(page);
   await page.waitForFunction(() => window.Tesseract);
+  await skipOcrTutorial(page);
   await page.click('.btn:has-text("Add Season"), .btn:has-text("Add First Season")');
   await page.waitForTimeout(150);
 
