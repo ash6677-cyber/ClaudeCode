@@ -796,6 +796,56 @@ details.form-section > summary:hover { color: var(--accent); }
   color: var(--text); border-color: rgba(var(--accent-rgb), 0.4);
 }
 
+/* ---------------- Scan from Photo (OCR) ---------------- */
+
+.scan-photo-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-bottom: 18px;
+  border: 1px dashed var(--glass-border-strong);
+}
+.beta-tag {
+  background: rgba(var(--accent-2-rgb), 0.18); color: var(--accent-2);
+  font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+  padding: 2px 7px; border-radius: var(--radius-pill);
+}
+
+.ocr-progress-overlay { align-items: center; }
+.ocr-progress-box {
+  margin: auto; padding: 28px 34px; border-radius: var(--radius-lg);
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  max-width: 320px; text-align: center;
+}
+.ocr-progress-box p { font-size: 13.5px; color: var(--text-dim); font-weight: 650; }
+.ocr-spinner {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 3px solid var(--glass-border-strong);
+  border-top-color: var(--accent-2);
+  animation: ocrSpin 0.8s linear infinite;
+}
+@keyframes ocrSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .ocr-spinner { animation-duration: 2.4s; }
+}
+
+.ocr-review-list { display: flex; flex-direction: column; gap: 10px; }
+.ocr-review-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+.ocr-review-row .checkbox-field { flex-shrink: 0; }
+.ocr-review-row .checkbox-field span { font-size: 13px; font-weight: 650; }
+.ocr-review-row .input { max-width: 160px; text-align: right; }
+.ocr-review-checkbox-note { font-size: 12px; color: var(--text-faint); font-style: italic; }
+.ocr-raw-text {
+  white-space: pre-wrap; word-break: break-word;
+  font-size: 11.5px; color: var(--text-dim); line-height: 1.6;
+  background: rgba(0, 0, 0, 0.15); border-radius: var(--radius-sm); padding: 12px;
+  max-height: 220px; overflow-y: auto;
+}
+
 /* ---------------- Trophy cabinet (dynamic 3D) ---------------- */
 
 #trophy3d-shared-canvas {

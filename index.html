@@ -257,6 +257,29 @@
   </div>
 </div>
 
+<!-- Hidden camera/gallery input reused by the "Scan from Photo" OCR feature -->
+<input type="file" id="ocr-photo-input" accept="image/*" capture="environment" hidden />
+
+<!-- OCR Scan Progress overlay -->
+<div id="ocr-progress-overlay" class="modal-overlay ocr-progress-overlay" hidden>
+  <div class="ocr-progress-box glass">
+    <div class="ocr-spinner" aria-hidden="true"></div>
+    <p id="ocr-progress-text">Reading photo…</p>
+  </div>
+</div>
+
+<!-- OCR Review Modal -->
+<div id="ocr-review-modal" class="modal-overlay" hidden>
+  <div class="modal ocr-review-modal glass" role="dialog" aria-modal="true" aria-labelledby="ocr-review-title">
+    <div class="modal-header">
+      <h2 id="ocr-review-title">Review Scanned Stats</h2>
+      <button class="modal-close" id="ocr-review-close" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body" id="ocr-review-body"></div>
+  </div>
+</div>
+
+<script src="assets/vendor/tesseract/tesseract.min.js"></script>
 <script src="assets/app.js"></script>
 <script type="module" src="assets/trophy3d.js"></script>
 </body>
