@@ -217,7 +217,7 @@ const LEGACY_STATE_KEY = 'fc-career-tracker:v1';
 const MAX_SAVES_PER_MODE = 100;
 
 function defaultAppSettings() {
-  return { theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', activeManagerSaveId: null, activePlayerSaveId: null };
+  return { theme: 'dark', currency: '£', mode: 'manager', layout: 'desktop', renderQuality: 'auto', activeManagerSaveId: null, activePlayerSaveId: null };
 }
 
 function loadAppSettings() {
@@ -1324,6 +1324,14 @@ function renderSettings() {
         </select>
       </div>
       <div class="settings-row">
+        <div class="settings-row-text"><h4>Trophy Render Quality</h4><p>Auto sharpens trophies on any screen; Low favors performance on older devices.</p></div>
+        <div class="quality-toggle">
+          <button data-quality="low" class="${s.renderQuality === 'low' ? 'active' : ''}">Low</button>
+          <button data-quality="auto" class="${s.renderQuality === 'high' ? '' : 'active'}">Auto</button>
+          <button data-quality="high" class="${s.renderQuality === 'high' ? 'active' : ''}">High</button>
+        </div>
+      </div>
+      <div class="settings-row">
         <div class="settings-row-text"><h4>Export Data</h4><p>Download this save as a JSON backup file.</p></div>
         <button class="btn btn-ghost" data-action="export-json">Export JSON</button>
       </div>
@@ -1721,6 +1729,14 @@ function renderPlayerSettings() {
           <option value="€" ${s.currency === '€' ? 'selected' : ''}>€ EUR</option>
           <option value="$" ${s.currency === '$' ? 'selected' : ''}>$ USD</option>
         </select>
+      </div>
+      <div class="settings-row">
+        <div class="settings-row-text"><h4>Trophy Render Quality</h4><p>Auto sharpens trophies on any screen; Low favors performance on older devices.</p></div>
+        <div class="quality-toggle">
+          <button data-quality="low" class="${s.renderQuality === 'low' ? 'active' : ''}">Low</button>
+          <button data-quality="auto" class="${s.renderQuality === 'high' ? '' : 'active'}">Auto</button>
+          <button data-quality="high" class="${s.renderQuality === 'high' ? 'active' : ''}">High</button>
+        </div>
       </div>
       <div class="settings-row">
         <div class="settings-row-text"><h4>Export Data</h4><p>Download this save as a JSON backup file.</p></div>
@@ -2743,6 +2759,15 @@ function wireEvents() {
       renderCurrentTab();
     }
   });
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.quality-toggle button');
+    if (btn) {
+      appSettings.renderQuality = btn.dataset.quality;
+      saveAppSettings();
+      if (window.Trophy3D) window.Trophy3D.setQuality(appSettings.renderQuality);
+      renderCurrentTab();
+    }
+  });
   document.addEventListener('change', e => {
     if (e.target.matches('.currency-select')) {
       appSettings.currency = e.target.value;
@@ -2803,6 +2828,8 @@ function init() {
   wireEvents();
   registerServiceWorker();
   wireInstallPrompt();
+  if (window.Trophy3D) window.Trophy3D.setQuality(appSettings.renderQuality);
+  else window.addEventListener('trophy3d-ready', () => window.Trophy3D.setQuality(appSettings.renderQuality), { once: true });
   switchTab(appSettings.mode === 'player' ? 'p-dashboard' : 'dashboard');
   applyLaunchShortcut();
 }

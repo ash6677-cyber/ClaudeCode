@@ -29,7 +29,25 @@ let sharedEnvMap = null;
 let sharedPlinthMaterial = null;
 let sharedShadowMaterial = null;
 let sharedShadowGeometry = null;
+let qualityLevel = 'auto';
 const instances = new Map();
+
+// 'auto' (default) floors supersampling at 2x even on standard 1x monitors —
+// antialiasing alone can't fix a screen rendering exactly one sample per
+// pixel, so cards looked soft compared to the rest of the UI otherwise.
+// 'high' pushes further for users with headroom to spare; 'low' drops to
+// native resolution for older/weaker devices where every draw call counts.
+function pixelRatioForQuality(level) {
+  const dpr = window.devicePixelRatio || 1;
+  if (level === 'low') return 1;
+  if (level === 'high') return Math.min(Math.max(dpr, 2.5), 4);
+  return Math.min(Math.max(dpr, 2), 3);
+}
+
+export function setQuality(level) {
+  qualityLevel = (level === 'high' || level === 'low') ? level : 'auto';
+  if (renderer) renderer.setPixelRatio(pixelRatioForQuality(qualityLevel));
+}
 
 /* ---- Shared (never-disposed) resources ---- */
 
@@ -551,13 +569,7 @@ function ensureRenderer() {
   canvas.id = 'trophy3d-shared-canvas';
   document.body.appendChild(canvas);
   renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
-  // Force real supersampling rather than only scaling up for already-retina
-  // screens: a plain 1x monitor previously rendered trophies at exactly one
-  // sample per screen pixel (antialias alone can't fix that), so cards
-  // looked soft compared to the rest of the glass-morphic UI. Flooring at 2x
-  // and allowing up to 3x on genuine hi-dpi panels gets consistently crisp,
-  // near-4K-density renders across all displays.
-  renderer.setPixelRatio(Math.min(Math.max(window.devicePixelRatio || 1, 2), 3));
+  renderer.setPixelRatio(pixelRatioForQuality(qualityLevel));
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -714,5 +726,5 @@ function wireInteraction() {
   window.__trophy3dWasDragged = () => moved;
 }
 
-window.Trophy3D = { mountTrophy, unmountTrophy, unmountAll };
+window.Trophy3D = { mountTrophy, unmountTrophy, unmountAll, setQuality };
 window.dispatchEvent(new Event('trophy3d-ready'));
