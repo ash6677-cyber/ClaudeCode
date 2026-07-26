@@ -758,7 +758,10 @@ details.form-section > summary:hover { color: var(--accent); }
   -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0; z-index: 3;
 }
-.modal-header h2 { font-size: 16.5px; font-weight: 800; }
+.modal-header h2 {
+  font-size: 16.5px; font-weight: 800; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .modal-close {
   background: var(--glass-bg-strong); border: 1px solid var(--glass-border);
   color: var(--text-dim); width: 32px; height: 32px; border-radius: var(--radius-sm);
@@ -798,16 +801,14 @@ details.form-section > summary:hover { color: var(--accent); }
 
 /* ---------------- Scan from Photo (OCR) ---------------- */
 
-.scan-photo-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  width: 100%; margin-bottom: 18px;
-  border: 1px dashed var(--glass-border-strong);
-}
-.beta-tag {
-  background: rgba(var(--accent-2-rgb), 0.18); color: var(--accent-2);
-  font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 2px 7px; border-radius: var(--radius-pill);
-}
+/* Lives in the modal header (not the scrollable body) so it's always
+   visible and tappable -- a plain in-flow button placed right below the
+   sticky, z-indexed section-nav pills got visually and functionally
+   covered by them on some viewports, since a positioned sibling always
+   paints above static content it happens to overlap, regardless of DOM
+   order. */
+.modal-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.scan-photo-btn { font-size: 16px; line-height: 1; }
 
 .ocr-progress-overlay { align-items: center; }
 .ocr-progress-box {

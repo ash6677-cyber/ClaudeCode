@@ -2250,7 +2250,6 @@ function renderSeasonFormHTML(d) {
 
   return quicknav + `
   <form id="season-form">
-    <button type="button" class="btn btn-ghost btn-block scan-photo-btn" data-action="scan-photo">📷 Scan from Photo <span class="beta-tag">Beta</span></button>
     <details class="form-section" id="fs-basics" open>
       <summary><span class="legend-icon">📋</span> Basics</summary>
       <div class="form-section-body">
@@ -2549,7 +2548,6 @@ function renderPlayerSeasonFormHTML(d) {
 
   return quicknav + `
   <form id="player-season-form">
-    <button type="button" class="btn btn-ghost btn-block scan-photo-btn" data-action="scan-photo">📷 Scan from Photo <span class="beta-tag">Beta</span></button>
     <details class="form-section" id="pfs-basics" open>
       <summary><span class="legend-icon">📋</span> Basics</summary>
       <div class="form-section-body">
