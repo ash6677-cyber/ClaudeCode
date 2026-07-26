@@ -396,6 +396,7 @@ function saveStatsLine(mode, saveObj) {
 
 function openSaveManagerModal() {
   saveManagerMode = appSettings.mode;
+  saveManagerView = 'list';
   $('#save-manager-title').textContent = saveManagerMode === 'player' ? 'Player Saves' : 'Manager Saves';
   renderSaveManagerList();
   $('#save-manager-modal').hidden = false;
@@ -439,16 +440,81 @@ function refreshSaveListOnly(query) {
   if (el) el.innerHTML = saveListCardsHTML(saveManagerMode, query);
 }
 
+// Full aggregate stats for one save, read directly off the stored save
+// object (not the active `state`/`pState`) so every save in the mode can be
+// compared without switching into each one.
+function leaderboardStatsForSave(mode, save) {
+  const seasons = save.seasons || [];
+  const name = saveDisplayName(mode, save);
+  if (mode === 'player') {
+    let apps = 0, goals = 0, assists = 0, trophies = 0;
+    seasons.forEach(s => {
+      apps += num(s.appearances && s.appearances.played);
+      goals += num(s.attack && s.attack.goals);
+      assists += num(s.attack && s.attack.assists);
+      trophies += playerSeasonTrophyCount(s);
+    });
+    return { name, seasonCount: seasons.length, trophies, primary: goals + assists, primaryLabel: 'G+A', apps };
+  }
+  let won = 0, drawn = 0, lost = 0, trophies = 0;
+  seasons.forEach(s => {
+    won += num(s.league && s.league.won); drawn += num(s.league && s.league.drawn); lost += num(s.league && s.league.lost);
+    trophies += seasonTrophyCount(s);
+  });
+  return { name, seasonCount: seasons.length, trophies, primary: winPct(won, drawn, lost), primaryLabel: 'Win Rate', record: `${won}-${drawn}-${lost}` };
+}
+
+function leaderboardTableHTML(mode) {
+  const saves = loadSaves(mode);
+  if (!saves.length) return `<div class="empty-state" style="padding:40px 20px;"><p>No saves to compare yet.</p></div>`;
+  const rows = saves.map(s => leaderboardStatsForSave(mode, s)).sort((a, b) => b.trophies - a.trophies || b.primary - a.primary);
+  const primaryLabel = rows[0].primaryLabel;
+  const fmtPrimary = r => mode === 'player' ? fmtNum(r.primary) : fmtPct(r.primary);
+  return `
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Save</th><th>Seasons</th><th>Trophies</th><th>${primaryLabel}</th></tr></thead>
+        <tbody>${rows.map((r, i) => `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${esc(r.name)}</td>
+            <td>${fmtNum(r.seasonCount)}</td>
+            <td>${fmtNum(r.trophies)}</td>
+            <td>${fmtPrimary(r)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function renderSaveManagerList(query) {
   const mode = saveManagerMode;
   const total = loadSaves(mode).length;
   const atCap = total >= MAX_SAVES_PER_MODE;
 
+  const viewToggle = `
+    <div class="save-manager-view-toggle">
+      <button data-view="list" class="${saveManagerView === 'leaderboard' ? '' : 'active'}">Saves</button>
+      <button data-view="leaderboard" class="${saveManagerView === 'leaderboard' ? 'active' : ''}">Leaderboard</button>
+    </div>`;
+
+  if (saveManagerView === 'leaderboard') {
+    $('#save-manager-body').innerHTML = `
+      <div class="save-manager-toolbar">
+        ${viewToggle}
+        <span class="save-manager-count">${total}/${MAX_SAVES_PER_MODE}</span>
+      </div>
+      ${leaderboardTableHTML(mode)}
+    `;
+    return;
+  }
+
   $('#save-manager-body').innerHTML = `
     <div class="save-manager-toolbar">
-      <input class="input" id="save-manager-search" type="text" placeholder="Search saves…" value="${esc(query || '')}" />
+      ${viewToggle}
       <span class="save-manager-count">${total}/${MAX_SAVES_PER_MODE}</span>
     </div>
+    <input class="input" id="save-manager-search" type="text" placeholder="Search saves…" value="${esc(query || '')}" style="margin-bottom:12px;" />
     <div class="save-create-row">
       <input class="input" id="save-manager-new-name" type="text" placeholder="${mode === 'player' ? 'New player save name…' : 'New career save name…'}" ${atCap ? 'disabled' : ''} />
       <button class="btn btn-primary" id="save-manager-create-btn" data-action="create-save" ${atCap ? 'disabled' : ''}>+ Create</button>
@@ -503,6 +569,7 @@ let playerSeasonDraft = null;
 let editingPlayerSeasonId = null;
 let confirmAction = null;
 let saveManagerMode = 'manager';
+let saveManagerView = 'list';
 
 function saveState() { persistActiveSave('manager', state); }
 function savePlayerState() { persistActiveSave('player', pState); }
@@ -2859,6 +2926,13 @@ function wireEvents() {
       saveAppSettings();
       if (window.Trophy3D) window.Trophy3D.setQuality(appSettings.renderQuality);
       renderCurrentTab();
+    }
+  });
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.save-manager-view-toggle button');
+    if (btn) {
+      saveManagerView = btn.dataset.view;
+      renderSaveManagerList();
     }
   });
   document.addEventListener('change', e => {
