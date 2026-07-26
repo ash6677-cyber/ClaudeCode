@@ -2225,6 +2225,7 @@ function duplicateSeasonAsTemplate(id) {
   draft.club = s.club;
   draft.country = s.country;
   draft.divisionTier = s.divisionTier;
+  applySquadCarryForward(draft, s);
   seasonDraft = draft;
   $('#season-form-body').innerHTML = renderSeasonFormHTML(seasonDraft, false);
   toast('Season duplicated as a template — review and save');
@@ -2250,6 +2251,8 @@ function openSeasonModal(season) {
   seasonModalMode = 'manager';
   seasonDraft = season ? deepClone(season) : emptySeason();
   editingSeasonId = season ? season.id : null;
+  squadCarriedFromLabel = null;
+  if (!season) applySquadCarryForward(seasonDraft, latestSeasonChronologically());
   $('#season-modal-title').textContent = season ? `Edit Season — ${season.seasonLabel || ''} ${season.club || ''}` : 'Add Season';
   $('#season-form-body').innerHTML = renderSeasonFormHTML(seasonDraft, !!season);
   $('#season-modal').hidden = false;
@@ -2328,9 +2331,11 @@ function objectiveRowHTML(o, i) {
 
 function squadRowHTML(sp, i) {
   const status = seasonDraft ? squadPlayerTransferStatus(seasonDraft, sp.name) : null;
+  // Selling from here is the quickest route to a transfer-out record: the row
+  // already knows the player, so it only asks for the fee and club afterwards.
   const badge = status
     ? `<span class="squad-status squad-status-${status.kind}">${status.label}</span>`
-    : '';
+    : `<button type="button" class="squad-sell-btn" data-action="sell-squad-player" data-index="${i}" ${sp.name.trim() ? '' : 'disabled'} title="Log a sale for this player">Sell</button>`;
   return `<div class="repeat-row squad-row">
     <div class="field" style="flex-basis:170px;"><label>Player</label><input class="input" data-repeat="squad" data-index="${i}" data-field="name" value="${esc(sp.name)}" placeholder="Player name" /></div>
     <div class="field" style="flex-basis:110px;"><label>Position</label>
@@ -2507,11 +2512,13 @@ function renderSeasonFormHTML(d) {
     <details class="form-section" id="fs-squad" ${detailsOpen(d.squad.length > 0)}>
       <summary><span class="legend-icon">👥</span> Squad ${d.squad.length ? `<span class="chip-count">${d.squad.length}</span>` : ''}</summary>
       <div class="form-section-body">
-      <p class="hint" style="margin-bottom:10px;">Optional — log the individual players in your squad this season. Anyone you signed or sold above is tagged automatically.</p>
+      ${squadCarriedFromLabel ? `<p class="squad-carried-note">👥 ${d.squad.length} player${d.squad.length === 1 ? '' : 's'} carried over from ${esc(squadCarriedFromLabel)}. Players you sold that season were left behind, and last season's stats were reset.</p>` : ''}
+      <p class="hint" style="margin-bottom:10px;">Optional — log the individual players in your squad this season. Signings are added here automatically, and Sell logs a transfer out.</p>
       <div class="repeat-list" id="repeat-squad">${repeatRowsHTML('squad', d.squad, squadRowHTML)}</div>
       <div class="squad-actions">
         <button type="button" class="add-row-btn" data-action="add-row" data-repeat="squad">+ Add Player</button>
         <button type="button" class="add-row-btn" data-action="import-signings-to-squad">⬇️ Add this season's signings</button>
+        ${d.squad.length ? `<button type="button" class="add-row-btn squad-clear-btn" data-action="clear-squad">Clear squad</button>` : ''}
       </div>
       </div>
     </details>
@@ -2578,6 +2585,77 @@ function refreshSquadStatusBadges() {
       ? `<span class="squad-status squad-status-${status.kind}">${status.label}</span>`
       : '';
   });
+}
+
+// Which season a new season should inherit its squad from, and the label to
+// show for it. Module state rather than a field on the draft so it never gets
+// persisted into the saved season.
+let squadCarriedFromLabel = null;
+
+function latestSeasonChronologically() {
+  const seasons = sortedSeasons(state.seasons, 'chrono');
+  return seasons.length ? seasons[seasons.length - 1] : null;
+}
+
+// Builds next season's squad from a previous one. Players sold during that
+// season don't travel with you, and per-season stats reset -- apps and goals
+// describe one campaign, not a running total.
+//
+// Every entry is a freshly constructed object with a new id: the draft must
+// never share object references with a stored season, or editing the new
+// season's squad would silently rewrite the old one's.
+function carriedForwardSquad(prevSeason) {
+  return (prevSeason.squad || [])
+    .filter(sp => {
+      const status = squadPlayerTransferStatus(prevSeason, sp.name);
+      return !status || status.kind === 'in';
+    })
+    .map(sp => Object.assign(emptySquadPlayer(), {
+      name: sp.name,
+      position: sp.position || 'ST'
+    }));
+}
+
+function applySquadCarryForward(draft, prevSeason) {
+  squadCarriedFromLabel = null;
+  if (!prevSeason) return;
+  const carried = carriedForwardSquad(prevSeason);
+  if (!carried.length) return;
+  draft.squad = carried;
+  squadCarriedFromLabel = prevSeason.seasonLabel || 'the previous season';
+}
+
+// Keeps the squad in step with the signings logged for the same season, so
+// adding a transfer in is all it takes for that player to appear in the squad.
+function syncSigningsIntoSquad(draft) {
+  const existing = new Set((draft.squad || []).map(sp => normalizePlayerName(sp.name)).filter(Boolean));
+  let added = 0;
+  (draft.transfersIn || []).forEach(tr => {
+    const key = normalizePlayerName(tr.name);
+    if (!key || existing.has(key)) return;
+    const sp = emptySquadPlayer();
+    sp.name = tr.name;
+    if (tr.position) sp.position = tr.position;
+    draft.squad.push(sp);
+    existing.add(key);
+    added++;
+  });
+  return added;
+}
+
+// Repaints the whole squad section, not just its rows -- the carried-over
+// notice and the Clear button live outside the repeat list and depend on how
+// many players there are.
+function rerenderSquadSection() {
+  const section = document.getElementById('fs-squad');
+  if (!section || !seasonDraft) return;
+  const wasOpen = section.open;
+  const fresh = document.createElement('div');
+  fresh.innerHTML = renderSeasonFormHTML(seasonDraft, !!editingSeasonId);
+  const replacement = fresh.querySelector('#fs-squad');
+  if (!replacement) return;
+  replacement.open = wasOpen;
+  section.replaceWith(replacement);
 }
 
 function reRenderRepeatSection(kind) {
@@ -3814,22 +3892,30 @@ function wireEvents() {
         reRenderRepeatSection(kind);
       }
     } else if (action === 'import-signings-to-squad') {
-      const existing = new Set((seasonDraft.squad || []).map(sp => normalizePlayerName(sp.name)).filter(Boolean));
-      let added = 0;
-      (seasonDraft.transfersIn || []).forEach(tr => {
-        const key = normalizePlayerName(tr.name);
-        if (!key || existing.has(key)) return;
-        const sp = emptySquadPlayer();
-        sp.name = tr.name;
-        if (tr.position) sp.position = tr.position;
-        seasonDraft.squad.push(sp);
-        existing.add(key);
-        added++;
-      });
+      const added = syncSigningsIntoSquad(seasonDraft);
       reRenderRepeatSection('squad');
       toast(added
         ? `Added ${added} signing${added === 1 ? '' : 's'} to the squad`
         : 'No new signings to add — they are all in the squad already');
+    } else if (action === 'sell-squad-player') {
+      const sp = seasonDraft.squad[parseInt(t.dataset.index, 10)];
+      if (!sp || !sp.name.trim()) return;
+      const deal = emptyTransfer();
+      deal.name = sp.name;
+      if (sp.position) deal.position = sp.position;
+      seasonDraft.transfersOut.push(deal);
+      reRenderRepeatSection('transfersOut');
+      reRenderRepeatSection('squad');
+      const outSection = document.getElementById('fs-transfers-out');
+      if (outSection) outSection.open = true;
+      toast(`${sp.name} added to Transfers Out — add the fee and club`);
+    } else if (action === 'clear-squad') {
+      confirmDialog('Clear every player from this season\'s squad? Other seasons are not affected.', () => {
+        seasonDraft.squad = [];
+        squadCarriedFromLabel = null;
+        rerenderSquadSection();
+        toast('Squad cleared', 'danger');
+      });
     } else if (action === 'scan-photo') {
       startPhotoScan();
     } else if (action === 'ocr-tutorial-continue') {
@@ -3968,6 +4054,11 @@ function wireEvents() {
       if (field === 'name' && (kind === 'squad' || kind === 'transfersIn' || kind === 'transfersOut')) {
         refreshSquadStatusBadges();
       }
+      if (kind === 'squad' && field === 'name') {
+        // Enable/disable the row's Sell button as the name appears or clears.
+        const sellBtn = t.closest('.repeat-row').querySelector('.squad-sell-btn');
+        if (sellBtn) sellBtn.disabled = !t.value.trim();
+      }
     }
     if (t.id === 'save-manager-search') refreshSaveListOnly(t.value);
   });
@@ -3980,6 +4071,12 @@ function wireEvents() {
   });
   document.addEventListener('change', e => {
     const t = e.target;
+    if (seasonDraft && t.matches('[data-repeat="transfersIn"][data-field="name"]') && t.value.trim()) {
+      if (syncSigningsIntoSquad(seasonDraft)) {
+        rerenderSquadSection();
+        toast(`${t.value.trim()} added to the squad`);
+      }
+    }
     if (t.matches('[data-repeat][data-field][type="checkbox"]')) {
       const kind = t.dataset.repeat, idx = parseInt(t.dataset.index, 10), field = t.dataset.field;
       const draft = kind === 'pcompetitions' ? playerSeasonDraft : seasonDraft;
