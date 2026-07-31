@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/use-toast'
+import { AppearanceSettings } from '@/features/settings/components/appearance-settings'
 import { PresetFormDialog } from '@/features/settings/components/preset-form-dialog'
 import { ProviderFormDialog } from '@/features/settings/components/provider-form-dialog'
 import { maskApiKey } from '@/features/settings/lib/mask-key'
@@ -271,11 +272,7 @@ export function SettingsHome() {
           </TabsContent>
 
           <TabsContent value="appearance" className="pt-2">
-            <EmptyState
-              icon={Palette}
-              title="Theme is already here"
-              description="Switch light, dark, or system from the toggle at the bottom of the left rail. More appearance options (accent color, editor font, measure width) arrive later."
-            />
+            <AppearanceSettings />
           </TabsContent>
 
           <TabsContent value="shortcuts" className="pt-2">

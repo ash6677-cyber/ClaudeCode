@@ -1,0 +1,87 @@
+export interface EditorFontOption {
+  id: string
+  label: string
+  category: 'serif' | 'sans' | 'mono'
+  cssFamily: string
+  /** Google Fonts CSS2 spec, e.g. "Lora:ital,wght@0,400..700;1,400..700" */
+  googleSpec: string
+}
+
+export const EDITOR_FONTS: EditorFontOption[] = [
+  {
+    id: 'source-serif',
+    label: 'Source Serif',
+    category: 'serif',
+    cssFamily: "'Source Serif 4', ui-serif, Georgia, serif",
+    googleSpec: 'Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400',
+  },
+  {
+    id: 'literata',
+    label: 'Literata',
+    category: 'serif',
+    cssFamily: "'Literata', ui-serif, Georgia, serif",
+    googleSpec: 'Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400',
+  },
+  {
+    id: 'lora',
+    label: 'Lora',
+    category: 'serif',
+    cssFamily: "'Lora', ui-serif, Georgia, serif",
+    googleSpec: 'Lora:ital,wght@0,400;0,500;0,600;1,400',
+  },
+  {
+    id: 'merriweather',
+    label: 'Merriweather',
+    category: 'serif',
+    cssFamily: "'Merriweather', ui-serif, Georgia, serif",
+    googleSpec: 'Merriweather:ital,wght@0,400;0,700;1,400',
+  },
+  {
+    id: 'newsreader',
+    label: 'Newsreader',
+    category: 'serif',
+    cssFamily: "'Newsreader', ui-serif, Georgia, serif",
+    googleSpec: 'Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400',
+  },
+  {
+    id: 'spectral',
+    label: 'Spectral',
+    category: 'serif',
+    cssFamily: "'Spectral', ui-serif, Georgia, serif",
+    googleSpec: 'Spectral:ital,wght@0,400;0,500;0,600;1,400',
+  },
+  {
+    id: 'eb-garamond',
+    label: 'EB Garamond',
+    category: 'serif',
+    cssFamily: "'EB Garamond', ui-serif, Georgia, serif",
+    googleSpec: 'EB+Garamond:ital,wght@0,400;0,500;0,600;1,400',
+  },
+  {
+    id: 'inter',
+    label: 'Inter',
+    category: 'sans',
+    cssFamily: "'Inter', ui-sans-serif, system-ui, sans-serif",
+    googleSpec: 'Inter:wght@400;500;600',
+  },
+  {
+    id: 'atkinson',
+    label: 'Atkinson Hyperlegible',
+    category: 'sans',
+    cssFamily: "'Atkinson Hyperlegible', ui-sans-serif, system-ui, sans-serif",
+    googleSpec: 'Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400',
+  },
+  {
+    id: 'jetbrains-mono',
+    label: 'JetBrains Mono',
+    category: 'mono',
+    cssFamily: "'JetBrains Mono', ui-monospace, monospace",
+    googleSpec: 'JetBrains+Mono:wght@400;500',
+  },
+]
+
+export const DEFAULT_EDITOR_FONT_ID = 'source-serif'
+
+export function getEditorFont(id: string): EditorFontOption {
+  return EDITOR_FONTS.find((f) => f.id === id) ?? EDITOR_FONTS[0]
+}

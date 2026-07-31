@@ -316,7 +316,8 @@
   }
 
   .editor-prose {
-    @apply font-serif text-[1.0625rem] leading-[1.75] text-foreground;
+    @apply text-[1.0625rem] leading-[1.75] text-foreground;
+    font-family: var(--editor-font, var(--font-serif));
   }
 
   .editor-prose p {
