@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type {
   AiPreset,
   AiProviderConfig,
+  BaseEntity,
   CardChat,
   CharacterCard,
   Chapter,
@@ -17,6 +18,9 @@ import type {
   SessionLog,
   Snapshot,
 } from '@/types'
+
+import { syncEngine } from '@/lib/sync/sync-engine'
+import { createSyncedTable } from '@/lib/sync/synced-table'
 
 import type { TableLike } from './repository'
 import { isTauriRuntime } from './tauri-bridge'
@@ -87,9 +91,27 @@ interface DbTables {
  * (Tauri) never touches Dexie at all — it uses an in-memory store that's
  * hydrated from and persisted to a real file on disk. Every store and
  * component goes through `db.<table>` exactly the same way either way. */
-function createDbTables(): DbTables {
+function createRawDbTables(): DbTables {
   if (isTauriRuntime()) return tauriTables
   return new InkwellDB()
 }
 
-export const db: DbTables = createDbTables()
+/**
+ * Registers each raw table with the sync engine (so incoming remote changes
+ * can be written straight to storage) and hands back wrapped tables that
+ * report outgoing local edits. Local-only use is unaffected: with no user
+ * signed in, the engine drops every notification on the floor.
+ */
+function withCloudSync(raw: DbTables): DbTables {
+  const wrapped: Record<string, TableLike<BaseEntity>> = {}
+  for (const [name, table] of Object.entries(raw)) {
+    const typed = table as TableLike<BaseEntity>
+    syncEngine.registerTable(name, typed)
+    wrapped[name] = createSyncedTable(name, typed, (t, id, kind) =>
+      syncEngine.notifyLocalChange(t, id, kind),
+    )
+  }
+  return wrapped as unknown as DbTables
+}
+
+export const db: DbTables = withCloudSync(createRawDbTables())

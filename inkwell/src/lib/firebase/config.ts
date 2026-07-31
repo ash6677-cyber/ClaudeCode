@@ -1,6 +1,13 @@
 import { type FirebaseApp, getApps, initializeApp } from 'firebase/app'
 import { connectAuthEmulator, getAuth } from 'firebase/auth'
-import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import {
+  connectFirestoreEmulator,
+  type Firestore,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 
 /**
  * Real projects set these via `.env.local` (see `.env.example`). With none
@@ -39,7 +46,26 @@ if (getApps().length === 0) {
 }
 
 export const firebaseAuth = getAuth(app)
-export const firestore = getFirestore(app)
+
+/**
+ * An IndexedDB-backed cache means edits made while offline are queued and
+ * replayed automatically on reconnect, and a cold start can read the last
+ * known library without waiting on the network. It can legitimately fail —
+ * private-browsing modes and locked-down webviews both block the storage it
+ * needs — so fall back to the in-memory cache rather than leaving the app
+ * with no Firestore at all.
+ */
+function createFirestore(): Firestore {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    })
+  } catch {
+    return getFirestore(app)
+  }
+}
+
+export const firestore = createFirestore()
 
 /**
  * Use the local emulator suite whenever there's no real project configured

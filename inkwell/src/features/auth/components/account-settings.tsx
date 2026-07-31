@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { AuthDialog } from '@/features/auth/components/auth-dialog'
+import { SyncStatus } from '@/features/auth/components/sync-status'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function AccountSettings() {
@@ -98,6 +99,8 @@ export function AccountSettings() {
           </Button>
         </div>
       </div>
+
+      <SyncStatus />
     </div>
   )
 }
