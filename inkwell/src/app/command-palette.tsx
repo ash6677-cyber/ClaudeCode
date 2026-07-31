@@ -20,13 +20,15 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { VisuallyHidden } from '@/components/common/visually-hidden'
+import { ENTRY_TYPE_ICON } from '@/features/codex/lib/entry-type'
+import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useUiStore } from '@/stores/ui-store'
 
 interface PaletteEntry {
   id: string
-  section: 'Actions' | 'Scenes' | 'Projects' | 'Navigate'
+  section: 'Actions' | 'Scenes' | 'Codex' | 'Projects' | 'Navigate'
   label: string
   hint?: string
   icon: React.ComponentType<{ className?: string }>
@@ -64,6 +66,9 @@ export function CommandPalette() {
   const chapters = useEditorStore((s) => s.chapters)
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const createChapter = useEditorStore((s) => s.createChapter)
+
+  const codexEntries = useCodexStore((s) => s.entries)
+  const codexProjectId = useCodexStore((s) => s.projectId)
 
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -147,6 +152,19 @@ export function CommandPalette() {
       }
     }
 
+    if (codexProjectId) {
+      for (const entry of codexEntries) {
+        list.push({
+          id: `codex-${entry.id}`,
+          section: 'Codex',
+          label: entry.name,
+          hint: entry.aliases[0],
+          icon: ENTRY_TYPE_ICON[entry.type],
+          run: () => navigate(`/codex/${entry.id}?project=${codexProjectId}`),
+        })
+      }
+    }
+
     for (const project of projects) {
       list.push({
         id: `project-${project.id}`,
@@ -183,6 +201,8 @@ export function CommandPalette() {
     setActiveScene,
     navigate,
     projects,
+    codexEntries,
+    codexProjectId,
   ])
 
   const filtered = useMemo(() => {
@@ -194,7 +214,13 @@ export function CommandPalette() {
   }, [entries, query])
 
   const grouped = useMemo(() => {
-    const sections: PaletteEntry['section'][] = ['Actions', 'Scenes', 'Projects', 'Navigate']
+    const sections: PaletteEntry['section'][] = [
+      'Actions',
+      'Scenes',
+      'Codex',
+      'Projects',
+      'Navigate',
+    ]
     return sections
       .map((section) => ({ section, items: filtered.filter((e) => e.section === section) }))
       .filter((g) => g.items.length > 0)

@@ -16,22 +16,24 @@ import { NavLink } from 'react-router-dom'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { useEditorStore } from '@/stores/editor-store'
 import { useUiStore } from '@/stores/ui-store'
 
 const NAV_ITEMS = [
-  { to: '/projects', label: 'Projects', icon: Library },
-  { to: '/editor', label: 'Editor', icon: Feather },
-  { to: '/codex', label: 'Codex', icon: BookOpen },
-  { to: '/cards', label: 'Cards', icon: Users },
-  { to: '/planning', label: 'Planning', icon: LayoutList },
-  { to: '/covers', label: 'Covers', icon: Image },
-  { to: '/stats', label: 'Stats', icon: BarChart3 },
+  { to: '/projects', label: 'Projects', icon: Library, projectScoped: false },
+  { to: '/editor', label: 'Editor', icon: Feather, projectScoped: true },
+  { to: '/codex', label: 'Codex', icon: BookOpen, projectScoped: true },
+  { to: '/cards', label: 'Cards', icon: Users, projectScoped: true },
+  { to: '/planning', label: 'Planning', icon: LayoutList, projectScoped: true },
+  { to: '/covers', label: 'Covers', icon: Image, projectScoped: true },
+  { to: '/stats', label: 'Stats', icon: BarChart3, projectScoped: false },
 ] as const
 
 export function NavRail() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUiStore((s) => s.toggleSidebar)
   const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen)
+  const activeProjectId = useEditorStore((s) => s.projectId)
 
   return (
     <aside
@@ -80,7 +82,17 @@ export function NavRail() {
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2">
         {NAV_ITEMS.map((item) => (
-          <NavRailLink key={item.to} {...item} collapsed={collapsed} />
+          <NavRailLink
+            key={item.to}
+            to={
+              item.projectScoped && activeProjectId
+                ? `${item.to}?project=${activeProjectId}`
+                : item.to
+            }
+            label={item.label}
+            icon={item.icon}
+            collapsed={collapsed}
+          />
         ))}
       </nav>
 

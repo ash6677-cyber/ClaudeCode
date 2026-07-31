@@ -1,9 +1,9 @@
 import { Editor } from '@tiptap/core'
 
+import { createProseExtensions } from '@/lib/editor/extensions'
 import { sceneRepo } from '@/lib/db/repositories'
 import type { Scene } from '@/types'
 
-import { createSceneEditorExtensions } from './extensions'
 import { replaceAllMatches } from './text-search'
 
 export interface BulkReplaceResult {
@@ -26,7 +26,7 @@ export async function bulkReplaceAcrossScenes(
 
   const headless = new Editor({
     element: document.createElement('div'),
-    extensions: createSceneEditorExtensions(),
+    extensions: createProseExtensions(),
     content: '',
   })
 

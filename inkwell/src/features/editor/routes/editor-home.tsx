@@ -16,6 +16,7 @@ import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
 import { projectRepo, snapshotRepo } from '@/lib/db/repositories'
 import { formatWordCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project, RichContent } from '@/types'
@@ -50,6 +51,12 @@ export function EditorHome() {
   useEffect(() => {
     if (projectId) loadProject(projectId)
   }, [projectId, loadProject])
+
+  const codexEntries = useCodexStore((s) => s.entries)
+  const loadCodexProject = useCodexStore((s) => s.loadProject)
+  useEffect(() => {
+    if (projectId) loadCodexProject(projectId)
+  }, [projectId, loadCodexProject])
 
   const focusMode = useUiStore((s) => s.focusMode)
   const setFocusMode = useUiStore((s) => s.setFocusMode)
@@ -331,6 +338,8 @@ export function EditorHome() {
               content={activeScene.content}
               measureWidthCh={project.settings.measureWidthCh}
               focusMode={focusMode}
+              projectId={projectId}
+              codexEntries={codexEntries}
               onChange={handleEditorChange}
               onEditorInstance={setLiveEditor}
             />

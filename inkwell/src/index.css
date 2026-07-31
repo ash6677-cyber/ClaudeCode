@@ -256,4 +256,13 @@
   .search-match {
     @apply rounded-sm bg-warning/50;
   }
+
+  .codex-highlight {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--color-primary);
+    text-decoration-thickness: 1.5px;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
 }

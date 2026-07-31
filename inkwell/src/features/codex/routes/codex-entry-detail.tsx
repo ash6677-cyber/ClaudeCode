@@ -1,0 +1,327 @@
+import { ArrowLeft, Library, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { EmptyState } from '@/components/common/empty-state'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/components/ui/use-toast'
+import { AttributeList } from '@/features/codex/components/attribute-list'
+import { CodexBodyEditor } from '@/features/codex/components/codex-body-editor'
+import { ImageUploadField } from '@/features/codex/components/image-upload-field'
+import { RelationshipList } from '@/features/codex/components/relationship-list'
+import { ENTRY_TYPES, ENTRY_TYPE_LABEL } from '@/features/codex/lib/entry-type'
+import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
+import { useCodexStore } from '@/stores/codex-store'
+import type { AiContextInclusion, CodexEntryType, RichContent } from '@/types'
+
+const AI_CONTEXT_OPTIONS: { value: AiContextInclusion; label: string; hint: string }[] = [
+  { value: 'always', label: 'Always include', hint: 'Sent on every AI request for this project' },
+  {
+    value: 'when-relevant',
+    label: 'Include when relevant',
+    hint: 'Sent when it matches the scene',
+  },
+  { value: 'never', label: 'Never include', hint: 'Kept out of AI context entirely' },
+]
+
+export function CodexEntryDetail() {
+  const { entryId } = useParams<{ entryId: string }>()
+  const [searchParams] = useSearchParams()
+  const projectId = searchParams.get('project')
+  const navigate = useNavigate()
+  const { toast } = useToast()
+
+  const {
+    entries,
+    status,
+    loadProject,
+    updateEntry,
+    deleteEntry,
+    addAttribute,
+    updateAttribute,
+    removeAttribute,
+    addRelationship,
+    removeRelationship,
+    setAiContext,
+  } = useCodexStore()
+
+  useEffect(() => {
+    if (projectId) loadProject(projectId)
+  }, [projectId, loadProject])
+
+  const entry = useMemo(() => entries.find((e) => e.id === entryId), [entries, entryId])
+
+  const [nameDraft, setNameDraft] = useState(entry?.name ?? '')
+  const [aliasesDraft, setAliasesDraft] = useState(entry?.aliases.join(', ') ?? '')
+  const [summaryDraft, setSummaryDraft] = useState(entry?.summary ?? '')
+  const [tagsDraft, setTagsDraft] = useState(entry?.tags.join(', ') ?? '')
+  const [renderedEntryId, setRenderedEntryId] = useState(entryId)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  if (entry && entryId !== renderedEntryId) {
+    setRenderedEntryId(entryId)
+    setNameDraft(entry.name)
+    setAliasesDraft(entry.aliases.join(', '))
+    setSummaryDraft(entry.summary)
+    setTagsDraft(entry.tags.join(', '))
+  }
+
+  const debouncedSaveBody = useDebouncedCallback(
+    (id: string, input: { content: RichContent; plainText: string }) => {
+      updateEntry(id, { body: input.content, plainText: input.plainText })
+    },
+    800,
+  )
+
+  if (!projectId) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <EmptyState
+          icon={Library}
+          title="No project selected"
+          description="Open a project from the Projects page to view its Codex."
+          action={
+            <Button asChild>
+              <Link to="/projects">Go to Projects</Link>
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  if (status === 'loading' && entries.length === 0) {
+    return (
+      <div className="p-6">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="mt-4 h-64 w-full" />
+      </div>
+    )
+  }
+
+  if (!entry) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <EmptyState
+          icon={Library}
+          title="Entry not found"
+          description="This entry may have been deleted."
+          action={
+            <Button asChild>
+              <Link to={`/codex?project=${projectId}`}>Back to Codex</Link>
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  const otherEntries = entries.filter((e) => e.id !== entry.id)
+
+  return (
+    <div className="flex h-full flex-col">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <Button variant="ghost" size="sm" asChild className="gap-1.5">
+          <Link to={`/codex?project=${projectId}`}>
+            <ArrowLeft className="size-4" /> Codex
+          </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setDeleteOpen(true)}
+          aria-label="Delete entry"
+          className="text-destructive hover:text-destructive"
+        >
+          <Trash2 className="size-4" />
+        </Button>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
+          <div className="mx-auto max-w-2xl px-8 py-10">
+            <Input
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              onBlur={() =>
+                nameDraft.trim() &&
+                nameDraft !== entry.name &&
+                updateEntry(entry.id, { name: nameDraft.trim() })
+              }
+              placeholder="Name"
+              className="h-auto border-none px-0 font-serif text-3xl font-semibold shadow-none focus-visible:ring-0"
+            />
+            <Input
+              value={aliasesDraft}
+              onChange={(e) => setAliasesDraft(e.target.value)}
+              onBlur={() =>
+                updateEntry(entry.id, {
+                  aliases: aliasesDraft
+                    .split(',')
+                    .map((a) => a.trim())
+                    .filter(Boolean),
+                })
+              }
+              placeholder="Aliases (comma-separated)"
+              className="mt-1 h-auto border-none px-0 text-sm text-muted-foreground shadow-none focus-visible:ring-0"
+            />
+
+            <Textarea
+              value={summaryDraft}
+              onChange={(e) => setSummaryDraft(e.target.value)}
+              onBlur={() =>
+                summaryDraft !== entry.summary && updateEntry(entry.id, { summary: summaryDraft })
+              }
+              placeholder="A sentence or two summarising this entry…"
+              rows={2}
+              className="mt-4 resize-none border-none px-0 shadow-none focus-visible:ring-0"
+            />
+
+            <div className="mt-6 border-t border-border pt-6">
+              <CodexBodyEditor
+                entryId={entry.id}
+                content={entry.body}
+                onChange={(input) => debouncedSaveBody(entry.id, input)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <aside className="w-80 shrink-0 space-y-6 overflow-y-auto border-l border-border p-5">
+          <ImageUploadField
+            imageId={entry.imageId}
+            onChange={(imageId) => updateEntry(entry.id, { imageId })}
+          />
+
+          <div className="grid gap-1.5">
+            <Label>Type</Label>
+            <Select
+              value={entry.type}
+              onValueChange={(v: CodexEntryType) => updateEntry(entry.id, { type: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ENTRY_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {ENTRY_TYPE_LABEL[type]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label htmlFor="entry-tags">Tags</Label>
+            <Input
+              id="entry-tags"
+              value={tagsDraft}
+              onChange={(e) => setTagsDraft(e.target.value)}
+              onBlur={() =>
+                updateEntry(entry.id, {
+                  tags: tagsDraft
+                    .split(',')
+                    .map((t) => t.trim())
+                    .filter(Boolean),
+                })
+              }
+              placeholder="Comma-separated"
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Attributes</Label>
+            <AttributeList
+              attributes={entry.attributes}
+              onAdd={(key, value) => addAttribute(entry.id, key, value)}
+              onUpdate={(id, key, value) => updateAttribute(entry.id, id, key, value)}
+              onRemove={(id) => removeAttribute(entry.id, id)}
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>Relationships</Label>
+            <RelationshipList
+              relationships={entry.relationships}
+              otherEntries={otherEntries}
+              onAdd={(targetId, label) => addRelationship(entry.id, targetId, label)}
+              onRemove={(id) => removeRelationship(entry.id, id)}
+              onNavigate={(id) => navigate(`/codex/${id}?project=${projectId}`)}
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <Label>AI context</Label>
+            <Select
+              value={entry.aiContext}
+              onValueChange={(v: AiContextInclusion) =>
+                setAiContext(entry.id, v, entry.aiContextTokenBudget)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_CONTEXT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {AI_CONTEXT_OPTIONS.find((o) => o.value === entry.aiContext)?.hint}
+            </p>
+          </div>
+        </aside>
+      </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{entry.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the entry from your Codex. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async (e) => {
+                e.preventDefault()
+                await deleteEntry(entry.id)
+                toast({ title: `"${entry.name}" deleted` })
+                navigate(`/codex?project=${projectId}`)
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}

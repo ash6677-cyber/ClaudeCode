@@ -25,6 +25,7 @@ export interface CodexEntry extends BaseEntity {
   aliases: string[]
   summary: string
   body: unknown
+  plainText: string
   attributes: CodexAttribute[]
   relationships: CodexRelationship[]
   imageId: string | null

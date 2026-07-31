@@ -3,11 +3,12 @@ import Highlight from '@tiptap/extension-highlight'
 import Placeholder from '@tiptap/extension-placeholder'
 import StarterKit from '@tiptap/starter-kit'
 
-/** Shared between the live scene editor and the headless editor used for bulk find/replace. */
-export function createSceneEditorExtensions() {
+/** Shared prose-editing extension set: the manuscript editor, its headless
+ * find/replace instance, and the Codex entry body editor all use this. */
+export function createProseExtensions(placeholder = 'Begin writing…') {
   return [
     StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
-    Placeholder.configure({ placeholder: 'Begin writing…' }),
+    Placeholder.configure({ placeholder }),
     Highlight.configure({ multicolor: false }),
     CharacterCount,
   ]
