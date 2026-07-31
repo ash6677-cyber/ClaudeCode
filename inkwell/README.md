@@ -50,7 +50,7 @@ Built incrementally, one fully-finished feature area at a time:
 
 - [x] Phase 0 — Foundation (this shell)
 - [x] Phase 1 — Projects & dashboard
-- [ ] Phase 2 — Manuscript editor core
+- [x] Phase 2 — Manuscript editor core
 - [ ] Phase 3 — Codex
 - [ ] Phase 4 — AI engine
 - [ ] Phase 5 — Scene Beats → prose

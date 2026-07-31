@@ -7,6 +7,7 @@ import {
   Image,
   LayoutList,
   Library,
+  Search,
   Settings,
   Users,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
 export function NavRail() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUiStore((s) => s.toggleSidebar)
+  const setCommandPaletteOpen = useUiStore((s) => s.setCommandPaletteOpen)
 
   return (
     <aside
@@ -47,6 +49,33 @@ export function NavRail() {
             Inkwell
           </span>
         )}
+      </div>
+
+      <div className={cn('px-2 pb-1', collapsed && 'px-2')}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setCommandPaletteOpen(true)}
+              aria-label="Open command palette"
+              className={cn(
+                'flex h-8 w-full items-center gap-2 rounded-md border border-sidebar-border px-2.5 text-xs text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                collapsed && 'justify-center border-none px-0',
+              )}
+            >
+              <Search className="size-3.5 shrink-0" />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 text-left">Jump to…</span>
+                  <kbd className="rounded border border-sidebar-border px-1 font-mono text-[10px]">
+                    ⌘K
+                  </kbd>
+                </>
+              )}
+            </button>
+          </TooltipTrigger>
+          {collapsed && <TooltipContent side="right">Jump to… (⌘K)</TooltipContent>}
+        </Tooltip>
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 py-2">
