@@ -388,6 +388,11 @@
     outline: none;
   }
 
+  .editor-prose .pm-dimmed {
+    opacity: 0.25;
+    transition: opacity 200ms ease-out;
+  }
+
   .search-match {
     @apply rounded-sm bg-warning/50;
   }

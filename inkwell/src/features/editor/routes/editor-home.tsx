@@ -1,10 +1,25 @@
 import type { Editor } from '@tiptap/react'
-import { Library, Maximize2, Minimize2, PanelLeft, PanelRight, Search, Sparkles } from 'lucide-react'
+import {
+  Library,
+  Maximize2,
+  Minimize2,
+  PanelLeft,
+  PanelRight,
+  Search,
+  Settings2,
+  Sparkles,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -23,6 +38,7 @@ import { cn } from '@/lib/utils'
 import { useAiStore } from '@/stores/ai-store'
 import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
+import { usePreferencesStore } from '@/stores/preferences-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project, RichContent } from '@/types'
 
@@ -71,6 +87,10 @@ export function EditorHome() {
 
   const focusMode = useUiStore((s) => s.focusMode)
   const setFocusMode = useUiStore((s) => s.setFocusMode)
+  const typewriterMode = usePreferencesStore((s) => s.typewriterMode)
+  const setTypewriterMode = usePreferencesStore((s) => s.setTypewriterMode)
+  const dimInactiveParagraphs = usePreferencesStore((s) => s.dimInactiveParagraphs)
+  const setDimInactiveParagraphs = usePreferencesStore((s) => s.setDimInactiveParagraphs)
   const manuscriptSearchOpen = useUiStore((s) => s.manuscriptSearchOpen)
   const setManuscriptSearchOpen = useUiStore((s) => s.setManuscriptSearchOpen)
 
@@ -117,8 +137,13 @@ export function EditorHome() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (!activeScene) return
       const meta = e.metaKey || e.ctrlKey
+      if (meta && e.key === '.') {
+        e.preventDefault()
+        setFocusMode(!focusMode)
+        return
+      }
+      if (!activeScene) return
       if (meta && e.key.toLowerCase() === 'f' && e.shiftKey) {
         e.preventDefault()
         setManuscriptSearchOpen(true)
@@ -129,7 +154,7 @@ export function EditorHome() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeScene, setManuscriptSearchOpen])
+  }, [activeScene, setManuscriptSearchOpen, focusMode, setFocusMode])
 
   // Reads the scene fresh from the store at call time (via getState) rather than closing
   // over the `activeScene` from render — this fires after a debounce delay, so a closure
@@ -256,6 +281,37 @@ export function EditorHome() {
             <span className="pointer-events-none text-xs tabular-nums text-muted-foreground">
               {formatWordCount(bookWordCount)} words
             </span>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="pointer-events-auto size-6"
+                      aria-label="Focus mode settings"
+                    >
+                      <Settings2 className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Focus mode settings</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="pointer-events-auto">
+                <DropdownMenuCheckboxItem
+                  checked={typewriterMode}
+                  onCheckedChange={setTypewriterMode}
+                >
+                  Typewriter scrolling
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={dimInactiveParagraphs}
+                  onCheckedChange={setDimInactiveParagraphs}
+                >
+                  Dim other paragraphs
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

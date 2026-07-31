@@ -53,7 +53,8 @@ export function AppearanceSettings() {
             <Focus className="size-3.5" /> Focus mode
           </div>
           <p className="text-xs text-muted-foreground">
-            Fine-tune the distraction-free writing view, toggled from the editor toolbar.
+            Fine-tune the distraction-free writing view, toggled with ⌘. (or the expand icon in
+            the editor toolbar).
           </p>
         </div>
 
