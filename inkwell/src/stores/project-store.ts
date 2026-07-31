@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { db } from '@/lib/db/schema'
 import { projectRepo } from '@/lib/db/repositories'
 import type { Project } from '@/types'
 
@@ -18,6 +19,7 @@ type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 interface ProjectStoreState {
   projects: Project[]
+  wordCounts: Record<string, number>
   status: LoadStatus
   error: string | null
   fetchProjects: () => Promise<void>
@@ -28,15 +30,20 @@ interface ProjectStoreState {
 
 export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   projects: [],
+  wordCounts: {},
   status: 'idle',
   error: null,
 
   fetchProjects: async () => {
     set({ status: 'loading', error: null })
     try {
-      const projects = await projectRepo.list()
+      const [projects, scenes] = await Promise.all([projectRepo.list(), db.scenes.toArray()])
       projects.sort((a, b) => b.updatedAt - a.updatedAt)
-      set({ projects, status: 'ready' })
+      const wordCounts: Record<string, number> = {}
+      for (const scene of scenes) {
+        wordCounts[scene.projectId] = (wordCounts[scene.projectId] ?? 0) + scene.wordCount
+      }
+      set({ projects, wordCounts, status: 'ready' })
     } catch {
       set({ status: 'error', error: 'Could not load your projects from local storage.' })
     }

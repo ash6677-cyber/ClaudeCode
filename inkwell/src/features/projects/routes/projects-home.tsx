@@ -1,18 +1,10 @@
 import { Library, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
+import { PageHeader } from '@/components/common/page-header'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { ProjectCard } from '@/features/projects/components/project-card'
@@ -21,8 +13,16 @@ import { useProjectStore } from '@/stores/project-store'
 import type { Project } from '@/types'
 
 export function ProjectsHome() {
-  const { projects, status, error, fetchProjects, createProject, updateProject, deleteProject } =
-    useProjectStore()
+  const {
+    projects,
+    wordCounts,
+    status,
+    error,
+    fetchProjects,
+    createProject,
+    updateProject,
+    deleteProject,
+  } = useProjectStore()
   const { toast } = useToast()
 
   const [formOpen, setFormOpen] = useState(false)
@@ -73,20 +73,28 @@ export function ProjectsHome() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <h1 className="font-serif text-lg font-semibold">Projects</h1>
-        {status === 'ready' && projects.length > 0 && (
-          <Button size="sm" onClick={openCreateDialog}>
-            <Plus /> New project
-          </Button>
-        )}
-      </header>
+      <PageHeader
+        title="Projects"
+        description={
+          status === 'ready' && projects.length > 0
+            ? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}`
+            : undefined
+        }
+        actions={
+          status === 'ready' &&
+          projects.length > 0 && (
+            <Button size="sm" onClick={openCreateDialog}>
+              <Plus /> New project
+            </Button>
+          )
+        }
+      />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {status === 'loading' || status === 'idle' ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-52 rounded-lg" />
+              <Skeleton key={i} className="h-52 rounded-xl" />
             ))}
           </div>
         ) : status === 'error' ? (
@@ -101,22 +109,26 @@ export function ProjectsHome() {
             }
           />
         ) : projects.length === 0 ? (
-          <EmptyState
-            icon={Library}
-            title="No projects yet"
-            description="Create your first project to start building your manuscript, worldbuilding, and characters."
-            action={
-              <Button onClick={openCreateDialog}>
-                <Plus /> New project
-              </Button>
-            }
-          />
+          <div className="flex min-h-[70vh] items-center justify-center">
+            <EmptyState
+              icon={Library}
+              title="No projects yet"
+              description="Create your first project to start building your manuscript, worldbuilding, and characters."
+              action={
+                <Button onClick={openCreateDialog}>
+                  <Plus /> New project
+                </Button>
+              }
+              className="max-w-md border-none bg-transparent"
+            />
+          </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {projects.map((project) => (
               <ProjectCard
                 key={project.id}
                 project={project}
+                currentWordCount={wordCounts[project.id] ?? 0}
                 onEdit={() => openEditDialog(project)}
                 onDelete={() => setDeletingProject(project)}
               />
@@ -133,32 +145,14 @@ export function ProjectsHome() {
         onSubmit={handleSubmit}
       />
 
-      <AlertDialog
+      <ConfirmDeleteDialog
         open={deletingProject !== null}
         onOpenChange={(open) => !open && setDeletingProject(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deletingProject?.title}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes the project from this device. This can't be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault()
-                handleConfirmDelete()
-              }}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? 'Deleting…' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title={`Delete "${deletingProject?.title}"?`}
+        description="This permanently deletes the project from this device. This can't be undone."
+        pending={deleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

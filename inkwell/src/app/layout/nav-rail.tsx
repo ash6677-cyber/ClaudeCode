@@ -19,7 +19,7 @@ import { cn } from '@/lib/utils'
 import { useEditorStore } from '@/stores/editor-store'
 import { useUiStore } from '@/stores/ui-store'
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { to: '/projects', label: 'Projects', icon: Library, projectScoped: false },
   { to: '/editor', label: 'Editor', icon: Feather, projectScoped: true },
   { to: '/codex', label: 'Codex', icon: BookOpen, projectScoped: true },
@@ -38,12 +38,12 @@ export function NavRail() {
   return (
     <aside
       className={cn(
-        'flex h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200',
-        collapsed ? 'w-16' : 'w-56',
+        'hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out lg:flex',
+        collapsed ? 'w-16' : 'w-60',
       )}
     >
       <div className={cn('flex h-14 items-center gap-2 px-4', collapsed && 'justify-center px-0')}>
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+        <div className="flex size-7 shrink-0 items-center justify-center rounded-md brand-gradient-surface text-primary-foreground shadow-sm">
           <Feather className="size-4" strokeWidth={2} />
         </div>
         {!collapsed && (
@@ -61,8 +61,8 @@ export function NavRail() {
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Open command palette"
               className={cn(
-                'flex h-8 w-full items-center gap-2 rounded-md border border-sidebar-border px-2.5 text-xs text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                collapsed && 'justify-center border-none px-0',
+                'flex h-8 w-full items-center gap-2 rounded-md border border-sidebar-border bg-background/40 px-2.5 text-xs text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                collapsed && 'justify-center border-none bg-transparent px-0',
               )}
             >
               <Search className="size-3.5 shrink-0" />
@@ -132,33 +132,43 @@ export function NavRail() {
   )
 }
 
-function NavRailLink({
+export function NavRailLink({
   to,
   label,
   icon: Icon,
   collapsed,
   className,
+  onNavigate,
 }: {
   to: string
   label: string
   icon: typeof Feather
   collapsed: boolean
   className?: string
+  onNavigate?: () => void
 }) {
   const link = (
     <NavLink
       to={to}
+      onClick={onNavigate}
       className={({ isActive }) =>
         cn(
-          'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'group relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           collapsed && 'justify-center px-0',
-          isActive && 'bg-accent text-accent-foreground',
+          isActive && 'bg-accent text-accent-foreground shadow-xs',
           className,
         )
       }
     >
-      <Icon className="size-4 shrink-0" strokeWidth={1.9} />
-      {!collapsed && <span className="truncate">{label}</span>}
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-primary" />
+          )}
+          <Icon className="size-4 shrink-0" strokeWidth={1.9} />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </>
+      )}
     </NavLink>
   )
 

@@ -1,12 +1,14 @@
 import type { Editor } from '@tiptap/react'
-import { Library, Maximize2, Minimize2, PanelRight, Search, Sparkles } from 'lucide-react'
+import { Library, Maximize2, Minimize2, PanelLeft, PanelRight, Search, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { VisuallyHidden } from '@/components/common/visually-hidden'
 import { AiAssistantPanel } from '@/features/editor/components/ai-assistant-panel'
 import { ChapterSceneTree } from '@/features/editor/components/chapter-scene-tree'
 import { FindInScene } from '@/features/editor/components/find-in-scene'
@@ -14,6 +16,7 @@ import { ManuscriptSearchPanel } from '@/features/editor/components/manuscript-s
 import { SceneEditor } from '@/features/editor/components/scene-editor'
 import { SceneMetadataDrawer } from '@/features/editor/components/scene-metadata-drawer'
 import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { projectRepo, snapshotRepo } from '@/lib/db/repositories'
 import { formatWordCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -71,8 +74,12 @@ export function EditorHome() {
   const manuscriptSearchOpen = useUiStore((s) => s.manuscriptSearchOpen)
   const setManuscriptSearchOpen = useUiStore((s) => s.setManuscriptSearchOpen)
 
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
   const [showMetadata, setShowMetadata] = useState(true)
+  const [mobileMetadataOpen, setMobileMetadataOpen] = useState(false)
   const [aiPanelOpen, setAiPanelOpen] = useState(false)
+  const [mobileTreeOpen, setMobileTreeOpen] = useState(false)
+  const metadataVisible = isDesktop ? showMetadata : mobileMetadataOpen
   const [findOpen, setFindOpen] = useState(false)
   const [findQuery, setFindQuery] = useState('')
   const [findSeed, setFindSeed] = useState(0)
@@ -99,6 +106,7 @@ export function EditorHome() {
   if (activeSceneId !== renderedActiveSceneId) {
     setRenderedActiveSceneId(activeSceneId)
     setSaveStatus('idle')
+    setMobileTreeOpen(false)
   }
 
   function openFind(query = '') {
@@ -187,12 +195,12 @@ export function EditorHome() {
   if (project === undefined || (status === 'loading' && chapters.length === 0)) {
     return (
       <div className="flex h-full">
-        <div className="w-64 shrink-0 space-y-2 border-r border-border p-3">
+        <div className="hidden w-64 shrink-0 space-y-2 border-r border-border p-3 lg:block">
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-5/6" />
         </div>
-        <div className="flex-1 p-10">
+        <div className="flex-1 p-6 sm:p-10">
           <Skeleton className="mx-auto h-96 max-w-2xl" />
         </div>
       </div>
@@ -219,9 +227,27 @@ export function EditorHome() {
   return (
     <div className="flex h-full">
       {!focusMode && (
-        <aside className="w-64 shrink-0 overflow-y-auto border-r border-border py-2">
+        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border py-2 lg:block">
           <ChapterSceneTree />
         </aside>
+      )}
+
+      {!focusMode && (
+        <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
+          <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
+            <VisuallyHidden>
+              <SheetHeader>
+                <SheetTitle>Manuscript</SheetTitle>
+              </SheetHeader>
+            </VisuallyHidden>
+            <div className="flex h-14 items-center border-b border-border px-4">
+              <p className="truncate text-sm font-medium">{project.title}</p>
+            </div>
+            <div className="overflow-y-auto py-2">
+              <ChapterSceneTree />
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -246,8 +272,17 @@ export function EditorHome() {
             </Tooltip>
           </div>
         ) : (
-          <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
-            <div className="min-w-0">
+          <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-3 sm:px-4">
+            <div className="flex min-w-0 items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0 lg:hidden"
+                onClick={() => setMobileTreeOpen(true)}
+                aria-label="Open manuscript tree"
+              >
+                <PanelLeft className="size-4" />
+              </Button>
               {activeScene ? (
                 <p className="truncate text-sm">
                   <span className="text-muted-foreground">
@@ -332,9 +367,13 @@ export function EditorHome() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      variant={showMetadata ? 'secondary' : 'ghost'}
+                      variant={metadataVisible ? 'secondary' : 'ghost'}
                       size="icon"
-                      onClick={() => setShowMetadata((v) => !v)}
+                      onClick={() =>
+                        isDesktop
+                          ? setShowMetadata((v) => !v)
+                          : setMobileMetadataOpen((v) => !v)
+                      }
                       aria-label="Toggle scene details"
                     >
                       <PanelRight className="size-4" />
@@ -384,8 +423,8 @@ export function EditorHome() {
         </div>
       </div>
 
-      {!focusMode && aiPanelOpen && activeScene && (
-        <aside className="w-96 shrink-0 overflow-y-auto border-l border-border">
+      {!focusMode && aiPanelOpen && activeScene && isDesktop && (
+        <aside className="w-96 shrink-0 overflow-y-auto border-l border-border animate-slide-in">
           <AiAssistantPanel
             scene={activeScene}
             editor={liveEditor}
@@ -397,8 +436,8 @@ export function EditorHome() {
         </aside>
       )}
 
-      {!focusMode && !aiPanelOpen && showMetadata && activeScene && (
-        <aside className="w-72 shrink-0 overflow-y-auto border-l border-border">
+      {!focusMode && !aiPanelOpen && showMetadata && activeScene && isDesktop && (
+        <aside className="w-72 shrink-0 overflow-y-auto border-l border-border animate-slide-in">
           <SceneMetadataDrawer
             scene={activeScene}
             onClose={() => setShowMetadata(false)}
@@ -406,6 +445,47 @@ export function EditorHome() {
             snapshotVersion={snapshotVersion}
           />
         </aside>
+      )}
+
+      {!focusMode && !isDesktop && activeScene && (
+        <Sheet
+          open={aiPanelOpen}
+          onOpenChange={(open) => setAiPanelOpen(open)}
+        >
+          <SheetContent side="right" className="w-full max-w-md p-0 sm:max-w-sm">
+            <VisuallyHidden>
+              <SheetHeader>
+                <SheetTitle>AI assistant</SheetTitle>
+              </SheetHeader>
+            </VisuallyHidden>
+            <AiAssistantPanel
+              scene={activeScene}
+              editor={liveEditor}
+              codexEntries={codexEntries}
+              pov={project.settings.pov}
+              tense={project.settings.tense}
+              onClose={() => setAiPanelOpen(false)}
+            />
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {!focusMode && !isDesktop && activeScene && (
+        <Sheet open={mobileMetadataOpen} onOpenChange={setMobileMetadataOpen}>
+          <SheetContent side="right" className="w-full max-w-sm p-0">
+            <VisuallyHidden>
+              <SheetHeader>
+                <SheetTitle>Scene details</SheetTitle>
+              </SheetHeader>
+            </VisuallyHidden>
+            <SceneMetadataDrawer
+              scene={activeScene}
+              onClose={() => setMobileMetadataOpen(false)}
+              onContentRestored={() => setEditorEpoch((e) => e + 1)}
+              snapshotVersion={snapshotVersion}
+            />
+          </SheetContent>
+        </Sheet>
       )}
 
       <ManuscriptSearchPanel

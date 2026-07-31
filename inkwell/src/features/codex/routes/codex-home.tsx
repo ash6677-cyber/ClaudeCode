@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
+import { PageHeader } from '@/components/common/page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -66,18 +67,26 @@ export function CodexHome() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-        <h1 className="font-serif text-lg font-semibold">Codex</h1>
-        {status === 'ready' && entries.length > 0 && (
-          <Button size="sm" onClick={() => setFormOpen(true)}>
-            <Plus /> New entry
-          </Button>
-        )}
-      </header>
+      <PageHeader
+        title="Codex"
+        description={
+          status === 'ready' && entries.length > 0
+            ? `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`
+            : undefined
+        }
+        actions={
+          status === 'ready' &&
+          entries.length > 0 && (
+            <Button size="sm" onClick={() => setFormOpen(true)}>
+              <Plus /> New entry
+            </Button>
+          )
+        }
+      />
 
       {status === 'ready' && entries.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-border px-6 py-3">
-          <div className="relative w-56">
+        <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:px-6">
+          <div className="relative w-full sm:w-56">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -86,14 +95,14 @@ export function CodexHome() {
               className="h-8 pl-8 text-sm"
             />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0">
             <button
               type="button"
               onClick={() => setTypeFilter('all')}
               className={cn(
-                'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                 typeFilter === 'all'
-                  ? 'border-primary bg-primary text-primary-foreground'
+                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
                   : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
               )}
             >
@@ -105,9 +114,9 @@ export function CodexHome() {
                 type="button"
                 onClick={() => setTypeFilter(type)}
                 className={cn(
-                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
                   typeFilter === type
-                    ? 'border-primary bg-primary text-primary-foreground'
+                    ? 'border-primary bg-primary text-primary-foreground shadow-xs'
                     : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
                 )}
               >
@@ -118,11 +127,11 @@ export function CodexHome() {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {status === 'loading' || status === 'idle' ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-56 rounded-lg" />
+              <Skeleton key={i} className="h-56 rounded-xl" />
             ))}
           </div>
         ) : status === 'error' ? (
@@ -137,16 +146,19 @@ export function CodexHome() {
             }
           />
         ) : entries.length === 0 ? (
-          <EmptyState
-            icon={BookOpen}
-            title="Your Codex is empty"
-            description="Add characters, locations, factions, and lore — everything worth remembering about your world."
-            action={
-              <Button onClick={() => setFormOpen(true)}>
-                <Plus /> New entry
-              </Button>
-            }
-          />
+          <div className="flex min-h-[70vh] items-center justify-center">
+            <EmptyState
+              icon={BookOpen}
+              title="Your Codex is empty"
+              description="Add characters, locations, factions, and lore — everything worth remembering about your world."
+              action={
+                <Button onClick={() => setFormOpen(true)}>
+                  <Plus /> New entry
+                </Button>
+              }
+              className="max-w-md border-none bg-transparent"
+            />
+          </div>
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Search}
@@ -154,7 +166,7 @@ export function CodexHome() {
             description="Try a different search term or filter."
           />
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {filtered.map((entry) => (
               <EntryCard key={entry.id} entry={entry} projectId={projectId} />
             ))}

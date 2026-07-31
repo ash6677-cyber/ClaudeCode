@@ -11,17 +11,9 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
+import { PageHeader } from '@/components/common/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -123,13 +115,11 @@ export function SettingsHome() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center border-b border-border px-6">
-        <h1 className="font-serif text-lg font-semibold">Settings</h1>
-      </header>
+      <PageHeader title="Settings" />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <Tabs defaultValue="ai" className="max-w-3xl">
-          <TabsList>
+          <TabsList className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-1">
             <TabsTrigger value="ai" className="gap-1.5">
               <Sparkles className="size-3.5" /> AI
             </TabsTrigger>
@@ -146,7 +136,7 @@ export function SettingsHome() {
 
           <TabsContent value="ai" className="space-y-8 pt-2">
             <section>
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-sm font-semibold">Providers</h2>
                   <p className="text-xs text-muted-foreground">
@@ -172,7 +162,10 @@ export function SettingsHome() {
               ) : (
                 <div className="space-y-2">
                   {providers.map((provider) => (
-                    <Card key={provider.id} className="flex items-center justify-between gap-3 p-3">
+                    <Card
+                      key={provider.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3"
+                    >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="truncate text-sm font-medium">{provider.label}</p>
@@ -229,7 +222,7 @@ export function SettingsHome() {
             </section>
 
             <section>
-              <div className="mb-3 flex items-center justify-between">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-sm font-semibold">Presets</h2>
                   <p className="text-xs text-muted-foreground">
@@ -245,7 +238,10 @@ export function SettingsHome() {
                 {presets.map((preset) => {
                   const provider = providers.find((p) => p.id === preset.providerId)
                   return (
-                    <Card key={preset.id} className="flex items-center justify-between gap-3 p-3">
+                    <Card
+                      key={preset.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3"
+                    >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{preset.name}</p>
                         <p className="truncate text-xs text-muted-foreground">
@@ -316,57 +312,35 @@ export function SettingsHome() {
         onSubmit={handlePresetSubmit}
       />
 
-      <AlertDialog open={deletingProvider !== null} onOpenChange={(open) => !open && setDeletingProvider(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove "{deletingProvider?.label}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Presets using this provider will need a new one selected before they can run.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async (e) => {
-                e.preventDefault()
-                if (deletingProvider) {
-                  await deleteProvider(deletingProvider.id)
-                  toast({ title: 'Provider removed' })
-                  setDeletingProvider(null)
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deletingProvider !== null}
+        onOpenChange={(open) => !open && setDeletingProvider(null)}
+        title={`Remove "${deletingProvider?.label}"?`}
+        description="Presets using this provider will need a new one selected before they can run."
+        confirmLabel="Remove"
+        pendingLabel="Removing…"
+        onConfirm={async () => {
+          if (deletingProvider) {
+            await deleteProvider(deletingProvider.id)
+            toast({ title: 'Provider removed' })
+            setDeletingProvider(null)
+          }
+        }}
+      />
 
-      <AlertDialog open={deletingPreset !== null} onOpenChange={(open) => !open && setDeletingPreset(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deletingPreset?.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>This can't be undone.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async (e) => {
-                e.preventDefault()
-                if (deletingPreset) {
-                  await deletePreset(deletingPreset.id)
-                  toast({ title: 'Preset deleted' })
-                  setDeletingPreset(null)
-                }
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deletingPreset !== null}
+        onOpenChange={(open) => !open && setDeletingPreset(null)}
+        title={`Delete "${deletingPreset?.name}"?`}
+        description="This can't be undone."
+        onConfirm={async () => {
+          if (deletingPreset) {
+            await deletePreset(deletingPreset.id)
+            toast({ title: 'Preset deleted' })
+            setDeletingPreset(null)
+          }
+        }}
+      />
     </div>
   )
 }

@@ -31,14 +31,13 @@ const STATUS_VARIANT: Record<ProjectStatus, 'secondary' | 'success' | 'warning' 
 
 interface ProjectCardProps {
   project: Project
+  currentWordCount: number
   onEdit: () => void
   onDelete: () => void
 }
 
-export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
+export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: ProjectCardProps) {
   const navigate = useNavigate()
-  // Editor doesn't exist yet (Phase 2), so "open" is a manuscript word count of 0 for now — honest, not fake data.
-  const currentWordCount = 0
   const progress =
     project.targetWordCount > 0
       ? Math.min(100, Math.round((currentWordCount / project.targetWordCount) * 100))
@@ -55,7 +54,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
           navigate(`/editor?project=${project.id}`)
         }
       }}
-      className="group flex cursor-pointer flex-col gap-3 p-5 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group flex cursor-pointer flex-col gap-3 p-5 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -111,7 +110,7 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
           className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
         >
           <div
-            className={cn('h-full rounded-full bg-primary transition-[width]')}
+            className={cn('h-full rounded-full brand-gradient-surface transition-[width] duration-300')}
             style={{ width: `${progress}%` }}
           />
         </div>

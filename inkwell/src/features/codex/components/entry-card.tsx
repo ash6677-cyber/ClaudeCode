@@ -33,7 +33,7 @@ export function EntryCard({ entry, projectId }: EntryCardProps) {
           navigate(`/codex/${entry.id}?project=${projectId}`)
         }
       }}
-      className="flex cursor-pointer flex-col gap-3 overflow-hidden p-0 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="flex cursor-pointer flex-col gap-3 overflow-hidden p-0 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="flex aspect-[4/3] items-center justify-center bg-muted">
         {imageUrl ? (

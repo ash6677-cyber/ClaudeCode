@@ -2,16 +2,7 @@ import { ArrowLeft, Library, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -158,9 +149,9 @@ export function CodexEntryDetail() {
         </Button>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
         <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-2xl px-8 py-10">
+          <div className="mx-auto max-w-2xl px-5 py-8 sm:px-8 sm:py-10">
             <Input
               value={nameDraft}
               onChange={(e) => setNameDraft(e.target.value)}
@@ -208,7 +199,7 @@ export function CodexEntryDetail() {
           </div>
         </div>
 
-        <aside className="w-80 shrink-0 space-y-6 overflow-y-auto border-l border-border p-5">
+        <aside className="w-full shrink-0 space-y-6 overflow-y-auto border-t border-border p-5 lg:w-80 lg:border-l lg:border-t-0">
           <ImageUploadField
             imageId={entry.imageId}
             onChange={(imageId) => updateEntry(entry.id, { imageId })}
@@ -298,30 +289,17 @@ export function CodexEntryDetail() {
         </aside>
       </div>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{entry.name}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This permanently deletes the entry from your Codex. This can't be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async (e) => {
-                e.preventDefault()
-                await deleteEntry(entry.id)
-                toast({ title: `"${entry.name}" deleted` })
-                navigate(`/codex?project=${projectId}`)
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title={`Delete "${entry.name}"?`}
+        description="This permanently deletes the entry from your Codex. This can't be undone."
+        onConfirm={async () => {
+          await deleteEntry(entry.id)
+          toast({ title: `"${entry.name}" deleted` })
+          navigate(`/codex?project=${projectId}`)
+        }}
+      />
     </div>
   )
 }
