@@ -1,5 +1,6 @@
 import { RouterProvider } from 'react-router-dom'
 
+import { DesktopBootGate } from '@/app/desktop-boot-gate'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { router } from '@/app/router'
 import { Toaster } from '@/components/ui/toaster'
@@ -11,7 +12,9 @@ export function App() {
   return (
     <ThemeProvider>
       <TooltipProvider delayDuration={200}>
-        <RouterProvider router={router} />
+        <DesktopBootGate>
+          <RouterProvider router={router} />
+        </DesktopBootGate>
         <Toaster />
       </TooltipProvider>
     </ThemeProvider>

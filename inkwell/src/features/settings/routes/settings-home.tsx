@@ -26,6 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/use-toast'
 import { AppearanceSettings } from '@/features/settings/components/appearance-settings'
+import { DataSettings } from '@/features/settings/components/data-settings'
 import { PresetFormDialog } from '@/features/settings/components/preset-form-dialog'
 import { ProviderFormDialog } from '@/features/settings/components/provider-form-dialog'
 import { maskApiKey } from '@/features/settings/lib/mask-key'
@@ -284,11 +285,7 @@ export function SettingsHome() {
           </TabsContent>
 
           <TabsContent value="data" className="pt-2">
-            <EmptyState
-              icon={Database}
-              title="Data management is coming soon"
-              description="Export/import full backups and storage usage arrive in Phase 11."
-            />
+            <DataSettings />
           </TabsContent>
         </Tabs>
       </div>
