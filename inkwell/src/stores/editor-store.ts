@@ -63,11 +63,16 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       const scenes = allScenes
         .filter((s) => s.projectId === projectId)
         .sort((a, b) => a.order - b.order)
+      // Scene `order` is only unique within its own chapter (each chapter's scenes
+      // start back at 0), so picking scenes[0] directly can land on any chapter's
+      // first scene depending on IndexedDB row order. Resolve the true first scene
+      // via the first chapter instead.
+      const firstScene = chapters.length > 0 ? scenes.find((s) => s.chapterId === chapters[0].id) : undefined
       set({
         chapters,
         scenes,
         status: 'ready',
-        activeSceneId: get().activeSceneId ?? scenes[0]?.id ?? null,
+        activeSceneId: get().activeSceneId ?? firstScene?.id ?? null,
       })
     } catch {
       set({ status: 'error', error: 'Could not load this manuscript from local storage.' })

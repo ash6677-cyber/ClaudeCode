@@ -52,12 +52,12 @@ Built incrementally, one fully-finished feature area at a time:
 - [x] Phase 1 — Projects & dashboard
 - [x] Phase 2 — Manuscript editor core
 - [x] Phase 3 — Codex
-- [ ] Phase 4 — AI engine
-- [ ] Phase 5 — Scene Beats → prose
-- [ ] Phase 6 — Character face cards
-- [ ] Phase 7 — Character chat / lorebooks
-- [ ] Phase 8 — Cover Studio
-- [ ] Phase 9 — Book Creator wizard
+- [x] Phase 4 — AI engine
+- [x] Phase 5 — Scene Beats → prose
+- [x] Phase 6 — Character face cards
+- [x] Phase 7 — Character chat / lorebooks
+- [x] Phase 8 — Cover Studio
+- [x] Phase 9 — Book Creator wizard
 - [ ] Phase 10 — Planning tools
 - [ ] Phase 11 — Export
 - [ ] Phase 12 — Stats & goals

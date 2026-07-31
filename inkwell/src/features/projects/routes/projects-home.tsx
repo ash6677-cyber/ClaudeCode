@@ -1,5 +1,6 @@
-import { Library, Plus } from 'lucide-react'
+import { Library, Plus, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
@@ -83,9 +84,16 @@ export function ProjectsHome() {
         actions={
           status === 'ready' &&
           projects.length > 0 && (
-            <Button size="sm" onClick={openCreateDialog}>
-              <Plus /> New project
-            </Button>
+            <>
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/book-creator">
+                  <Sparkles /> Book Creator
+                </Link>
+              </Button>
+              <Button size="sm" onClick={openCreateDialog}>
+                <Plus /> New project
+              </Button>
+            </>
           )
         }
       />
@@ -115,9 +123,16 @@ export function ProjectsHome() {
               title="No projects yet"
               description="Create your first project to start building your manuscript, worldbuilding, and characters."
               action={
-                <Button onClick={openCreateDialog}>
-                  <Plus /> New project
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button onClick={openCreateDialog}>
+                    <Plus /> New project
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/book-creator">
+                      <Sparkles /> Use Book Creator
+                    </Link>
+                  </Button>
+                </div>
               }
               className="max-w-md border-none bg-transparent"
             />

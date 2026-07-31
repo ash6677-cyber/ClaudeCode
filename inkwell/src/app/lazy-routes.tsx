@@ -3,6 +3,11 @@ import { lazy } from 'react'
 export const ProjectsHome = lazy(() =>
   import('@/features/projects/routes/projects-home').then((m) => ({ default: m.ProjectsHome })),
 )
+export const BookCreatorWizard = lazy(() =>
+  import('@/features/book-creator/routes/book-creator-wizard').then((m) => ({
+    default: m.BookCreatorWizard,
+  })),
+)
 export const EditorHome = lazy(() =>
   import('@/features/editor/routes/editor-home').then((m) => ({ default: m.EditorHome })),
 )

@@ -1,4 +1,3 @@
-import { BookOpen, Rows3 } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -20,9 +19,10 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { STRUCTURE_OPTIONS } from '@/features/projects/lib/structure-options'
 import { cn } from '@/lib/utils'
 import type { ProjectFormInput } from '@/stores/project-store'
-import type { Project, StructureMode } from '@/types'
+import type { Project } from '@/types'
 
 interface ProjectFormDialogProps {
   open: boolean
@@ -56,26 +56,6 @@ function formFromProject(project: Project): ProjectFormInput {
     structureMode: project.settings.structureMode ?? 'scenes',
   }
 }
-
-const STRUCTURE_OPTIONS: {
-  value: StructureMode
-  label: string
-  description: string
-  icon: typeof Rows3
-}[] = [
-  {
-    value: 'scenes',
-    label: 'Chapters & scenes',
-    description: 'Each chapter holds multiple scenes you can reorder independently.',
-    icon: Rows3,
-  },
-  {
-    value: 'chapters-only',
-    label: 'Chapters only',
-    description: 'Each chapter is one writable unit — no scene subdivision.',
-    icon: BookOpen,
-  },
-]
 
 export function ProjectFormDialog({
   open,

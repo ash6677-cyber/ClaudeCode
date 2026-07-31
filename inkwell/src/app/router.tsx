@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import {
+  BookCreatorWizard,
   CardChat,
   CardDetail,
   CardsHome,
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
       { path: 'projects', element: withSuspense(<ProjectsHome />) },
+      { path: 'book-creator', element: withSuspense(<BookCreatorWizard />) },
       { path: 'editor', element: withSuspense(<EditorHome />) },
       { path: 'codex', element: withSuspense(<CodexHome />) },
       { path: 'codex/:entryId', element: withSuspense(<CodexEntryDetail />) },
