@@ -1,14 +1,77 @@
-import { LayoutList } from 'lucide-react'
+import { Library } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 
-import { PlaceholderPage } from '@/components/common/placeholder-page'
+import { EmptyState } from '@/components/common/empty-state'
+import { PageHeader } from '@/components/common/page-header'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CorkboardView } from '@/features/planning/components/corkboard-view'
+import { StatusBoardView } from '@/features/planning/components/status-board-view'
+import { projectRepo } from '@/lib/db/repositories'
+import { useEditorStore } from '@/stores/editor-store'
+import type { Project } from '@/types'
 
 export function PlanningHome() {
+  const [searchParams] = useSearchParams()
+  const projectId = searchParams.get('project')
+
+  const [project, setProject] = useState<Project | null | undefined>(undefined)
+  useEffect(() => {
+    let cancelled = false
+    const lookup = projectId ? projectRepo.get(projectId) : Promise.resolve(undefined)
+    lookup.then((found) => {
+      if (!cancelled) setProject(found ?? null)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [projectId])
+
+  const status = useEditorStore((s) => s.status)
+  const loadProject = useEditorStore((s) => s.loadProject)
+  useEffect(() => {
+    if (projectId) loadProject(projectId)
+  }, [projectId, loadProject])
+
+  if (!projectId) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <EmptyState
+          icon={Library}
+          title="No project selected"
+          description="Open a project from the Projects page to plan its structure."
+          action={
+            <Button asChild>
+              <Link to="/projects">Go to Projects</Link>
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
+
+  const structureMode = project?.settings.structureMode ?? 'scenes'
+
   return (
-    <PlaceholderPage
-      icon={LayoutList}
-      title="Planning"
-      description="Outline your structure, rearrange scenes on a corkboard, and track status across the whole book."
-      phase="Phase 10"
-    />
+    <div className="flex h-full flex-col">
+      <PageHeader title="Planning" description={project?.title} />
+      {status === 'loading' || status === 'idle' ? (
+        <p className="p-6 text-center text-sm text-muted-foreground">Loading…</p>
+      ) : (
+        <Tabs defaultValue="corkboard" className="flex min-h-0 flex-1 flex-col">
+          <TabsList className="mx-4 mt-3 w-fit">
+            <TabsTrigger value="corkboard">Corkboard</TabsTrigger>
+            <TabsTrigger value="status">Status board</TabsTrigger>
+          </TabsList>
+          <TabsContent value="corkboard" className="min-h-0 flex-1">
+            <CorkboardView projectId={projectId} structureMode={structureMode} />
+          </TabsContent>
+          <TabsContent value="status" className="min-h-0 flex-1">
+            <StatusBoardView projectId={projectId} />
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
   )
 }
