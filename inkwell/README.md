@@ -49,7 +49,7 @@ never directly to Dexie. See the build phases below for what's implemented so fa
 Built incrementally, one fully-finished feature area at a time:
 
 - [x] Phase 0 — Foundation (this shell)
-- [ ] Phase 1 — Projects & dashboard
+- [x] Phase 1 — Projects & dashboard
 - [ ] Phase 2 — Manuscript editor core
 - [ ] Phase 3 — Codex
 - [ ] Phase 4 — AI engine
