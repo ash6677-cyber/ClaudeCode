@@ -119,6 +119,7 @@ export function EditorHome() {
   )
 
   const bookWordCount = useMemo(() => scenes.reduce((sum, s) => sum + s.wordCount, 0), [scenes])
+  const structureMode = project?.settings.structureMode ?? 'scenes'
 
   // Reset the save-status pill when the active scene changes, via render-time adjustment
   // rather than an effect (React's recommended pattern for this).
@@ -253,7 +254,7 @@ export function EditorHome() {
     <div className="flex h-full">
       {!focusMode && (
         <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border py-2 lg:block">
-          <ChapterSceneTree />
+          <ChapterSceneTree structureMode={structureMode} />
         </aside>
       )}
 
@@ -269,7 +270,7 @@ export function EditorHome() {
               <p className="truncate text-sm font-medium">{project.title}</p>
             </div>
             <div className="overflow-y-auto py-2">
-              <ChapterSceneTree />
+              <ChapterSceneTree structureMode={structureMode} />
             </div>
           </SheetContent>
         </Sheet>
@@ -339,7 +340,11 @@ export function EditorHome() {
               >
                 <PanelLeft className="size-4" />
               </Button>
-              {activeScene ? (
+              {activeScene && structureMode === 'chapters-only' ? (
+                <p className="truncate text-sm font-medium">
+                  {activeChapter?.title ?? project.title}
+                </p>
+              ) : activeScene ? (
                 <p className="truncate text-sm">
                   <span className="text-muted-foreground">
                     {activeChapter?.title ?? project.title}

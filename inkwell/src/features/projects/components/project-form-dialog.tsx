@@ -1,3 +1,4 @@
+import { BookOpen, Rows3 } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -19,8 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { cn } from '@/lib/utils'
 import type { ProjectFormInput } from '@/stores/project-store'
-import type { Project } from '@/types'
+import type { Project, StructureMode } from '@/types'
 
 interface ProjectFormDialogProps {
   open: boolean
@@ -38,6 +40,7 @@ const EMPTY_FORM: ProjectFormInput = {
   status: 'planning',
   pov: 'third-limited',
   tense: 'past',
+  structureMode: 'scenes',
 }
 
 function formFromProject(project: Project): ProjectFormInput {
@@ -50,8 +53,29 @@ function formFromProject(project: Project): ProjectFormInput {
     status: project.status,
     pov: project.settings.pov,
     tense: project.settings.tense,
+    structureMode: project.settings.structureMode ?? 'scenes',
   }
 }
+
+const STRUCTURE_OPTIONS: {
+  value: StructureMode
+  label: string
+  description: string
+  icon: typeof Rows3
+}[] = [
+  {
+    value: 'scenes',
+    label: 'Chapters & scenes',
+    description: 'Each chapter holds multiple scenes you can reorder independently.',
+    icon: Rows3,
+  },
+  {
+    value: 'chapters-only',
+    label: 'Chapters only',
+    description: 'Each chapter is one writable unit — no scene subdivision.',
+    icon: BookOpen,
+  },
+]
 
 export function ProjectFormDialog({
   open,
@@ -148,6 +172,44 @@ export function ProjectFormDialog({
                 placeholder="A sentence or two about what this book is about"
                 rows={3}
               />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label>Manuscript structure</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {STRUCTURE_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  const selected = form.structureMode === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, structureMode: option.value })}
+                      aria-pressed={selected}
+                      className={cn(
+                        'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
+                        selected
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border hover:bg-accent',
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          'size-4',
+                          selected ? 'text-primary' : 'text-muted-foreground',
+                        )}
+                      />
+                      <span className="text-sm font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {project && (
+                <p className="text-xs text-muted-foreground/70">
+                  This changes new chapters going forward — existing scenes are unaffected.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

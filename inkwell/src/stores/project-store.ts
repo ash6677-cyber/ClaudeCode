@@ -13,6 +13,7 @@ export interface ProjectFormInput {
   status: Project['status']
   pov: Project['settings']['pov']
   tense: Project['settings']['tense']
+  structureMode: Project['settings']['structureMode']
 }
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -64,6 +65,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         pov: input.pov,
         tense: input.tense,
         measureWidthCh: 68,
+        structureMode: input.structureMode,
       },
     })
     set({ projects: [project, ...get().projects] })
@@ -82,6 +84,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         ...get().projects.find((p) => p.id === id)!.settings,
         pov: input.pov,
         tense: input.tense,
+        structureMode: input.structureMode,
       },
     })
     const updated = await projectRepo.get(id)
