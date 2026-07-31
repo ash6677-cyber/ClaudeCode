@@ -10,7 +10,7 @@ export function AppShell() {
   const focusMode = useUiStore((s) => s.focusMode)
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background lg:flex-row">
+    <div className="flex h-dvh flex-col overflow-hidden lg:flex-row">
       {!focusMode && <NavRail />}
       {!focusMode && <MobileTopBar />}
       <main className="flex-1 overflow-y-auto">

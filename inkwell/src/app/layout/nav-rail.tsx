@@ -17,7 +17,7 @@ export function NavRail() {
   return (
     <aside
       className={cn(
-        'hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out lg:flex',
+        'hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar shadow-[8px_0_32px_-20px_oklch(0%_0_0/0.6)] transition-[width] duration-200 ease-out lg:flex',
         collapsed ? 'w-16' : 'w-60',
       )}
     >
@@ -134,7 +134,7 @@ export function NavRailLink({
         cn(
           'group relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           collapsed && 'justify-center px-0',
-          isActive && 'bg-accent text-accent-foreground shadow-xs',
+          isActive && 'bg-accent text-accent-foreground shadow-sm ring-1 ring-primary/15',
           className,
         )
       }

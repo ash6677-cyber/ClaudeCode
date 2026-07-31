@@ -54,7 +54,7 @@ export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: Pro
           navigate(`/editor?project=${project.id}`)
         }
       }}
-      className="group flex cursor-pointer flex-col gap-3 p-5 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group flex cursor-pointer flex-col gap-3 p-5 transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -107,10 +107,13 @@ export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: Pro
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          className="h-2 w-full overflow-hidden rounded-full bg-muted/80 ring-1 ring-inset ring-border/50"
         >
           <div
-            className={cn('h-full rounded-full brand-gradient-surface transition-[width] duration-300')}
+            className={cn(
+              'h-full rounded-full brand-gradient-surface transition-[width] duration-300',
+              progress > 0 && 'shadow-[0_0_10px_-1px_var(--primary)]',
+            )}
             style={{ width: `${progress}%` }}
           />
         </div>
