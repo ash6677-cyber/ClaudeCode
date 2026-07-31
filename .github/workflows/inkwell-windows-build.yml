@@ -1,0 +1,61 @@
+name: Build INKWELL Windows Installer
+
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'inkwell-v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: inkwell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: inkwell/package-lock.json
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo registry and build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: inkwell/src-tauri -> target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run typecheck, lint, and tests
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test
+
+      # This builds a valid, working NSIS installer either way. Without a code
+      # signing certificate configured it's just unsigned, which means Windows
+      # SmartScreen shows an "unrecognized publisher" warning on first run —
+      # see inkwell/docs/WINDOWS_SIGNING.md for what's needed to remove that.
+      - name: Build installer
+        run: npm run desktop:build
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: INKWELL-Windows-Installer
+          path: inkwell/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/inkwell-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: inkwell/src-tauri/target/release/bundle/nsis/*.exe

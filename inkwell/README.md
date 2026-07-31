@@ -38,7 +38,15 @@ npm run desktop:build   # produces the Windows NSIS installer (see src-tauri/tar
 edit any file under `src/` and the window hot-reloads exactly like the browser dev
 server does. Requires the Rust toolchain (`rustup`) and, on Linux/dev machines without
 Windows, the Tauri Linux prerequisites (`webkit2gtk`, `gtk3`) to run the dev shell
-locally; production Windows builds are produced via `tauri build` targeting Windows.
+locally.
+
+`desktop:build` must run on an actual Windows machine (or the
+[`inkwell-windows-build.yml`](../.github/workflows/inkwell-windows-build.yml)
+GitHub Actions workflow, which builds on a `windows-latest` runner) — there's no
+practical way to cross-compile Tauri's WebView2/Win32 bindings from Linux or
+macOS. The resulting installer is unsigned by default; see
+[`docs/WINDOWS_SIGNING.md`](docs/WINDOWS_SIGNING.md) for what a code signing
+certificate buys you and how to wire one in once you have one.
 
 ## Scripts
 
