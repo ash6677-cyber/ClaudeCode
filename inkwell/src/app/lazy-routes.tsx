@@ -17,6 +17,9 @@ export const CodexEntryDetail = lazy(() =>
 export const CardsHome = lazy(() =>
   import('@/features/cards/routes/cards-home').then((m) => ({ default: m.CardsHome })),
 )
+export const CardDetail = lazy(() =>
+  import('@/features/cards/routes/card-detail').then((m) => ({ default: m.CardDetail })),
+)
 export const PlanningHome = lazy(() =>
   import('@/features/planning/routes/planning-home').then((m) => ({ default: m.PlanningHome })),
 )

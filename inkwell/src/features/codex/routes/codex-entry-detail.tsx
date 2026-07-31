@@ -67,7 +67,10 @@ export function CodexEntryDetail() {
   const [aliasesDraft, setAliasesDraft] = useState(entry?.aliases.join(', ') ?? '')
   const [summaryDraft, setSummaryDraft] = useState(entry?.summary ?? '')
   const [tagsDraft, setTagsDraft] = useState(entry?.tags.join(', ') ?? '')
-  const [renderedEntryId, setRenderedEntryId] = useState(entryId)
+  // Starts undefined (not `entryId`) so that when this entry's data arrives asynchronously
+  // after mount — e.g. a direct page load/refresh, where the store is still empty at mount
+  // time — the drafts still get hydrated even though `entryId` itself never changes.
+  const [renderedEntryId, setRenderedEntryId] = useState<string | undefined>(undefined)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   if (entry && entryId !== renderedEntryId) {

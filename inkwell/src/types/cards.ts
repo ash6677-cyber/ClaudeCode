@@ -6,12 +6,18 @@ export interface ExampleDialogueLine {
   response: string
 }
 
+export interface CropSettings {
+  x: number
+  y: number
+  zoom: number
+}
+
 export interface CharacterCard extends BaseEntity {
   projectId: string
   codexEntryId: string | null
   displayName: string
   avatarImageId: string | null
-  cropSettings: { x: number; y: number; zoom: number } | null
+  cropSettings: CropSettings | null
   description: string
   personality: string
   scenario: string

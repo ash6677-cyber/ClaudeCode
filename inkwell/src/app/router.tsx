@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import {
+  CardDetail,
   CardsHome,
   CodexEntryDetail,
   CodexHome,
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: 'codex', element: withSuspense(<CodexHome />) },
       { path: 'codex/:entryId', element: withSuspense(<CodexEntryDetail />) },
       { path: 'cards', element: withSuspense(<CardsHome />) },
+      { path: 'cards/:cardId', element: withSuspense(<CardDetail />) },
       { path: 'planning', element: withSuspense(<PlanningHome />) },
       { path: 'covers', element: withSuspense(<CoversHome />) },
       { path: 'stats', element: withSuspense(<StatsHome />) },
