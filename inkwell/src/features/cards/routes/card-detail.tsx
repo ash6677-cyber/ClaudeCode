@@ -1,4 +1,4 @@
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft, MessageCircle, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -122,15 +122,22 @@ export function CardDetail() {
             <ArrowLeft className="size-4" /> Cards
           </Link>
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setDeleteOpen(true)}
-          aria-label="Delete card"
-          className="text-destructive hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" asChild className="gap-1.5">
+            <Link to={`/cards/${card.id}/chat?project=${projectId}`}>
+              <MessageCircle className="size-4" /> Chat
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setDeleteOpen(true)}
+            aria-label="Delete card"
+            className="text-destructive hover:text-destructive"
+          >
+            <Trash2 className="size-4" />
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">

@@ -1,4 +1,4 @@
-import { Library, Plus, Users } from 'lucide-react'
+import { BookMarked, Library, Plus, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -76,9 +76,16 @@ export function CardsHome() {
         actions={
           status === 'ready' &&
           cards.length > 0 && (
-            <Button size="sm" onClick={() => setFormOpen(true)}>
-              <Plus /> New card
-            </Button>
+            <>
+              <Button size="sm" variant="outline" asChild>
+                <Link to={`/lorebooks?project=${projectId}`}>
+                  <BookMarked /> Lorebooks
+                </Link>
+              </Button>
+              <Button size="sm" onClick={() => setFormOpen(true)}>
+                <Plus /> New card
+              </Button>
+            </>
           )
         }
       />
@@ -106,7 +113,7 @@ export function CardsHome() {
             <EmptyState
               icon={Users}
               title="No character cards yet"
-              description="Give your cast a face and a voice — portraits, personality, and speech patterns you can chat with once lorebooks arrive."
+              description="Give your cast a face and a voice — portraits, personality, and speech patterns you can chat with."
               action={
                 <Button onClick={() => setFormOpen(true)}>
                   <Plus /> New card

@@ -2,12 +2,14 @@ import { Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
 import {
+  CardChat,
   CardDetail,
   CardsHome,
   CodexEntryDetail,
   CodexHome,
   CoversHome,
   EditorHome,
+  LorebooksHome,
   PlanningHome,
   ProjectsHome,
   SettingsHome,
@@ -31,6 +33,8 @@ export const router = createBrowserRouter([
       { path: 'codex/:entryId', element: withSuspense(<CodexEntryDetail />) },
       { path: 'cards', element: withSuspense(<CardsHome />) },
       { path: 'cards/:cardId', element: withSuspense(<CardDetail />) },
+      { path: 'cards/:cardId/chat', element: withSuspense(<CardChat />) },
+      { path: 'lorebooks', element: withSuspense(<LorebooksHome />) },
       { path: 'planning', element: withSuspense(<PlanningHome />) },
       { path: 'covers', element: withSuspense(<CoversHome />) },
       { path: 'stats', element: withSuspense(<StatsHome />) },

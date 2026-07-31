@@ -20,6 +20,12 @@ export const CardsHome = lazy(() =>
 export const CardDetail = lazy(() =>
   import('@/features/cards/routes/card-detail').then((m) => ({ default: m.CardDetail })),
 )
+export const CardChat = lazy(() =>
+  import('@/features/cards/routes/card-chat').then((m) => ({ default: m.CardChat })),
+)
+export const LorebooksHome = lazy(() =>
+  import('@/features/cards/routes/lorebooks-home').then((m) => ({ default: m.LorebooksHome })),
+)
 export const PlanningHome = lazy(() =>
   import('@/features/planning/routes/planning-home').then((m) => ({ default: m.PlanningHome })),
 )

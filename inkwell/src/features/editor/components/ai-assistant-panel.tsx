@@ -28,8 +28,8 @@ import {
   replaceOrAppend,
   type EditorRange,
 } from '@/features/editor/lib/ai-insert'
-import { useAiGeneration } from '@/features/editor/lib/use-ai-generation'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
+import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
 import { useEditorStore } from '@/stores/editor-store'
 import type { AiActionKind, CodexEntry, PointOfView, Scene, Tense } from '@/types'
