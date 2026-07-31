@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate } from 'react-router-dom'
 
 import {
   BookCreatorWizard,
@@ -23,7 +23,11 @@ function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>
 }
 
-export const router = createBrowserRouter([
+// Hash-based routing (`#/projects` instead of `/projects`) so the app works
+// identically whether it's served by a dev server with SPA fallback or
+// loaded as static files from a packaged desktop shell, which has no server
+// to rewrite arbitrary paths back to index.html.
+export const router = createHashRouter([
   {
     element: <AppShell />,
     children: [

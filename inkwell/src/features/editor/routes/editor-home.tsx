@@ -390,7 +390,7 @@ export function EditorHome() {
                       <Search className="size-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Find in scene (⌘F)</TooltipContent>
+                  <TooltipContent>Find in scene (Ctrl+F)</TooltipContent>
                 </Tooltip>
               )}
 

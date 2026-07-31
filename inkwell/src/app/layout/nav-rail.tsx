@@ -49,13 +49,13 @@ export function NavRail() {
                 <>
                   <span className="flex-1 text-left">Jump to…</span>
                   <kbd className="rounded border border-sidebar-border px-1 font-mono text-[10px]">
-                    ⌘K
+                    Ctrl K
                   </kbd>
                 </>
               )}
             </button>
           </TooltipTrigger>
-          {collapsed && <TooltipContent side="right">Jump to… (⌘K)</TooltipContent>}
+          {collapsed && <TooltipContent side="right">Jump to… (Ctrl+K)</TooltipContent>}
         </Tooltip>
       </div>
 

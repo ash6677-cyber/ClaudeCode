@@ -1,5 +1,5 @@
 import { Library, Plus, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { ProjectCard } from '@/features/projects/components/project-card'
 import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog'
 import { useProjectStore } from '@/stores/project-store'
+import { useUiStore } from '@/stores/ui-store'
 import type { Project } from '@/types'
 
 export function ProjectsHome() {
@@ -41,6 +42,15 @@ export function ProjectsHome() {
     setFormKey((k) => k + 1)
     setFormOpen(true)
   }
+
+  const newProjectRequestNonce = useUiStore((s) => s.newProjectRequestNonce)
+  const lastHandledNonce = useRef(newProjectRequestNonce)
+  useEffect(() => {
+    if (newProjectRequestNonce !== lastHandledNonce.current) {
+      lastHandledNonce.current = newProjectRequestNonce
+      openCreateDialog()
+    }
+  }, [newProjectRequestNonce])
 
   function openEditDialog(project: Project) {
     setEditingProject(project)
