@@ -48,6 +48,10 @@ macOS. The resulting installer is unsigned by default; see
 [`docs/WINDOWS_SIGNING.md`](docs/WINDOWS_SIGNING.md) for what a code signing
 certificate buys you and how to wire one in once you have one.
 
+INKWELL checks for updates on launch and via Help > Check for Updates…, and
+can install them in place — see [`docs/AUTO_UPDATE.md`](docs/AUTO_UPDATE.md)
+for how releases are published and the one-time secret setup it needs.
+
 ## Scripts
 
 - `npm run dev` — start the Vite dev server

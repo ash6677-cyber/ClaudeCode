@@ -2,6 +2,7 @@ import { useTheme } from 'next-themes'
 import { useEffect } from 'react'
 
 import { router } from '@/app/router'
+import { useToast } from '@/components/ui/use-toast'
 import { flushPendingSave } from '@/lib/db/tauri-db'
 import { isTauriRuntime, quitAfterSave } from '@/lib/db/tauri-bridge'
 import { useImportStore } from '@/stores/import-store'
@@ -17,6 +18,7 @@ const IMPORTABLE_EXTENSIONS = ['.inkwell', '.json']
  */
 export function DesktopMenuBridge() {
   const { resolvedTheme } = useTheme()
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!isTauriRuntime()) return
@@ -53,6 +55,9 @@ export function DesktopMenuBridge() {
             break
           case 'export_library':
             void handleExportRequest()
+            break
+          case 'check_for_updates':
+            void checkForUpdates(true)
             break
         }
       })
@@ -94,12 +99,39 @@ export function DesktopMenuBridge() {
       if (path) await exportLibraryToFile(path)
     }
 
+    // `explicit` controls whether "no update found" / "check failed" get a
+    // toast — the boot-time check stays silent unless there's actually
+    // something to do, but Help > Check for Updates always reports back.
+    async function checkForUpdates(explicit: boolean) {
+      try {
+        const { check } = await import('@tauri-apps/plugin-updater')
+        const update = await check()
+        if (!update) {
+          if (explicit) toast({ title: "You're up to date" })
+          return
+        }
+        const { ask } = await import('@tauri-apps/plugin-dialog')
+        const shouldInstall = await ask(
+          `INKWELL ${update.version} is available (you have ${update.currentVersion}). Download and install it now?`,
+          { title: 'Update available', kind: 'info' },
+        )
+        if (!shouldInstall) return
+        await update.downloadAndInstall()
+        const { relaunch } = await import('@tauri-apps/plugin-process')
+        await relaunch()
+      } catch {
+        if (explicit) toast({ title: 'Could not check for updates', variant: 'destructive' })
+      }
+    }
+
     void setup()
+    void checkForUpdates(false)
     return () => {
       unlistenMenu?.()
       unlistenQuit?.()
       unlistenDrop?.()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
