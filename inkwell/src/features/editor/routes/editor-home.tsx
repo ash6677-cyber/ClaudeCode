@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/react'
-import { Library, Maximize2, Minimize2, PanelRight, Search } from 'lucide-react'
+import { Library, Maximize2, Minimize2, PanelRight, Search, Sparkles } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { AiAssistantPanel } from '@/features/editor/components/ai-assistant-panel'
 import { ChapterSceneTree } from '@/features/editor/components/chapter-scene-tree'
 import { FindInScene } from '@/features/editor/components/find-in-scene'
 import { ManuscriptSearchPanel } from '@/features/editor/components/manuscript-search-panel'
@@ -16,6 +17,7 @@ import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
 import { projectRepo, snapshotRepo } from '@/lib/db/repositories'
 import { formatWordCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { useAiStore } from '@/stores/ai-store'
 import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useUiStore } from '@/stores/ui-store'
@@ -58,12 +60,19 @@ export function EditorHome() {
     if (projectId) loadCodexProject(projectId)
   }, [projectId, loadCodexProject])
 
+  const aiStoreStatus = useAiStore((s) => s.status)
+  const loadAiStore = useAiStore((s) => s.loadAll)
+  useEffect(() => {
+    if (aiStoreStatus === 'idle') loadAiStore()
+  }, [aiStoreStatus, loadAiStore])
+
   const focusMode = useUiStore((s) => s.focusMode)
   const setFocusMode = useUiStore((s) => s.setFocusMode)
   const manuscriptSearchOpen = useUiStore((s) => s.manuscriptSearchOpen)
   const setManuscriptSearchOpen = useUiStore((s) => s.setManuscriptSearchOpen)
 
   const [showMetadata, setShowMetadata] = useState(true)
+  const [aiPanelOpen, setAiPanelOpen] = useState(false)
   const [findOpen, setFindOpen] = useState(false)
   const [findQuery, setFindQuery] = useState('')
   const [findSeed, setFindSeed] = useState(0)
@@ -289,6 +298,22 @@ export function EditorHome() {
                 </Tooltip>
               )}
 
+              {activeScene && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={aiPanelOpen ? 'secondary' : 'ghost'}
+                      size="icon"
+                      onClick={() => setAiPanelOpen((v) => !v)}
+                      aria-label="AI assistant"
+                    >
+                      <Sparkles className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>AI assistant</TooltipContent>
+                </Tooltip>
+              )}
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -359,7 +384,20 @@ export function EditorHome() {
         </div>
       </div>
 
-      {!focusMode && showMetadata && activeScene && (
+      {!focusMode && aiPanelOpen && activeScene && (
+        <aside className="w-96 shrink-0 overflow-y-auto border-l border-border">
+          <AiAssistantPanel
+            scene={activeScene}
+            editor={liveEditor}
+            codexEntries={codexEntries}
+            pov={project.settings.pov}
+            tense={project.settings.tense}
+            onClose={() => setAiPanelOpen(false)}
+          />
+        </aside>
+      )}
+
+      {!focusMode && !aiPanelOpen && showMetadata && activeScene && (
         <aside className="w-72 shrink-0 overflow-y-auto border-l border-border">
           <SceneMetadataDrawer
             scene={activeScene}
