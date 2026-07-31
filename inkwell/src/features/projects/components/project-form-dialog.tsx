@@ -21,6 +21,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { STRUCTURE_OPTIONS } from '@/features/projects/lib/structure-options'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import type { ProjectFormInput } from '@/stores/project-store'
 import type { Project } from '@/types'
 
@@ -67,7 +68,9 @@ export function ProjectFormDialog({
   // Remounted via a `key` from the parent each time it opens, so these
   // initializers run fresh instead of needing an effect to resync on reopen.
   const [form, setForm] = useState<ProjectFormInput>(() =>
-    project ? formFromProject(project) : EMPTY_FORM,
+    project
+      ? formFromProject(project)
+      : { ...EMPTY_FORM, author: useAuthStore.getState().user?.authorName ?? '' },
   )
   const [titleError, setTitleError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)

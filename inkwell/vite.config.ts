@@ -21,6 +21,7 @@ export default defineConfig({
           if (/[\\/]@radix-ui[\\/]/.test(id)) return 'vendor-radix'
           if (/[\\/]@dnd-kit[\\/]/.test(id)) return 'vendor-dnd'
           if (/[\\/]dexie[\\/]/.test(id)) return 'vendor-dexie'
+          if (/[\\/]firebase[\\/]|[\\/]@firebase[\\/]/.test(id)) return 'vendor-firebase'
           return 'vendor'
         },
       },

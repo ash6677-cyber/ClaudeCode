@@ -7,6 +7,7 @@ import {
   Palette,
   Plus,
   Sparkles,
+  User,
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -25,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/components/ui/use-toast'
+import { AccountSettings } from '@/features/auth/components/account-settings'
 import { AppearanceSettings } from '@/features/settings/components/appearance-settings'
 import { DataSettings } from '@/features/settings/components/data-settings'
 import { PresetFormDialog } from '@/features/settings/components/preset-form-dialog'
@@ -133,6 +135,9 @@ export function SettingsHome() {
             </TabsTrigger>
             <TabsTrigger value="data" className="gap-1.5">
               <Database className="size-3.5" /> Data
+            </TabsTrigger>
+            <TabsTrigger value="account" className="gap-1.5">
+              <User className="size-3.5" /> Account
             </TabsTrigger>
           </TabsList>
 
@@ -286,6 +291,10 @@ export function SettingsHome() {
 
           <TabsContent value="data" className="pt-2">
             <DataSettings />
+          </TabsContent>
+
+          <TabsContent value="account" className="pt-2">
+            <AccountSettings />
           </TabsContent>
         </Tabs>
       </div>

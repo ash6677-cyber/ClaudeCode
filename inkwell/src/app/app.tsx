@@ -1,5 +1,6 @@
 import { RouterProvider } from 'react-router-dom'
 
+import { AuthBridge } from '@/app/auth-bridge'
 import { DesktopBootGate } from '@/app/desktop-boot-gate'
 import { DesktopMenuBridge } from '@/app/desktop-menu-bridge'
 import { ThemeProvider } from '@/app/providers/theme-provider'
@@ -18,6 +19,7 @@ export function App() {
           <RouterProvider router={router} />
           <DesktopMenuBridge />
           <ImportConfirmDialog />
+          <AuthBridge />
         </DesktopBootGate>
         <Toaster />
       </TooltipProvider>
