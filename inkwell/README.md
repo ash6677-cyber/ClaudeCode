@@ -9,8 +9,9 @@ share dependencies or configuration with anything else in this repository.
 
 ## Stack
 
-React 18 + TypeScript + Vite · Tailwind CSS v4 + shadcn-style components (Radix
-primitives) · React Router · Zustand · Dexie.js (IndexedDB) · TipTap (from Phase 2).
+React 19 + TypeScript + Vite · Tailwind CSS v4 + shadcn-style components (Radix
+primitives) · React Router · Zustand · Dexie.js (IndexedDB, browser build) · TipTap ·
+Tauri 2 + Rust (Windows desktop shell, `src-tauri/`).
 
 ## Getting started
 
@@ -20,6 +21,25 @@ npm install
 npm run dev
 ```
 
+## Desktop app (Windows)
+
+INKWELL ships as a native Windows desktop app via Tauri 2 (`src-tauri/`). The web
+app above is the same codebase — the desktop shell just wraps it in a native window
+with disk-backed storage instead of the browser build's IndexedDB.
+
+```bash
+cd inkwell
+npm install
+npm run desktop:dev     # hot-reloads the shell against the Vite dev server
+npm run desktop:build   # produces the Windows NSIS installer (see src-tauri/target/release/bundle/nsis)
+```
+
+`desktop:dev` starts the Vite dev server and opens a native window pointed at it —
+edit any file under `src/` and the window hot-reloads exactly like the browser dev
+server does. Requires the Rust toolchain (`rustup`) and, on Linux/dev machines without
+Windows, the Tauri Linux prerequisites (`webkit2gtk`, `gtk3`) to run the dev shell
+locally; production Windows builds are produced via `tauri build` targeting Windows.
+
 ## Scripts
 
 - `npm run dev` — start the Vite dev server
@@ -28,6 +48,8 @@ npm run dev
 - `npm run lint` — run ESLint
 - `npm run format` — format with Prettier
 - `npm run preview` — preview the production build
+- `npm run desktop:dev` — run the Tauri desktop shell in dev mode (hot reload)
+- `npm run desktop:build` — build the Windows installer
 
 ## Project structure
 
