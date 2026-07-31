@@ -1,30 +1,38 @@
+import { Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
+import {
+  CardsHome,
+  CodexEntryDetail,
+  CodexHome,
+  CoversHome,
+  EditorHome,
+  PlanningHome,
+  ProjectsHome,
+  SettingsHome,
+  StatsHome,
+} from '@/app/lazy-routes'
 import { AppShell } from '@/app/layout/app-shell'
-import { CardsHome } from '@/features/cards/routes/cards-home'
-import { CodexEntryDetail } from '@/features/codex/routes/codex-entry-detail'
-import { CodexHome } from '@/features/codex/routes/codex-home'
-import { CoversHome } from '@/features/covers/routes/covers-home'
-import { EditorHome } from '@/features/editor/routes/editor-home'
-import { PlanningHome } from '@/features/planning/routes/planning-home'
-import { ProjectsHome } from '@/features/projects/routes/projects-home'
-import { SettingsHome } from '@/features/settings/routes/settings-home'
-import { StatsHome } from '@/features/stats/routes/stats-home'
+import { RouteLoading } from '@/components/common/route-loading'
+
+function withSuspense(element: React.ReactNode) {
+  return <Suspense fallback={<RouteLoading />}>{element}</Suspense>
+}
 
 export const router = createBrowserRouter([
   {
     element: <AppShell />,
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
-      { path: 'projects', element: <ProjectsHome /> },
-      { path: 'editor', element: <EditorHome /> },
-      { path: 'codex', element: <CodexHome /> },
-      { path: 'codex/:entryId', element: <CodexEntryDetail /> },
-      { path: 'cards', element: <CardsHome /> },
-      { path: 'planning', element: <PlanningHome /> },
-      { path: 'covers', element: <CoversHome /> },
-      { path: 'stats', element: <StatsHome /> },
-      { path: 'settings', element: <SettingsHome /> },
+      { path: 'projects', element: withSuspense(<ProjectsHome />) },
+      { path: 'editor', element: withSuspense(<EditorHome />) },
+      { path: 'codex', element: withSuspense(<CodexHome />) },
+      { path: 'codex/:entryId', element: withSuspense(<CodexEntryDetail />) },
+      { path: 'cards', element: withSuspense(<CardsHome />) },
+      { path: 'planning', element: withSuspense(<PlanningHome />) },
+      { path: 'covers', element: withSuspense(<CoversHome />) },
+      { path: 'stats', element: withSuspense(<StatsHome />) },
+      { path: 'settings', element: withSuspense(<SettingsHome />) },
       { path: '*', element: <Navigate to="/projects" replace /> },
     ],
   },

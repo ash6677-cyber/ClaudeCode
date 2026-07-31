@@ -1,5 +1,6 @@
 import { Feather, Menu, Search, Settings } from 'lucide-react'
 
+import { NAV_ITEMS } from '@/app/layout/nav-items'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -7,7 +8,7 @@ import { VisuallyHidden } from '@/components/common/visually-hidden'
 import { useEditorStore } from '@/stores/editor-store'
 import { useUiStore } from '@/stores/ui-store'
 
-import { NAV_ITEMS, NavRailLink } from './nav-rail'
+import { NavRailLink } from './nav-rail'
 
 export function MobileTopBar() {
   const open = useUiStore((s) => s.mobileNavOpen)
