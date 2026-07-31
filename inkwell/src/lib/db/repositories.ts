@@ -1,0 +1,19 @@
+import { db } from './schema'
+import { createRepository } from './repository'
+
+export const projectRepo = createRepository(db.projects)
+export const seriesRepo = createRepository(db.series)
+export const chapterRepo = createRepository(db.chapters)
+export const sceneRepo = createRepository(db.scenes)
+export const snapshotRepo = createRepository(db.snapshots)
+export const codexRepo = createRepository(db.codexEntries)
+export const cardRepo = createRepository(db.characterCards)
+export const cardChatRepo = createRepository(db.cardChats)
+export const personaRepo = createRepository(db.personas)
+export const lorebookRepo = createRepository(db.lorebooks)
+export const coverRepo = createRepository(db.covers)
+export const aiPresetRepo = createRepository(db.aiPresets)
+export const aiProviderRepo = createRepository(db.aiProviders)
+export const imageAssetRepo = createRepository(db.imageAssets)
+export const goalRepo = createRepository(db.goals)
+export const sessionLogRepo = createRepository(db.sessionLogs)

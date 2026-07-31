@@ -1,0 +1,346 @@
+import {
+  CheckCircle2,
+  Database,
+  Keyboard,
+  Loader2,
+  MoreHorizontal,
+  Palette,
+  Plus,
+  Sparkles,
+  XCircle,
+} from 'lucide-react'
+import { useEffect, useState } from 'react'
+
+import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
+import { EmptyState } from '@/components/common/empty-state'
+import { PageHeader } from '@/components/common/page-header'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useToast } from '@/components/ui/use-toast'
+import { PresetFormDialog } from '@/features/settings/components/preset-form-dialog'
+import { ProviderFormDialog } from '@/features/settings/components/provider-form-dialog'
+import { maskApiKey } from '@/features/settings/lib/mask-key'
+import { useAiStore, type PresetInput, type ProviderInput } from '@/stores/ai-store'
+import type { AiPreset, AiProviderConfig } from '@/types'
+
+const PROVIDER_KIND_LABEL: Record<AiProviderConfig['kind'], string> = {
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  openrouter: 'OpenRouter',
+  'openai-compatible': 'OpenAI-compatible',
+}
+
+export function SettingsHome() {
+  const { providers, presets, loadAll, createProvider, updateProvider, deleteProvider, validateProvider, createPreset, updatePreset, deletePreset } =
+    useAiStore()
+  const { toast } = useToast()
+
+  useEffect(() => {
+    loadAll()
+  }, [loadAll])
+
+  const [providerFormOpen, setProviderFormOpen] = useState(false)
+  const [editingProvider, setEditingProvider] = useState<AiProviderConfig | undefined>(undefined)
+  const [providerFormKey, setProviderFormKey] = useState(0)
+  const [deletingProvider, setDeletingProvider] = useState<AiProviderConfig | null>(null)
+  const [validating, setValidating] = useState<string | null>(null)
+  const [validationResult, setValidationResult] = useState<Record<string, 'ok' | 'error'>>({})
+
+  const [presetFormOpen, setPresetFormOpen] = useState(false)
+  const [editingPreset, setEditingPreset] = useState<AiPreset | undefined>(undefined)
+  const [presetFormKey, setPresetFormKey] = useState(0)
+  const [deletingPreset, setDeletingPreset] = useState<AiPreset | null>(null)
+
+  function openCreateProvider() {
+    setEditingProvider(undefined)
+    setProviderFormKey((k) => k + 1)
+    setProviderFormOpen(true)
+  }
+  function openEditProvider(provider: AiProviderConfig) {
+    setEditingProvider(provider)
+    setProviderFormKey((k) => k + 1)
+    setProviderFormOpen(true)
+  }
+
+  async function handleProviderSubmit(input: ProviderInput) {
+    if (editingProvider) {
+      await updateProvider(editingProvider.id, input)
+      toast({ title: 'Provider updated' })
+    } else {
+      await createProvider(input)
+      toast({ title: 'Provider added' })
+    }
+  }
+
+  async function handleValidate(provider: AiProviderConfig) {
+    setValidating(provider.id)
+    const result = await validateProvider(provider.id)
+    setValidating(null)
+    setValidationResult((prev) => ({ ...prev, [provider.id]: result.ok ? 'ok' : 'error' }))
+    if (!result.ok) {
+      toast({ title: 'Key validation failed', description: result.error, variant: 'destructive' })
+    } else {
+      toast({ title: 'Key looks good' })
+    }
+  }
+
+  function openCreatePreset() {
+    setEditingPreset(undefined)
+    setPresetFormKey((k) => k + 1)
+    setPresetFormOpen(true)
+  }
+  function openEditPreset(preset: AiPreset) {
+    setEditingPreset(preset)
+    setPresetFormKey((k) => k + 1)
+    setPresetFormOpen(true)
+  }
+
+  async function handlePresetSubmit(input: PresetInput) {
+    if (editingPreset) {
+      await updatePreset(editingPreset.id, input)
+      toast({ title: 'Preset updated' })
+    } else {
+      await createPreset(input)
+      toast({ title: 'Preset created' })
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <PageHeader title="Settings" />
+
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <Tabs defaultValue="ai" className="max-w-3xl">
+          <TabsList className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-1">
+            <TabsTrigger value="ai" className="gap-1.5">
+              <Sparkles className="size-3.5" /> AI
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="gap-1.5">
+              <Palette className="size-3.5" /> Appearance
+            </TabsTrigger>
+            <TabsTrigger value="shortcuts" className="gap-1.5">
+              <Keyboard className="size-3.5" /> Shortcuts
+            </TabsTrigger>
+            <TabsTrigger value="data" className="gap-1.5">
+              <Database className="size-3.5" /> Data
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ai" className="space-y-8 pt-2">
+            <section>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-semibold">Providers</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Bring your own key. Requests go straight from your browser to the provider you choose — never through our servers.
+                  </p>
+                </div>
+                <Button size="sm" onClick={openCreateProvider}>
+                  <Plus /> Add provider
+                </Button>
+              </div>
+
+              {providers.length === 0 ? (
+                <EmptyState
+                  icon={Sparkles}
+                  title="No providers yet"
+                  description="Add OpenAI, Anthropic, OpenRouter, or a local OpenAI-compatible endpoint to enable AI actions."
+                  action={
+                    <Button onClick={openCreateProvider}>
+                      <Plus /> Add provider
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="space-y-2">
+                  {providers.map((provider) => (
+                    <Card
+                      key={provider.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-sm font-medium">{provider.label}</p>
+                          <Badge variant="outline" className="text-[10px]">
+                            {PROVIDER_KIND_LABEL[provider.kind]}
+                          </Badge>
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {maskApiKey(provider.apiKey)}
+                          {provider.defaultModel && ` · ${provider.defaultModel}`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {validationResult[provider.id] === 'ok' && (
+                          <CheckCircle2 className="size-4 text-success" />
+                        )}
+                        {validationResult[provider.id] === 'error' && (
+                          <XCircle className="size-4 text-destructive" />
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          disabled={validating === provider.id}
+                          onClick={() => handleValidate(provider)}
+                        >
+                          {validating === provider.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            'Validate'
+                          )}
+                        </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-7" aria-label={`More actions for ${provider.label}`}>
+                              <MoreHorizontal className="size-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => openEditProvider(provider)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => setDeletingProvider(provider)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h2 className="text-sm font-semibold">Presets</h2>
+                  <p className="text-xs text-muted-foreground">
+                    Choose a preset per AI action — model, temperature, and instructions bundled together.
+                  </p>
+                </div>
+                <Button size="sm" onClick={openCreatePreset}>
+                  <Plus /> New preset
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {presets.map((preset) => {
+                  const provider = providers.find((p) => p.id === preset.providerId)
+                  return (
+                    <Card
+                      key={preset.id}
+                      className="flex flex-wrap items-center justify-between gap-3 p-3"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{preset.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {provider ? provider.label : 'No provider selected'}
+                          {preset.model && ` · ${preset.model}`} · temp {preset.temperature}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openEditPreset(preset)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7 text-destructive hover:text-destructive"
+                          aria-label={`Delete ${preset.name}`}
+                          onClick={() => setDeletingPreset(preset)}
+                        >
+                          <XCircle className="size-3.5" />
+                        </Button>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="appearance" className="pt-2">
+            <EmptyState
+              icon={Palette}
+              title="Theme is already here"
+              description="Switch light, dark, or system from the toggle at the bottom of the left rail. More appearance options (accent color, editor font, measure width) arrive later."
+            />
+          </TabsContent>
+
+          <TabsContent value="shortcuts" className="pt-2">
+            <EmptyState
+              icon={Keyboard}
+              title="Shortcuts reference is coming soon"
+              description="A full keyboard shortcut list and customisation will land in the Phase 13 polish pass."
+            />
+          </TabsContent>
+
+          <TabsContent value="data" className="pt-2">
+            <EmptyState
+              icon={Database}
+              title="Data management is coming soon"
+              description="Export/import full backups and storage usage arrive in Phase 11."
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <ProviderFormDialog
+        key={`provider-${providerFormKey}`}
+        open={providerFormOpen}
+        onOpenChange={setProviderFormOpen}
+        provider={editingProvider}
+        onSubmit={handleProviderSubmit}
+      />
+      <PresetFormDialog
+        key={`preset-${presetFormKey}`}
+        open={presetFormOpen}
+        onOpenChange={setPresetFormOpen}
+        preset={editingPreset}
+        providers={providers}
+        onSubmit={handlePresetSubmit}
+      />
+
+      <ConfirmDeleteDialog
+        open={deletingProvider !== null}
+        onOpenChange={(open) => !open && setDeletingProvider(null)}
+        title={`Remove "${deletingProvider?.label}"?`}
+        description="Presets using this provider will need a new one selected before they can run."
+        confirmLabel="Remove"
+        pendingLabel="Removing…"
+        onConfirm={async () => {
+          if (deletingProvider) {
+            await deleteProvider(deletingProvider.id)
+            toast({ title: 'Provider removed' })
+            setDeletingProvider(null)
+          }
+        }}
+      />
+
+      <ConfirmDeleteDialog
+        open={deletingPreset !== null}
+        onOpenChange={(open) => !open && setDeletingPreset(null)}
+        title={`Delete "${deletingPreset?.name}"?`}
+        description="This can't be undone."
+        onConfirm={async () => {
+          if (deletingPreset) {
+            await deletePreset(deletingPreset.id)
+            toast({ title: 'Preset deleted' })
+            setDeletingPreset(null)
+          }
+        }}
+      />
+    </div>
+  )
+}
