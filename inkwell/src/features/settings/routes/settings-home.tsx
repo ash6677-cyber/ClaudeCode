@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
@@ -31,6 +32,7 @@ import { AppearanceSettings } from '@/features/settings/components/appearance-se
 import { DataSettings } from '@/features/settings/components/data-settings'
 import { PresetFormDialog } from '@/features/settings/components/preset-form-dialog'
 import { ProviderFormDialog } from '@/features/settings/components/provider-form-dialog'
+import { ShortcutsSettings } from '@/features/settings/components/shortcuts-settings'
 import { maskApiKey } from '@/features/settings/lib/mask-key'
 import { useAiStore, type PresetInput, type ProviderInput } from '@/stores/ai-store'
 import type { AiPreset, AiProviderConfig } from '@/types'
@@ -42,10 +44,23 @@ const PROVIDER_KIND_LABEL: Record<AiProviderConfig['kind'], string> = {
   'openai-compatible': 'OpenAI-compatible',
 }
 
+const TABS = ['ai', 'appearance', 'shortcuts', 'data', 'account'] as const
+
 export function SettingsHome() {
   const { providers, presets, loadAll, createProvider, updateProvider, deleteProvider, validateProvider, createPreset, updatePreset, deletePreset } =
     useAiStore()
   const { toast } = useToast()
+
+  // The active tab lives in the URL so other parts of the app — the command
+  // palette, the native menu — can link straight to a section, and so a
+  // reload keeps you where you were.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requested = searchParams.get('tab')
+  const tab = TABS.includes(requested as (typeof TABS)[number]) ? requested! : 'ai'
+
+  function selectTab(next: string) {
+    setSearchParams(next === 'ai' ? {} : { tab: next }, { replace: true })
+  }
 
   useEffect(() => {
     loadAll()
@@ -122,7 +137,7 @@ export function SettingsHome() {
       <PageHeader title="Settings" />
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        <Tabs defaultValue="ai" className="max-w-3xl">
+        <Tabs value={tab} onValueChange={selectTab} className="max-w-3xl">
           <TabsList className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:px-1">
             <TabsTrigger value="ai" className="gap-1.5">
               <Sparkles className="size-3.5" /> AI
@@ -282,11 +297,7 @@ export function SettingsHome() {
           </TabsContent>
 
           <TabsContent value="shortcuts" className="pt-2">
-            <EmptyState
-              icon={Keyboard}
-              title="Shortcuts reference is coming soon"
-              description="A full keyboard shortcut list and customisation will land in the Phase 13 polish pass."
-            />
+            <ShortcutsSettings />
           </TabsContent>
 
           <TabsContent value="data" className="pt-2">

@@ -18,10 +18,21 @@ import {
   StatsHome,
 } from '@/app/lazy-routes'
 import { AppShell } from '@/app/layout/app-shell'
+import { RouteError } from '@/components/common/route-error'
 import { RouteLoading } from '@/components/common/route-loading'
 
 function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>
+}
+
+/**
+ * Every screen gets its own error boundary so a failure stays inside the
+ * content area and the nav survives — a writer who hits a broken screen can
+ * still click their way back to the manuscript. A route without one would
+ * bubble to the root and take the whole shell down with it.
+ */
+function screen(path: string, element: React.ReactNode) {
+  return { path, element: withSuspense(element), errorElement: <RouteError /> }
 }
 
 // Hash-based routing (`#/projects` instead of `/projects`) so the app works
@@ -31,22 +42,23 @@ function withSuspense(element: React.ReactNode) {
 export const router = createHashRouter([
   {
     element: <AppShell />,
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <Navigate to="/projects" replace /> },
-      { path: 'projects', element: withSuspense(<ProjectsHome />) },
-      { path: 'book-creator', element: withSuspense(<BookCreatorWizard />) },
-      { path: 'editor', element: withSuspense(<EditorHome />) },
-      { path: 'codex', element: withSuspense(<CodexHome />) },
-      { path: 'codex/:entryId', element: withSuspense(<CodexEntryDetail />) },
-      { path: 'cards', element: withSuspense(<CardsHome />) },
-      { path: 'cards/:cardId', element: withSuspense(<CardDetail />) },
-      { path: 'cards/:cardId/chat', element: withSuspense(<CardChat />) },
-      { path: 'lorebooks', element: withSuspense(<LorebooksHome />) },
-      { path: 'planning', element: withSuspense(<PlanningHome />) },
-      { path: 'read', element: withSuspense(<ReaderHome />) },
-      { path: 'covers', element: withSuspense(<CoversHome />) },
-      { path: 'stats', element: withSuspense(<StatsHome />) },
-      { path: 'settings', element: withSuspense(<SettingsHome />) },
+      screen('projects', <ProjectsHome />),
+      screen('book-creator', <BookCreatorWizard />),
+      screen('editor', <EditorHome />),
+      screen('codex', <CodexHome />),
+      screen('codex/:entryId', <CodexEntryDetail />),
+      screen('cards', <CardsHome />),
+      screen('cards/:cardId', <CardDetail />),
+      screen('cards/:cardId/chat', <CardChat />),
+      screen('lorebooks', <LorebooksHome />),
+      screen('planning', <PlanningHome />),
+      screen('read', <ReaderHome />),
+      screen('covers', <CoversHome />),
+      screen('stats', <StatsHome />),
+      screen('settings', <SettingsHome />),
       { path: '*', element: <Navigate to="/projects" replace /> },
     ],
   },

@@ -34,6 +34,7 @@ import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { projectRepo, snapshotRepo } from '@/lib/db/repositories'
 import { formatWordCount } from '@/lib/format'
+import { matchesShortcut } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAiStore } from '@/stores/ai-store'
 import { useCodexStore } from '@/stores/codex-store'
@@ -138,17 +139,16 @@ export function EditorHome() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const meta = e.metaKey || e.ctrlKey
-      if (meta && e.key === '.') {
+      if (matchesShortcut(e, 'toggle-focus-mode')) {
         e.preventDefault()
         setFocusMode(!focusMode)
         return
       }
       if (!activeScene) return
-      if (meta && e.key.toLowerCase() === 'f' && e.shiftKey) {
+      if (matchesShortcut(e, 'search-manuscript')) {
         e.preventDefault()
         setManuscriptSearchOpen(true)
-      } else if (meta && e.key.toLowerCase() === 'f') {
+      } else if (matchesShortcut(e, 'find-in-scene')) {
         e.preventDefault()
         openFind()
       }

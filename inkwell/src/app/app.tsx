@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router-dom'
 import { AuthBridge } from '@/app/auth-bridge'
 import { DesktopBootGate } from '@/app/desktop-boot-gate'
 import { DesktopMenuBridge } from '@/app/desktop-menu-bridge'
+import { GlobalShortcuts } from '@/app/global-shortcuts'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { router } from '@/app/router'
 import { ImportConfirmDialog } from '@/components/common/import-confirm-dialog'
@@ -18,6 +19,7 @@ export function App() {
         <DesktopBootGate>
           <RouterProvider router={router} />
           <DesktopMenuBridge />
+          <GlobalShortcuts />
           <ImportConfirmDialog />
           <AuthBridge />
         </DesktopBootGate>
