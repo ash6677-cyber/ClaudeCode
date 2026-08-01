@@ -1,6 +1,7 @@
 import {
   createUserWithEmailAndPassword,
   FacebookAuthProvider,
+  getAdditionalUserInfo,
   GoogleAuthProvider,
   OAuthProvider,
   onAuthStateChanged,
@@ -8,10 +9,17 @@ import {
   signInWithPopup,
   signOut as firebaseSignOut,
   updateProfile,
+  type AuthProvider,
   type User,
+  type UserCredential,
 } from 'firebase/auth'
 import { create } from 'zustand'
 
+import {
+  displayNameFromProfile,
+  isDismissedByUser,
+  readableAuthError,
+} from '@/lib/firebase/auth-errors'
 import { firebaseAuth } from '@/lib/firebase/config'
 
 export interface AuthUser {
@@ -31,6 +39,8 @@ interface AuthState {
   init: () => () => void
   signUpWithEmail: (email: string, password: string, authorName: string) => Promise<void>
   signInWithEmail: (email: string, password: string) => Promise<void>
+  /** Shared popup flow; the three below just pick the provider. */
+  signInWithProvider: (provider: AuthProvider) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signInWithFacebook: () => Promise<void>
   signInWithApple: () => Promise<void>
@@ -48,28 +58,31 @@ function toAuthUser(user: User): AuthUser {
   }
 }
 
-function readableAuthError(err: unknown): string {
-  const code = (err as { code?: string })?.code ?? ''
-  switch (code) {
-    case 'auth/email-already-in-use':
-      return 'An account already exists with that email.'
-    case 'auth/invalid-credential':
-    case 'auth/wrong-password':
-    case 'auth/user-not-found':
-      return 'That email and password don’t match an account.'
-    case 'auth/weak-password':
-      return 'Choose a password with at least 6 characters.'
-    case 'auth/invalid-email':
-      return 'That doesn’t look like a valid email address.'
-    case 'auth/account-exists-with-different-credential':
-      return 'An account already exists with this email using a different sign-in method.'
-    case 'auth/popup-closed-by-user':
-      return 'Sign-in was closed before finishing.'
-    case 'auth/popup-blocked':
-      return 'Your browser blocked the sign-in popup. Please allow popups for this site and try again.'
-    default:
-      return 'Something went wrong signing in. Please try again.'
+/**
+ * Finishes an OAuth sign-in, rescuing the display name if the provider only
+ * offers it once.
+ *
+ * Apple returns the user's name **solely on the first authorisation** and
+ * Firebase does not write it onto the account, so unless it is captured here
+ * it is lost permanently and that writer's author name stays blank forever.
+ * Google and Facebook are more forgiving, but the same path costs nothing and
+ * covers the case where `displayName` comes back empty for any of them.
+ */
+async function completeOAuthSignIn(result: UserCredential): Promise<User> {
+  const user = result.user
+  if (user.displayName?.trim()) return user
+
+  const name = displayNameFromProfile(getAdditionalUserInfo(result)?.profile)
+  if (!name) return user
+
+  // A failure here must not fail the sign-in itself — the account is already
+  // valid, it just has no name on it, which the writer can still set by hand.
+  try {
+    await updateProfile(user, { displayName: name })
+  } catch {
+    return user
   }
+  return user
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -108,40 +121,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  signInWithGoogle: async () => {
+  signInWithProvider: async (provider) => {
     set({ error: null })
     try {
-      const credential = await signInWithPopup(firebaseAuth, new GoogleAuthProvider())
-      set({ user: toAuthUser(credential.user), status: 'signed-in' })
+      const result = await signInWithPopup(firebaseAuth, provider)
+      const user = await completeOAuthSignIn(result)
+      set({ user: toAuthUser(user), status: 'signed-in' })
     } catch (err) {
+      // Closing the popup, or clicking a second provider while one is open,
+      // is a change of mind rather than a failure — leave the dialog as it
+      // was instead of accusing the writer of an error.
+      if (isDismissedByUser(err)) return
       set({ error: readableAuthError(err) })
       throw err
     }
   },
 
-  signInWithFacebook: async () => {
-    set({ error: null })
-    try {
-      const credential = await signInWithPopup(firebaseAuth, new FacebookAuthProvider())
-      set({ user: toAuthUser(credential.user), status: 'signed-in' })
-    } catch (err) {
-      set({ error: readableAuthError(err) })
-      throw err
-    }
-  },
+  signInWithGoogle: () => get().signInWithProvider(new GoogleAuthProvider()),
 
-  signInWithApple: async () => {
-    set({ error: null })
-    try {
-      const provider = new OAuthProvider('apple.com')
-      provider.addScope('email')
-      provider.addScope('name')
-      const credential = await signInWithPopup(firebaseAuth, provider)
-      set({ user: toAuthUser(credential.user), status: 'signed-in' })
-    } catch (err) {
-      set({ error: readableAuthError(err) })
-      throw err
-    }
+  signInWithFacebook: () => get().signInWithProvider(new FacebookAuthProvider()),
+
+  signInWithApple: () => {
+    const provider = new OAuthProvider('apple.com')
+    provider.addScope('email')
+    provider.addScope('name')
+    return get().signInWithProvider(provider)
   },
 
   signOut: async () => {

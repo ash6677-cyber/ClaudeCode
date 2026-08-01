@@ -141,6 +141,14 @@ Requires an active **Apple Developer Program** membership ($99/year).
 default. Add whatever domain you deploy the web build to. Sign-in is
 rejected from any origin not on this list.
 
+If you deploy with the bundled GitHub Pages workflow, the domain to add is
+**`<owner>.github.io`** — the bare host, with no `/repo/` path and no
+`https://`. For this repository that is `ash6677-cyber.github.io`.
+
+Skipping this is the single most likely reason a freshly deployed site can't
+sign in. The app now names the problem instead of shrugging: the error reads
+"This site's domain isn't on the Firebase authorised domains list."
+
 ---
 
 ## Desktop app (Tauri): read this before shipping social sign-in
