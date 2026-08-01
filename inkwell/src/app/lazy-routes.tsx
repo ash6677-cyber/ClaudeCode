@@ -31,6 +31,10 @@ export const CardChat = lazy(() =>
 export const LorebooksHome = lazy(() =>
   import('@/features/cards/routes/lorebooks-home').then((m) => ({ default: m.LorebooksHome })),
 )
+export const ReaderHome = lazy(() =>
+  import('@/features/reader/routes/reader-home').then((m) => ({ default: m.ReaderHome })),
+)
+
 export const PlanningHome = lazy(() =>
   import('@/features/planning/routes/planning-home').then((m) => ({ default: m.PlanningHome })),
 )
