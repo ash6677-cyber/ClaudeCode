@@ -2,7 +2,7 @@
  * Geometry for a bending sheet of paper.
  *
  * The page is modelled as a chain of narrow segments hinged end to end.
- * Each segment's angle is slightly greater than the last, so the segments
+ * Each segment's angle differs slightly from the last, so the segments
  * accumulate into an arc rather than a plane — that's what makes the page
  * actually bend instead of pivoting rigidly like a door.
  *
@@ -14,24 +14,40 @@
  *    the spine and then extends again as it flattens onto the other side.
  *  - Every segment faces a slightly different direction, so light across
  *    the page varies continuously instead of as one uniform tone.
- *
- * The bend peaks mid-turn and vanishes at both ends, because a page lying
- * closed against the stack is flat, and a page held upright is at its most
- * bowed.
  */
 
 /**
- * Total angle swept across the sheet at peak bend, in radians (~34°).
+ * Total angle swept across the sheet at peak bend, in radians (~37°).
  *
- * Tuned down from a much larger value that curled the page into a tube:
- * a sheet held in the hand bows, it doesn't roll up, and an over-curled
- * page also swings far enough toward the viewer that perspective blows it
- * up past the covers.
+ * Tuned down from a much larger value that curled the page into a tube: a
+ * sheet held in the hand bows, it doesn't roll up, and an over-curled page
+ * also swings far enough toward the viewer that perspective blows it up
+ * past the covers.
  */
-const MAX_BEND = 0.6
+const MAX_BEND = 0.65
+
+/**
+ * How much of the bend is pushed toward the free edge. 1 would be an even arc.
+ *
+ * A page lifted at its outer corner does not bow as a uniform curve: the
+ * half nearest the spine stays comparatively straight because it is pinned,
+ * and the curvature tightens toward the edge being held. Distributing the
+ * hinge angles along a curve rather than linearly is what separates paper
+ * under tension from a bent tube.
+ */
+const EDGE_WEIGHT = 1.55
+
+/**
+ * Where the bend is greatest, as a fraction of the turn.
+ *
+ * Slightly before halfway: a page is at its most bowed while still being
+ * lifted against the resistance of the spine, and has begun to straighten
+ * by the time it falls past vertical.
+ */
+const PEAK_AT = 0.45
 
 export interface Segment {
-  /** Offset from the spine, in page-width units, of this segment's hinge. */
+  /** Offset from the spine, in px, of this segment's hinge. */
   x: number
   /** Depth of the hinge. Negative is toward the viewer. */
   z: number
@@ -41,6 +57,22 @@ export interface Segment {
   frontShade: number
   /** 0..1 shading for the reverse. */
   backShade: number
+  /** 0..1 sheen on the front face, where the bow catches the light. */
+  frontSheen: number
+  /** 0..1 sheen on the reverse. */
+  backSheen: number
+}
+
+/**
+ * Bend envelope over the turn: zero at both ends, peaking off-centre.
+ *
+ * Two half-cosines joined at the peak, so the rise and fall can have
+ * different durations without a kink where they meet.
+ */
+function bendEnvelope(p: number): number {
+  if (p <= 0 || p >= 1) return 0
+  const t = p < PEAK_AT ? p / PEAK_AT : (1 - p) / (1 - PEAK_AT)
+  return (1 - Math.cos(Math.PI * t)) / 2
 }
 
 /**
@@ -52,12 +84,11 @@ export function computeCurl(progress: number, width: number, count: number): Seg
   const p = Math.max(0, Math.min(1, progress))
   // Mean rotation of the whole sheet: a straight sweep from right to left.
   const sweep = -Math.PI * p
-  // How much the sheet bows. Zero when flat at either end, most when upright.
-  const bend = -MAX_BEND * Math.sin(Math.PI * p)
+  const bend = -MAX_BEND * bendEnvelope(p)
 
   const segmentLength = width / count
-  // Centre the bend on the mean angle so the sheet bows symmetrically
-  // rather than swinging its free edge wildly ahead of the spine.
+  // Centre the bend on the mean angle so the sheet bows symmetrically about
+  // its rotation rather than swinging its free edge ahead of the spine.
   const startAngle = sweep - bend / 2
 
   const segments: Segment[] = []
@@ -66,19 +97,33 @@ export function computeCurl(progress: number, width: number, count: number): Seg
 
   for (let i = 0; i < count; i++) {
     const t = count === 1 ? 0 : i / (count - 1)
-    const angle = startAngle + bend * t
+    // Curvature concentrated toward the free edge rather than spread evenly.
+    const shaped = Math.pow(t, EDGE_WEIGHT)
+    const angle = startAngle + bend * shaped
 
-    // CSS rotateY(a) sends the local +x axis to (cos a, 0, -sin a), so the
-    // hinge chain has to advance along that same vector to stay joined.
+    // Lambert-ish term: 1 when the face is square to the reader, 0 edge-on.
+    const facing = Math.cos(angle)
+    const frontFacing = Math.max(0, facing)
+    const backFacing = Math.max(0, -facing)
+
+    // A narrow highlight near glancing angles, which is where a sheet of
+    // paper actually catches the light. Without it the bow reads as flat
+    // card however correct its geometry.
+    const grazing = Math.abs(Math.sin(angle))
+    const sheenBand = Math.pow(grazing, 6)
+
     segments.push({
       x,
       z,
       angle,
-      // Facing the reader head-on is unshaded; edge-on and beyond is dark.
-      frontShade: clamp01(((1 - Math.cos(angle)) / 2) * 0.5),
-      backShade: clamp01(((1 + Math.cos(angle)) / 2) * 0.44),
+      frontShade: clamp01((1 - frontFacing) * 0.46),
+      backShade: clamp01((1 - backFacing) * 0.42),
+      frontSheen: clamp01(sheenBand * frontFacing * 0.5),
+      backSheen: clamp01(sheenBand * backFacing * 0.45),
     })
 
+    // CSS rotateY(a) sends the local +x axis to (cos a, 0, -sin a), so the
+    // hinge chain has to advance along that same vector to stay joined.
     x += segmentLength * Math.cos(angle)
     z += -segmentLength * Math.sin(angle)
   }
@@ -88,6 +133,20 @@ export function computeCurl(progress: number, width: number, count: number): Seg
 
 function clamp01(value: number): number {
   return value < 0 ? 0 : value > 1 ? 1 : value
+}
+
+/**
+ * How much wider than its slot a segment must be drawn to hide the seam.
+ *
+ * Neighbouring segments meet at an angle, so each one's projected width is
+ * slightly less than its true width and a hairline of background shows
+ * through. The shortfall grows with the angle between neighbours, so a
+ * fixed overlap is too much when the sheet is flat and too little exactly
+ * when the bend is at its worst.
+ */
+export function seamOverlap(segmentLength: number, count: number): number {
+  const maxHingeAngle = (MAX_BEND * EDGE_WEIGHT) / Math.max(1, count - 1)
+  return segmentLength * (1 - Math.cos(maxHingeAngle)) + 1.1
 }
 
 /** Straight-line distance from the spine to the sheet's free edge. Shorter

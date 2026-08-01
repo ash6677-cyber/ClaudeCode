@@ -30,7 +30,12 @@
   touch-action: pan-y;
   user-select: none;
   cursor: grab;
-  filter: drop-shadow(0 26px 50px oklch(0% 0 0 / 0.45));
+  /* No `filter` here, deliberately. A filter on this element forces the
+     whole subtree — every one of the turning sheet's segments — to be
+     rendered into a single buffer and re-filtered on every frame, which
+     defeats compositing entirely and dropped the turn to roughly 12fps.
+     The book's drop shadow is drawn by the static pages underneath
+     instead, where nothing is animating and it costs nothing per frame. */
 }
 
 .book-stage:active {
@@ -41,6 +46,9 @@
   position: absolute;
   top: 0;
   height: 100%;
+  /* The book's shadow, cast by the pages that never move rather than by a
+     filter on their animating ancestor. */
+  box-shadow: 0 26px 50px oklch(0% 0 0 / 0.45);
 }
 
 .book-side-left {
@@ -154,6 +162,10 @@
   left: 0;
   transform-origin: left center;
   transform-style: preserve-3d;
+  /* Promoted up front. Without this the browser decides mid-gesture that a
+     segment is worth its own layer, and the first frames of every turn pay
+     for a re-raster — which is precisely when the stutter was visible. */
+  will-change: transform;
 }
 
 .curl-face {
@@ -162,6 +174,11 @@
   overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+  /* A face is a fixed window onto a slice of the page, so nothing inside
+     can affect anything outside it. Layout and paint containment only —
+     `strict` adds size containment, which would collapse a face that gets
+     its dimensions from the segment around it. */
+  contain: layout paint;
 }
 
 .curl-face-back {
@@ -183,6 +200,30 @@
   inset: 0;
   pointer-events: none;
   background: oklch(12% 0.01 60);
+  will-change: opacity;
+}
+
+/* The other half of the lighting: a warm highlight that appears only where
+   the sheet is near a glancing angle. Shading alone makes paper look like
+   grey card — it is the sheen travelling across the bow as the page turns
+   that reads as a surface catching the light.
+
+   Deliberately a plain translucent overlay rather than `mix-blend-mode:
+   screen`. Blending forces the compositor to read back what is behind each
+   layer, which defeats layer caching entirely: with one of these per face
+   it dropped the turn from 60fps to about 12. Straight alpha over paper
+   that is already near-white looks all but identical and costs nothing. */
+.curl-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    oklch(100% 0 0 / 0) 0%,
+    oklch(99% 0.012 85) 45%,
+    oklch(100% 0 0 / 0) 100%
+  );
+  will-change: opacity;
 }
 
 /* ---- page typography ---- */
