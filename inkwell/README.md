@@ -48,8 +48,30 @@ accounts and cross-device sync are switched off and the Account tab says so. Thi
 deliberate: the dev fallback points Firebase at the local emulator on `127.0.0.1`,
 which on a deployed site would mean *the visitor's own machine*. Everything else —
 writing, the Codex, cards, covers, the reader, export, stats — is local-first and
-works unchanged. To turn the cloud features on, set the Firebase variables at build
-time (see `.env.example` and `docs/CLOUD_AUTH_SETUP.md`).
+works unchanged.
+
+To switch them on, add these as repository **variables** (Settings → Secrets and
+variables → Actions → *Variables* tab) and re-run the deploy:
+
+```
+VITE_FIREBASE_API_KEY              VITE_FIREBASE_STORAGE_BUCKET
+VITE_FIREBASE_AUTH_DOMAIN          VITE_FIREBASE_MESSAGING_SENDER_ID
+VITE_FIREBASE_PROJECT_ID           VITE_FIREBASE_APP_ID
+```
+
+Variables rather than secrets, on purpose. Every `VITE_` value is compiled into the
+public JavaScript bundle, so calling them secret would only disguise the fact that
+anyone can read them. Firebase web config is *designed* to be public — access is
+controlled by `firestore.rules`, not by hiding the API key. Storing them as secrets
+would also make GitHub mask them in the build log, turning a typo into a mystery.
+
+The workflow prints which mode it built in, and reminds you to add
+`<owner>.github.io` to Firebase's authorised domains — skipping that is the most
+common reason a freshly deployed site can't sign in.
+
+Note that Sign in with Apple requires a paid Apple Developer Program membership.
+Email/password, Google and Facebook do not; leave Apple disabled in the Firebase
+console and that button reports it is unavailable rather than failing obscurely.
 
 ## Desktop app (Windows)
 

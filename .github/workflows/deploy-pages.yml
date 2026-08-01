@@ -46,9 +46,37 @@ jobs:
       - name: Build
         # A project site lives at /<repo>/, so the asset prefix has to match
         # the repository name rather than the domain root.
+        #
+        # The Firebase values are read from repository *variables*, not
+        # secrets, and that is deliberate: every VITE_ value is compiled into
+        # the public JavaScript bundle, so treating them as secret would only
+        # disguise the fact that anyone can read them. Firebase web config is
+        # designed to be public — access is controlled by the Firestore rules
+        # in firestore.rules, not by hiding the API key. Storing them as
+        # secrets would also mean GitHub masked them in the build log, making
+        # a misconfiguration far harder to diagnose.
+        #
+        # Leave them unset and the build simply ships with cloud accounts
+        # switched off; the app is local-first and works either way.
         env:
           INKWELL_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
         run: npm run build
+
+      - name: Report which mode the build shipped in
+        # Whether cloud accounts are on is invisible in the built output, and
+        # silently shipping the wrong mode is the exact confusion this avoids.
+        run: |
+          if [ -n "${{ vars.VITE_FIREBASE_API_KEY }}" ]; then
+            echo "::notice::Built WITH cloud accounts (project ${{ vars.VITE_FIREBASE_PROJECT_ID }}). Confirm ${{ github.repository_owner }}.github.io is on the Firebase authorised domains list, or sign-in will be rejected."
+          else
+            echo "::notice::Built WITHOUT cloud accounts — no VITE_FIREBASE_API_KEY repository variable is set. The app is local-first and fully usable; the Account tab will explain that sign-in is unavailable. See inkwell/docs/CLOUD_AUTH_SETUP.md to enable it."
+          fi
 
       - name: Verify the build is subpath-correct
         # A single stray absolute /assets/ URL would 404 on a project site and
