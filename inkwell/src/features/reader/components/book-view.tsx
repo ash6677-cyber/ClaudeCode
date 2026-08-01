@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ChapterContent } from '@/features/reader/components/chapter-content'
+import { CurlLeaf, type CurlHandle } from '@/features/reader/components/curl-leaf'
 import { PageSurface, type PageMetrics } from '@/features/reader/components/page-surface'
 import type { BookChapter } from '@/features/reader/lib/compile-book'
 import { cn } from '@/lib/utils'
@@ -49,9 +50,7 @@ export function BookView({
   flatPages: FlatPage[]
 }) {
   const totalPages = flatPages.length
-  const leafRef = useRef<HTMLDivElement | null>(null)
-  const frontShadeRef = useRef<HTMLDivElement | null>(null)
-  const backShadeRef = useRef<HTMLDivElement | null>(null)
+  const curlRef = useRef<CurlHandle | null>(null)
   const spineShadowRef = useRef<HTMLDivElement | null>(null)
 
   const [turn, setTurn] = useState<TurnState | null>(null)
@@ -75,28 +74,16 @@ export function BookView({
   const canGoForward = (columns === 2 ? leftPage + 2 : leftPage + 1) < totalPages
   const canGoBackward = leftPage > 0
 
-  const paint = useCallback(
-    (progress: number) => {
-      const leaf = leafRef.current
-      if (!leaf) return
-      const angle = -180 * progress
-      leaf.style.transform = `rotateY(${angle}deg)`
+  const paint = useCallback((progress: number) => {
+    // The sheet bends itself: every segment gets its own angle, position
+    // and shading, so the surface is curved rather than a rotating plane.
+    curlRef.current?.setProgress(progress)
 
-      // Light falls off as the sheet rotates away, and returns as the
-      // reverse comes into view — the cue that sells it as paper rather
-      // than a flat rectangle spinning.
-      const front = frontShadeRef.current
-      const back = backShadeRef.current
-      if (front) front.style.opacity = String(Math.min(0.55, progress * 1.1))
-      if (back) back.style.opacity = String(Math.min(0.5, (1 - progress) * 1.0))
-
-      // The lifted sheet casts onto the spread underneath, strongest when
-      // it stands upright.
-      const spine = spineShadowRef.current
-      if (spine) spine.style.opacity = String(Math.sin(progress * Math.PI) * 0.28)
-    },
-    [],
-  )
+    // The lifted sheet casts onto the spread underneath, strongest when
+    // it stands upright.
+    const spine = spineShadowRef.current
+    if (spine) spine.style.opacity = String(Math.sin(progress * Math.PI) * 0.3)
+  }, [])
 
   const finishTurn = useCallback(
     (committed: boolean) => {
@@ -205,7 +192,6 @@ export function BookView({
     lastMoveRef.current = { x: event.clientX, t: performance.now() }
     velocityRef.current = 0
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
-    leafRef.current?.style.setProperty('will-change', 'transform')
     ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
   }
 
@@ -230,7 +216,6 @@ export function BookView({
   function handlePointerUp(event: React.PointerEvent) {
     if (!draggingRef.current || !turnRef.current) return
     draggingRef.current = false
-    leafRef.current?.style.removeProperty('will-change')
     try {
       ;(event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId)
     } catch {
@@ -328,18 +313,25 @@ export function BookView({
 
       {turn && (
         <div className="book-leaf-anchor" style={{ left: columns === 2 ? metrics.width : 0 }}>
-          <div ref={leafRef} className="book-leaf" style={{ width: metrics.width, height: metrics.height }}>
-            <div className="book-leaf-face book-leaf-front">
-              {renderPage(turn.frontPage, 'right')}
-              <span className="book-folio book-folio-right">{pageNumberFor(turn.frontPage)}</span>
-              <div ref={frontShadeRef} className="book-leaf-shade" style={{ opacity: 0 }} />
-            </div>
-            <div className="book-leaf-face book-leaf-back">
-              {renderPage(turn.backPage, 'left')}
-              <span className="book-folio book-folio-left">{pageNumberFor(turn.backPage)}</span>
-              <div ref={backShadeRef} className="book-leaf-shade book-leaf-shade-back" style={{ opacity: 0 }} />
-            </div>
-          </div>
+          <CurlLeaf
+            ref={curlRef}
+            width={metrics.width}
+            height={metrics.height}
+            front={
+              <>
+                {renderPage(turn.frontPage, 'right')}
+                <span className="book-folio book-folio-right">
+                  {pageNumberFor(turn.frontPage)}
+                </span>
+              </>
+            }
+            back={
+              <>
+                {renderPage(turn.backPage, 'left')}
+                <span className="book-folio book-folio-left">{pageNumberFor(turn.backPage)}</span>
+              </>
+            }
+          />
         </div>
       )}
     </div>

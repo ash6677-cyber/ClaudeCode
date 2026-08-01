@@ -22,7 +22,10 @@
 
 .book-stage {
   position: relative;
-  perspective: 2800px;
+  /* A long viewing distance relative to the page keeps the sheet from
+     ballooning past the covers when it swings toward the reader at the
+     midpoint of a turn. */
+  perspective: 5200px;
   perspective-origin: 50% 45%;
   touch-action: pan-y;
   user-select: none;
@@ -131,50 +134,55 @@
   pointer-events: none;
 }
 
-.book-leaf {
-  position: relative;
-  height: 100%;
+/* ---- the bending sheet ---------------------------------------------------
+   The page is cut into vertical segments hinged end to end. Each carries
+   its own rotation, so together they form a curved surface rather than a
+   plane. Every segment is its own 3D-transformed layer, which is why only
+   `transform` and `opacity` are ever touched per frame.
+   ------------------------------------------------------------------------ */
+
+.curl-leaf {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-style: preserve-3d;
+}
+
+.curl-segment {
+  position: absolute;
+  top: 0;
+  left: 0;
   transform-origin: left center;
   transform-style: preserve-3d;
 }
 
-.book-leaf-face {
+.curl-face {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  overflow: hidden;
 }
 
-.book-leaf-front {
-  border-radius: 0 3px 3px 0;
-}
-
-.book-leaf-back {
+.curl-face-back {
   transform: rotateY(180deg);
-  border-radius: 3px 0 0 3px;
 }
 
-/* Light falling off the tilting sheet. Opacity is driven per-frame from JS. */
-.book-leaf-shade {
+/* The full page, slid sideways so this segment frames its own slice of it. */
+.curl-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Per-segment lighting. Because neighbouring segments sit at slightly
+   different angles, these opacities form a continuous gradient across the
+   bow — the cue that reads as a curved surface rather than a folded one. */
+.curl-shade {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    to left,
-    oklch(0% 0 0 / 0.06),
-    oklch(0% 0 0 / 0.34) 55%,
-    oklch(0% 0 0 / 0.62)
-  );
-}
-
-.book-leaf-shade-back {
-  background: linear-gradient(
-    to right,
-    oklch(0% 0 0 / 0.06),
-    oklch(0% 0 0 / 0.34) 55%,
-    oklch(0% 0 0 / 0.62)
-  );
+  background: oklch(12% 0.01 60);
 }
 
 /* ---- page typography ---- */
