@@ -3,8 +3,15 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
+// GitHub Pages serves a project site from a subpath (/ClaudeCode/), so the
+// built asset URLs have to be prefixed or every script 404s. Everything else
+// — dev, preview, and the Tauri desktop shell, which loads from the
+// filesystem root — wants the default '/'.
+const base = process.env.INKWELL_BASE_PATH || '/'
+
 // https://vite.dev/config/
 export default defineConfig({
+  base,
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

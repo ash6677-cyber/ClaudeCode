@@ -79,11 +79,24 @@ function createFirestore(): Firestore {
 export const firestore = createFirestore()
 
 /**
+ * Whether cloud accounts and sync are actually reachable.
+ *
+ * A production build with no Firebase project configured has nowhere to sign
+ * in to: the emulator fallback points at 127.0.0.1, which on a deployed site
+ * would mean the *visitor's* own machine. Rather than offer a sign-in button
+ * that hangs against an emulator nobody is running, the cloud features
+ * declare themselves unavailable and the app stays what it already is
+ * without them — fully local-first.
+ */
+export const cloudEnabled = hasRealConfig || import.meta.env.DEV
+
+/**
  * Use the local emulator suite whenever there's no real project configured
  * (dev by default) or when explicitly requested — never in a production
- * build pointed at a real project.
+ * build, and never when pointed at a real project.
  */
-const useEmulator = !hasRealConfig || import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true'
+const useEmulator =
+  import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || (!hasRealConfig && import.meta.env.DEV)
 
 let emulatorsConnected = false
 export function connectToEmulatorsIfConfigured() {

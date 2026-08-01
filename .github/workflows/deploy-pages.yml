@@ -1,0 +1,82 @@
+name: Deploy INKWELL to GitHub Pages
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'inkwell/**'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+# Allow the workflow to publish to Pages via OIDC, with no long-lived secret.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published, but
+# don't queue up more than one pending run.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: inkwell
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: inkwell/package-lock.json
+
+      - run: npm ci
+
+      - name: Type-check, lint, and test
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test
+
+      - name: Build
+        # A project site lives at /<repo>/, so the asset prefix has to match
+        # the repository name rather than the domain root.
+        env:
+          INKWELL_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      - name: Verify the build is subpath-correct
+        # A single stray absolute /assets/ URL would 404 on a project site and
+        # leave a blank page, which is exactly the failure this guards.
+        env:
+          EXPECTED: /${{ github.event.repository.name }}/
+        run: |
+          echo "index.html asset references:"
+          grep -oE '(src|href)="[^"]*"' dist/index.html || true
+          if grep -qE '(src|href)="/assets/' dist/index.html; then
+            echo "::error::dist/index.html still references /assets/ — INKWELL_BASE_PATH did not apply"
+            exit 1
+          fi
+          if ! grep -q "$EXPECTED" dist/index.html; then
+            echo "::error::dist/index.html does not reference $EXPECTED"
+            exit 1
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: inkwell/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -21,6 +21,36 @@ npm install
 npm run dev
 ```
 
+## Web deployment (GitHub Pages)
+
+`.github/workflows/deploy-pages.yml` builds `inkwell/` and publishes it to GitHub
+Pages on every push to the default branch. **It only runs once it is on the default
+branch** — GitHub does not dispatch workflows that exist only on a feature branch.
+
+Before the first deploy, enable it once in the repository: **Settings → Pages →
+Build and deployment → Source: GitHub Actions**. On a private repository, Pages
+requires a paid GitHub plan.
+
+The site lands at `https://<owner>.github.io/<repo>/`. A project site is served
+from a subpath, so the build sets `INKWELL_BASE_PATH=/<repo>/` and Vite prefixes
+every asset URL to match; the workflow fails the build if a stray `/assets/` URL
+survives, since that would 404 and leave a blank page. No SPA rewrite rules are
+needed — the app uses hash routing (`#/projects`) precisely so it works on static
+hosting that can't rewrite paths.
+
+To deploy anywhere else, build with the base path set to wherever it will be served
+(`INKWELL_BASE_PATH=/ npm run build` for a domain root) and upload `dist/`.
+
+### Cloud features on a deployed build
+
+A build with no `VITE_FIREBASE_API_KEY` has no Firebase project behind it, so
+accounts and cross-device sync are switched off and the Account tab says so. This is
+deliberate: the dev fallback points Firebase at the local emulator on `127.0.0.1`,
+which on a deployed site would mean *the visitor's own machine*. Everything else —
+writing, the Codex, cards, covers, the reader, export, stats — is local-first and
+works unchanged. To turn the cloud features on, set the Firebase variables at build
+time (see `.env.example` and `docs/CLOUD_AUTH_SETUP.md`).
+
 ## Desktop app (Windows)
 
 INKWELL ships as a native Windows desktop app via Tauri 2 (`src-tauri/`). The web

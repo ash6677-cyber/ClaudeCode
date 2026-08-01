@@ -1,4 +1,4 @@
-import { LogOut, User as UserIcon } from 'lucide-react'
+import { CloudOff, LogOut, User as UserIcon } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { AuthDialog } from '@/features/auth/components/auth-dialog'
 import { SyncStatus } from '@/features/auth/components/sync-status'
+import { cloudEnabled } from '@/lib/firebase/config'
 import { useAuthStore } from '@/stores/auth-store'
 
 export function AccountSettings() {
@@ -27,6 +28,22 @@ export function AccountSettings() {
   if ((user?.authorName ?? '') !== lastSyncedName) {
     setLastSyncedName(user?.authorName ?? '')
     setAuthorName(user?.authorName ?? '')
+  }
+
+  // A build with no Firebase project behind it has nowhere to sign in to.
+  // Say so plainly instead of showing a button that can't work.
+  if (!cloudEnabled) {
+    return (
+      <div className="rounded-lg border border-dashed border-border p-6 text-center">
+        <CloudOff className="mx-auto size-6 text-muted-foreground/50" />
+        <p className="mt-2 text-sm font-medium">Cloud accounts aren't set up on this build</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Everything still works — your library lives on this device and never leaves it. To turn
+          on accounts and cross-device sync, build with a Firebase project configured; see
+          docs/CLOUD_AUTH_SETUP.md.
+        </p>
+      </div>
+    )
   }
 
   if (status === 'loading') {
