@@ -26,6 +26,7 @@ pub fn run() {
       storage::restore_backup,
       storage::export_library,
       storage::import_library,
+      storage::save_binary_file,
       menu::quit_after_save,
     ])
     .menu(|app| menu::build(app))

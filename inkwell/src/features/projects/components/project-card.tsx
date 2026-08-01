@@ -36,10 +36,17 @@ interface ProjectCardProps {
   project: Project
   currentWordCount: number
   onEdit: () => void
+  onExport: () => void
   onDelete: () => void
 }
 
-export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  currentWordCount,
+  onEdit,
+  onExport,
+  onDelete,
+}: ProjectCardProps) {
   const navigate = useNavigate()
   const progress =
     project.targetWordCount > 0
@@ -99,6 +106,7 @@ export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: Pro
             <DropdownMenuItem onClick={onEdit}>
               <Pencil /> Edit
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>Export…</DropdownMenuItem>
             <DropdownMenuItem
               onClick={onDelete}
               className="text-destructive focus:text-destructive"

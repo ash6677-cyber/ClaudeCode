@@ -156,6 +156,25 @@ pub fn export_library(dest_path: String, json: String) -> Result<(), String> {
     atomic_write(Path::new(&dest_path), &json)
 }
 
+/// Writes binary export payloads (DOCX, EPUB) chosen via the native save
+/// dialog. The bytes arrive base64-encoded because the IPC bridge carries
+/// strings, not buffers.
+#[tauri::command]
+pub fn save_binary_file(dest_path: String, base64: String) -> Result<(), String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64.as_bytes())
+        .map_err(|e| e.to_string())?;
+    let path = Path::new(&dest_path);
+    let tmp_path = path.with_extension("tmp");
+    {
+        let mut file = fs::File::create(&tmp_path).map_err(|e| e.to_string())?;
+        file.write_all(&bytes).map_err(|e| e.to_string())?;
+        file.sync_all().map_err(|e| e.to_string())?;
+    }
+    fs::rename(&tmp_path, path).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn import_library(src_path: String) -> Result<String, String> {
     fs::read_to_string(&src_path).map_err(|e| e.to_string())

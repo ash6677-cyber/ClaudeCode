@@ -42,6 +42,11 @@ export async function importLibraryRaw(srcPath: string): Promise<string> {
   return invoke<string>('import_library', { srcPath })
 }
 
+/** Writes base64-encoded bytes to an absolute path chosen by the user. */
+export async function saveBinaryFile(destPath: string, base64: string): Promise<void> {
+  return invoke<void>('save_binary_file', { destPath, base64 })
+}
+
 /** Tells the Rust side it's safe to actually exit, after the frontend has flushed its save. */
 export async function quitAfterSave(): Promise<void> {
   return invoke<void>('quit_after_save')

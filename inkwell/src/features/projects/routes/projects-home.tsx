@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { ProjectCard } from '@/features/projects/components/project-card'
+import { ExportDialog } from '@/features/export/components/export-dialog'
 import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog'
 import { useProjectStore } from '@/stores/project-store'
 import { useUiStore } from '@/stores/ui-store'
@@ -31,6 +32,7 @@ export function ProjectsHome() {
   const [formKey, setFormKey] = useState(0)
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
+  const [exportingProject, setExportingProject] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -155,12 +157,19 @@ export function ProjectsHome() {
                 project={project}
                 currentWordCount={wordCounts[project.id] ?? 0}
                 onEdit={() => openEditDialog(project)}
+                onExport={() => setExportingProject(project)}
                 onDelete={() => setDeletingProject(project)}
               />
             ))}
           </div>
         )}
       </div>
+
+      <ExportDialog
+        project={exportingProject}
+        open={exportingProject !== null}
+        onOpenChange={(open) => !open && setExportingProject(null)}
+      />
 
       <ProjectFormDialog
         key={formKey}
