@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { chapterRepo, sceneRepo, snapshotRepo } from '@/lib/db/repositories'
+import { useStatsStore } from '@/stores/stats-store'
 import type { Chapter, Scene, SceneStatus, Snapshot } from '@/types'
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -175,10 +176,22 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   },
 
   updateSceneContent: async (id, input) => {
+    // Every prose edit funnels through here, which makes it the one honest
+    // place to measure writing progress. Only growth counts: deleting a
+    // paragraph shouldn't subtract from the day's effort, and re-typing it
+    // shouldn't then count twice.
+    const previous = get().scenes.find((s) => s.id === id)
+    const gained = previous ? input.wordCount - previous.wordCount : 0
+    const projectId = get().projectId
+
     await sceneRepo.update(id, input)
     set({
       scenes: get().scenes.map((s) => (s.id === id ? { ...s, ...input } : s)),
     })
+
+    if (projectId && gained > 0) {
+      void useStatsStore.getState().recordProgress(projectId, gained)
+    }
   },
 
   updateSceneMeta: async (id, changes) => {

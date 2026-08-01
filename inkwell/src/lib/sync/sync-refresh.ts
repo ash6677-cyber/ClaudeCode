@@ -8,6 +8,7 @@ import { useEditorStore } from '@/stores/editor-store'
 import { useLorebookStore } from '@/stores/lorebook-store'
 import { usePersonaStore } from '@/stores/persona-store'
 import { useProjectStore } from '@/stores/project-store'
+import { useStatsStore } from '@/stores/stats-store'
 
 /**
  * Reloads whichever stores own the tables a remote sync just touched.
@@ -56,10 +57,14 @@ const REFRESHERS: Record<SyncedTableName, () => void> = {
     if (projectId) void loadProject(projectId)
   },
 
-  // Stats & goals have no store yet (Phase 12); they still sync, there's
-  // just nothing mounted to refresh.
-  goals: () => {},
-  sessionLogs: () => {},
+  // Goals and session logs share one store, and it holds every project's
+  // history at once, so there's no open-project check to make.
+  goals: refreshStats,
+  sessionLogs: refreshStats,
+}
+
+function refreshStats() {
+  void useStatsStore.getState().loadAll()
 }
 
 function refreshEditor() {
