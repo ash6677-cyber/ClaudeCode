@@ -1,10 +1,25 @@
-name: Deploy INKWELL to GitHub Pages
+name: Deploy GitHub Pages (FC Career Tracker + INKWELL)
+
+# A repository gets exactly one Pages site, and this one was already serving
+# FC Career Tracker from the repository root before INKWELL existed. Publishing
+# only inkwell/dist would replace the whole site and take the tracker offline —
+# which matters because it stores its data in the browser, so its users would
+# lose the page they need in order to export a backup.
+#
+# So this assembles both: the tracker keeps the root, INKWELL is published
+# underneath it at /inkwell/.
 
 on:
   push:
     branches: [main, master]
     paths:
+      # INKWELL
       - 'inkwell/**'
+      # FC Career Tracker's published files, so edits to it redeploy too
+      - 'index.html'
+      - 'manifest.webmanifest'
+      - 'sw.js'
+      - 'assets/**'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -23,9 +38,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: inkwell
     steps:
       - uses: actions/checkout@v4
 
@@ -35,31 +47,33 @@ jobs:
           cache: npm
           cache-dependency-path: inkwell/package-lock.json
 
-      - run: npm ci
+      - name: Install INKWELL dependencies
+        working-directory: inkwell
+        run: npm ci
 
       - name: Type-check, lint, and test
+        working-directory: inkwell
         run: |
           npm run typecheck
           npm run lint
           npm test
 
-      - name: Build
-        # A project site lives at /<repo>/, so the asset prefix has to match
-        # the repository name rather than the domain root.
+      - name: Build INKWELL
+        working-directory: inkwell
+        # INKWELL sits at /<repo>/inkwell/, so its asset prefix has to include
+        # both segments or every script 404s.
         #
-        # The Firebase values are read from repository *variables*, not
-        # secrets, and that is deliberate: every VITE_ value is compiled into
-        # the public JavaScript bundle, so treating them as secret would only
-        # disguise the fact that anyone can read them. Firebase web config is
-        # designed to be public — access is controlled by the Firestore rules
-        # in firestore.rules, not by hiding the API key. Storing them as
-        # secrets would also mean GitHub masked them in the build log, making
-        # a misconfiguration far harder to diagnose.
+        # The Firebase values come from repository *variables*, not secrets:
+        # every VITE_ value is compiled into the public JavaScript bundle, so
+        # marking them secret would disguise rather than prevent disclosure.
+        # Firebase web config is meant to be public — access is enforced by
+        # firestore.rules, not by hiding the API key — and secrets would also
+        # be masked in the build log, turning a typo into a mystery.
         #
-        # Leave them unset and the build simply ships with cloud accounts
-        # switched off; the app is local-first and works either way.
+        # Left unset, the build ships with cloud accounts switched off; the
+        # app is local-first and fully usable either way.
         env:
-          INKWELL_BASE_PATH: /${{ github.event.repository.name }}/
+          INKWELL_BASE_PATH: /${{ github.event.repository.name }}/inkwell/
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -68,36 +82,59 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
         run: npm run build
 
-      - name: Report which mode the build shipped in
-        # Whether cloud accounts are on is invisible in the built output, and
-        # silently shipping the wrong mode is the exact confusion this avoids.
+      - name: Assemble both sites
+        # Copied explicitly rather than by excluding things, so that adding a
+        # directory to the repository never silently publishes it.
+        run: |
+          mkdir -p _site
+          cp index.html manifest.webmanifest sw.js _site/
+          cp -r assets _site/assets
+          cp -r inkwell/dist _site/inkwell
+          echo "Assembled tree:"
+          find _site -maxdepth 2 -not -path '_site/assets/*' | sort
+
+      - name: Verify both sites are intact
+        # Each of these has a specific failure it prevents, and every one of
+        # them is silent otherwise — a blank page or a missing site.
+        env:
+          EXPECTED: /${{ github.event.repository.name }}/inkwell/
+        run: |
+          fail() { echo "::error::$1"; exit 1; }
+
+          # The tracker must still be at the root.
+          grep -q "FC Career Tracker" _site/index.html \
+            || fail "The root site is not FC Career Tracker — it would be replaced."
+          [ -f _site/assets/app.js ] || fail "Tracker assets are missing from the artifact."
+          [ -f _site/sw.js ] || fail "The tracker service worker is missing."
+
+          # The service worker must not intercept INKWELL, or a stale cached
+          # index.html would pin it one deploy behind indefinitely.
+          grep -q "inkwell" _site/sw.js \
+            || fail "sw.js has no /inkwell/ exclusion; it would cache and stale-serve INKWELL."
+
+          # INKWELL must be built for its subpath.
+          [ -f _site/inkwell/index.html ] || fail "INKWELL is missing from the artifact."
+          if grep -qE '(src|href)="/assets/' _site/inkwell/index.html; then
+            fail "INKWELL still references /assets/ — INKWELL_BASE_PATH did not apply."
+          fi
+          grep -q "$EXPECTED" _site/inkwell/index.html \
+            || fail "INKWELL does not reference $EXPECTED"
+
+          echo "Both sites verified."
+          echo "INKWELL asset references:"
+          grep -oE '(src|href)="[^"]*"' _site/inkwell/index.html | head -5
+
+      - name: Report which mode INKWELL built in
         run: |
           if [ -n "${{ vars.VITE_FIREBASE_API_KEY }}" ]; then
-            echo "::notice::Built WITH cloud accounts (project ${{ vars.VITE_FIREBASE_PROJECT_ID }}). Confirm ${{ github.repository_owner }}.github.io is on the Firebase authorised domains list, or sign-in will be rejected."
+            echo "::notice::INKWELL built WITH cloud accounts (project ${{ vars.VITE_FIREBASE_PROJECT_ID }}). Confirm ${{ github.repository_owner }}.github.io is on the Firebase authorised domains list, or sign-in will be rejected."
           else
-            echo "::notice::Built WITHOUT cloud accounts — no VITE_FIREBASE_API_KEY repository variable is set. The app is local-first and fully usable; the Account tab will explain that sign-in is unavailable. See inkwell/docs/CLOUD_AUTH_SETUP.md to enable it."
-          fi
-
-      - name: Verify the build is subpath-correct
-        # A single stray absolute /assets/ URL would 404 on a project site and
-        # leave a blank page, which is exactly the failure this guards.
-        env:
-          EXPECTED: /${{ github.event.repository.name }}/
-        run: |
-          echo "index.html asset references:"
-          grep -oE '(src|href)="[^"]*"' dist/index.html || true
-          if grep -qE '(src|href)="/assets/' dist/index.html; then
-            echo "::error::dist/index.html still references /assets/ — INKWELL_BASE_PATH did not apply"
-            exit 1
-          fi
-          if ! grep -q "$EXPECTED" dist/index.html; then
-            echo "::error::dist/index.html does not reference $EXPECTED"
-            exit 1
+            echo "::notice::INKWELL built WITHOUT cloud accounts — no VITE_FIREBASE_API_KEY repository variable is set. The app is local-first and fully usable; the Account tab will explain that sign-in is unavailable. See inkwell/docs/CLOUD_AUTH_SETUP.md to enable it."
           fi
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: inkwell/dist
+          path: _site
 
   deploy:
     needs: build
