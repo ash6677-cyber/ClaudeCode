@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>Page not found</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 2rem 1.5rem; box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff; color: #1b1b1b; line-height: 1.6;
+  }
+  main { max-width: 26rem; width: 100%; text-align: center; }
+  h1 { font-size: 1.35rem; margin: 0 0 .5rem; }
+  p { margin: 0 0 1.5rem; color: #555; }
+  a.app {
+    display: block; padding: .85rem 1rem; margin-bottom: .6rem;
+    border: 1px solid #d8d8d8; border-radius: .7rem;
+    text-decoration: none; color: inherit; font-weight: 600;
+  }
+  a.app span { display: block; font-weight: 400; font-size: .85rem; color: #666; margin-top: .15rem; }
+  a.app:hover { border-color: #999; }
+  code { background: #f0f0f0; padding: .1em .35em; border-radius: .25em; font-size: .85em; }
+  .note { font-size: .8rem; color: #777; margin-top: 1.5rem; }
+  @media (prefers-color-scheme: dark) {
+    body { background: #0d0d10; color: #ececec; }
+    p { color: #a0a0a0; }
+    a.app { border-color: #303036; }
+    a.app span { color: #909090; }
+    a.app:hover { border-color: #55555e; }
+    code { background: #1c1c22; }
+    .note { color: #808080; }
+  }
+</style>
+<script>
+  // GitHub Pages paths are case-sensitive, and phone keyboards love to
+  // capitalise the first letter of a word typed into the address bar —
+  // turning /inkwell/ into /Inkwell/, which 404s. Repair that silently.
+  //
+  // Only a difference of *case* is corrected. A path that is already spelled
+  // correctly is a genuinely missing file, and redirecting it would hide the
+  // problem rather than solve it.
+  (function () {
+    // INKWELL is at the root now, so the only sub-app left to repair is the
+    // tracker. /Tracker/ and /TRACKER/ should still land somewhere useful.
+    var APPS = ['tracker'];
+    var parts = location.pathname.split('/').filter(Boolean);
+    if (!parts.length) return;
+
+    // On a project site the first segment is the repository; GitHub has
+    // already matched it to get here, so take it as correct.
+    var base = '/' + parts[0] + '/';
+    var seg = parts[1];
+    if (!seg) return;
+
+    var lower = seg.toLowerCase();
+
+    // A stale bookmark of the old /inkwell/ address belongs at the root now.
+    if (lower === 'inkwell') {
+      location.replace(base + location.search + location.hash);
+      return;
+    }
+
+    if (APPS.indexOf(lower) !== -1 && seg !== lower) {
+      var target = base + lower + '/';
+      if (location.pathname !== target) {
+        location.replace(target + location.search + location.hash);
+      }
+    }
+  })();
+</script>
+</head>
+<body>
+<main>
+  <h1>Page not found</h1>
+  <p>Nothing lives at that address. These do:</p>
+
+  <a class="app" href="./">INKWELL<span>A local-first novel-writing studio</span></a>
+  <a class="app" href="./tracker/">FC Career Tracker<span>Season-by-season career mode stats</span></a>
+
+  <p class="note">
+    Addresses here are case-sensitive. If you typed one on a phone, the
+    keyboard may have capitalised it for you.
+  </p>
+</main>
+</body>
+</html>

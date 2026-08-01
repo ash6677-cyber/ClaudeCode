@@ -20,6 +20,7 @@ on:
       - 'manifest.webmanifest'
       - 'sw.js'
       - 'assets/**'
+      - '404.html'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
 
@@ -73,7 +74,7 @@ jobs:
         # Left unset, the build ships with cloud accounts switched off; the
         # app is local-first and fully usable either way.
         env:
-          INKWELL_BASE_PATH: /${{ github.event.repository.name }}/inkwell/
+          INKWELL_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
           VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
@@ -86,43 +87,52 @@ jobs:
         # Copied explicitly rather than by excluding things, so that adding a
         # directory to the repository never silently publishes it.
         run: |
-          mkdir -p _site
-          cp index.html manifest.webmanifest sw.js _site/
-          cp -r assets _site/assets
-          cp -r inkwell/dist _site/inkwell
+          mkdir -p _site/tracker
+          # INKWELL owns the root: the repository is named for it, and a site
+          # people visit daily should not carry an extra path segment that a
+          # phone keyboard can capitalise into a 404.
+          cp -r inkwell/dist/. _site/
+          cp 404.html _site/
+          # FC Career Tracker moves down a level rather than being deleted. It
+          # uses relative URLs throughout, so it works unchanged from any depth,
+          # and its service worker's scope narrows to /tracker/ along with it —
+          # which keeps it away from INKWELL entirely.
+          cp index.html manifest.webmanifest sw.js _site/tracker/
+          cp -r assets _site/tracker/assets
           echo "Assembled tree:"
-          find _site -maxdepth 2 -not -path '_site/assets/*' | sort
+          find _site -maxdepth 2 -not -path '_site/assets/*' -not -path '_site/tracker/assets/*' | sort
 
       - name: Verify both sites are intact
         # Each of these has a specific failure it prevents, and every one of
         # them is silent otherwise — a blank page or a missing site.
         env:
-          EXPECTED: /${{ github.event.repository.name }}/inkwell/
+          EXPECTED: /${{ github.event.repository.name }}/
         run: |
           fail() { echo "::error::$1"; exit 1; }
 
-          # The tracker must still be at the root.
-          grep -q "FC Career Tracker" _site/index.html \
-            || fail "The root site is not FC Career Tracker — it would be replaced."
-          [ -f _site/assets/app.js ] || fail "Tracker assets are missing from the artifact."
-          [ -f _site/sw.js ] || fail "The tracker service worker is missing."
+          # INKWELL owns the root.
+          grep -q "Inkwell" _site/index.html \
+            || fail "The root site is not INKWELL."
+          [ -d _site/assets ] || fail "INKWELL's built assets are missing."
+          [ -f _site/404.html ] || fail "404.html is missing; mis-cased URLs would not self-correct."
 
-          # The service worker must not intercept INKWELL, or a stale cached
-          # index.html would pin it one deploy behind indefinitely.
-          grep -q "inkwell" _site/sw.js \
-            || fail "sw.js has no /inkwell/ exclusion; it would cache and stale-serve INKWELL."
-
-          # INKWELL must be built for its subpath.
-          [ -f _site/inkwell/index.html ] || fail "INKWELL is missing from the artifact."
-          if grep -qE '(src|href)="/assets/' _site/inkwell/index.html; then
-            fail "INKWELL still references /assets/ — INKWELL_BASE_PATH did not apply."
+          # Built for the right base. A rename of the repository changes this,
+          # which is exactly how the site broke once before.
+          if grep -qE '(src|href)="/assets/' _site/index.html; then
+            fail "INKWELL references a bare /assets/ — INKWELL_BASE_PATH did not apply."
           fi
-          grep -q "$EXPECTED" _site/inkwell/index.html \
-            || fail "INKWELL does not reference $EXPECTED"
+          grep -q "$EXPECTED" _site/index.html \
+            || fail "INKWELL does not reference $EXPECTED — is the repository name what you expect?"
+
+          # The tracker must survive the move, intact.
+          grep -q "FC Career Tracker" _site/tracker/index.html \
+            || fail "FC Career Tracker is missing from /tracker/."
+          [ -f _site/tracker/assets/app.js ] || fail "Tracker assets are missing."
+          [ -f _site/tracker/sw.js ] || fail "The tracker service worker is missing."
 
           echo "Both sites verified."
           echo "INKWELL asset references:"
-          grep -oE '(src|href)="[^"]*"' _site/inkwell/index.html | head -5
+          grep -oE '(src|href)="[^"]*"' _site/index.html | head -5
 
       - name: Report which mode INKWELL built in
         run: |

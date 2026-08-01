@@ -43,7 +43,9 @@ self.addEventListener('fetch', event => {
   // copy of INKWELL's index.html on every visit and only refresh it in the
   // background, pinning it one deploy behind for good — and its build assets
   // would accumulate in a cache meant for the tracker.
-  if (url.pathname.includes('/inkwell/')) return;
+  // Lowercased because a mis-cased /Inkwell/ still resolves to INKWELL via
+  // the 404 page's redirect, and caching that round trip would be pointless.
+  if (url.pathname.toLowerCase().includes('/inkwell/')) return;
 
   event.respondWith(
     caches.open(CACHE_VERSION).then(cache =>
