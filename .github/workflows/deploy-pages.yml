@@ -87,7 +87,7 @@ jobs:
         # directory to the repository never silently publishes it.
         run: |
           mkdir -p _site
-          cp index.html manifest.webmanifest sw.js _site/
+          cp index.html 404.html manifest.webmanifest sw.js _site/
           cp -r assets _site/assets
           cp -r inkwell/dist _site/inkwell
           echo "Assembled tree:"
@@ -106,6 +106,7 @@ jobs:
             || fail "The root site is not FC Career Tracker — it would be replaced."
           [ -f _site/assets/app.js ] || fail "Tracker assets are missing from the artifact."
           [ -f _site/sw.js ] || fail "The tracker service worker is missing."
+          [ -f _site/404.html ] || fail "404.html is missing; mis-cased URLs would not self-correct."
 
           # The service worker must not intercept INKWELL, or a stale cached
           # index.html would pin it one deploy behind indefinitely.
