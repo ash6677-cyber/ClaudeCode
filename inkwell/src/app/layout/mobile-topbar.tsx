@@ -17,7 +17,7 @@ export function MobileTopBar() {
   const activeProjectId = useEditorStore((s) => s.projectId)
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border bg-sidebar px-3 lg:hidden">
+    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-sidebar-border bg-sidebar px-3 shadow-[0_8px_24px_-18px_oklch(0%_0_0/0.6)] lg:hidden">
       <Sheet open={open} onOpenChange={setOpen}>
         <Button
           variant="ghost"

@@ -28,8 +28,8 @@ import {
   replaceOrAppend,
   type EditorRange,
 } from '@/features/editor/lib/ai-insert'
-import { useAiGeneration } from '@/features/editor/lib/use-ai-generation'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
+import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
 import { useEditorStore } from '@/stores/editor-store'
 import type { AiActionKind, CodexEntry, PointOfView, Scene, Tense } from '@/types'
@@ -40,7 +40,13 @@ const ACTION_OPTIONS: { value: AiActionKind; label: string; needsInstruction: bo
   { value: 'describe', label: 'Describe', needsInstruction: true, needsSelection: false },
   { value: 'brainstorm', label: 'Brainstorm', needsInstruction: true, needsSelection: false },
   { value: 'summarise', label: 'Summarise scene', needsInstruction: false, needsSelection: false },
+  { value: 'beats-to-prose', label: 'Beats → prose', needsInstruction: false, needsSelection: false },
 ]
+
+function beatsToInstruction(scene: Scene): string {
+  const usable = scene.beats.filter((b) => b.text.trim())
+  return usable.map((b, i) => `${i + 1}. ${b.text.trim()}`).join('\n')
+}
 
 interface AiAssistantPanelProps {
   scene: Scene
@@ -79,19 +85,22 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
     return editor.state.doc.textBetween(0, from, '\n\n')
   }, [editor, scene.plainText, action])
 
+  const beatsInstruction = useMemo(() => beatsToInstruction(scene), [scene])
+  const effectiveInstruction = action === 'beats-to-prose' ? beatsInstruction : instruction
+
   const built = useMemo(() => {
     if (!preset) return null
     return buildPrompt({
       preset,
       action,
-      instruction,
+      instruction: effectiveInstruction,
       precedingText,
       selectedText: actionMeta.needsSelection ? capturedText || liveSelectionText : undefined,
       codexEntries,
       pov,
       tense,
     })
-  }, [preset, action, instruction, precedingText, actionMeta.needsSelection, capturedText, liveSelectionText, codexEntries, pov, tense])
+  }, [preset, action, effectiveInstruction, precedingText, actionMeta.needsSelection, capturedText, liveSelectionText, codexEntries, pov, tense])
 
   function handleActionChange(next: AiActionKind) {
     setAction(next)
@@ -131,6 +140,17 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
     if (mode === 'replace') replaceOrAppend(editor, capturedRange, output)
     else if (mode === 'insert-after') insertAfter(editor, capturedRange, output)
     else replaceOrAppend(editor, null, `\n\n${output}`)
+    toast({ title: 'Added to the manuscript' })
+    reset()
+  }
+
+  async function handleInsertBeats() {
+    if (!output) return
+    replaceOrAppend(editor, null, `\n\n${output}`)
+    const usedIds = new Set(scene.beats.filter((b) => b.text.trim()).map((b) => b.id))
+    await updateSceneMeta(scene.id, {
+      beats: scene.beats.map((b) => (usedIds.has(b.id) ? { ...b, generated: true } : b)),
+    })
     toast({ title: 'Added to the manuscript' })
     reset()
   }
@@ -224,6 +244,17 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
             />
           )}
 
+          {action === 'beats-to-prose' &&
+            (beatsInstruction ? (
+              <div className="whitespace-pre-wrap rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
+                {beatsInstruction}
+              </div>
+            ) : (
+              <p className="rounded-md border border-dashed border-border p-2.5 text-xs text-muted-foreground">
+                No beats yet — add some in Scene details first.
+              </p>
+            ))}
+
           <div>
             <button
               type="button"
@@ -254,7 +285,12 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
           ) : (
             <Button
               onClick={handleGenerate}
-              disabled={!preset || !provider || (actionMeta.needsInstruction && action !== 'rewrite' && !instruction.trim())}
+              disabled={
+                !preset ||
+                !provider ||
+                (actionMeta.needsInstruction && action !== 'rewrite' && !instruction.trim()) ||
+                (action === 'beats-to-prose' && !beatsInstruction)
+              }
               className="gap-1.5"
             >
               <Sparkles className="size-3.5" /> Generate
@@ -294,6 +330,11 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
                   {action === 'summarise' && (
                     <Button size="sm" onClick={handleSaveSummary}>
                       Save as summary
+                    </Button>
+                  )}
+                  {action === 'beats-to-prose' && (
+                    <Button size="sm" onClick={handleInsertBeats}>
+                      Insert
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={handleGenerate} className="gap-1">

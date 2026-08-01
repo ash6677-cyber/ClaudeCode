@@ -185,6 +185,107 @@ export function ChapterRow({
   )
 }
 
+interface ChapterOnlyRowProps {
+  chapter: Chapter
+  status: SceneStatus | null
+  wordCount: number
+  active: boolean
+  onSelect: () => void
+  onRename: (title: string) => void
+  onDelete: () => void
+}
+
+export function ChapterOnlyRow({
+  chapter,
+  status,
+  wordCount,
+  active,
+  onSelect,
+  onRename,
+  onDelete,
+}: ChapterOnlyRowProps) {
+  const [renaming, setRenaming] = useState(false)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: chapter.id,
+    data: { type: 'chapter', chapterId: chapter.id },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn('select-none', isDragging && 'opacity-50')}
+    >
+      <div
+        className={cn(
+          'group flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-accent',
+          active && 'bg-accent',
+        )}
+      >
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={`Reorder ${chapter.title}`}
+          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+        >
+          <GripVertical className="size-3.5" />
+        </button>
+
+        {status && <StatusDot status={status} />}
+
+        {renaming ? (
+          <InlineRename
+            value={chapter.title}
+            onCommit={(v) => {
+              setRenaming(false)
+              if (v.trim() && v !== chapter.title) onRename(v.trim())
+            }}
+            onCancel={() => setRenaming(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={onSelect}
+            onDoubleClick={() => setRenaming(true)}
+            className={cn(
+              'min-w-0 flex-1 truncate text-left text-sm',
+              active ? 'font-semibold text-foreground' : 'text-foreground/80',
+            )}
+          >
+            {chapter.title}
+          </button>
+        )}
+
+        <span className="shrink-0 text-xs tabular-nums text-muted-foreground opacity-0 group-hover:opacity-100">
+          {wordCount.toLocaleString()}w
+        </span>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label={`More actions for ${chapter.title}`}
+              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setRenaming(true)}>Rename</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={onDelete}
+              className="text-destructive focus:text-destructive"
+            >
+              Delete chapter
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  )
+}
+
 interface SceneRowProps {
   scene: Scene
   chapterId: string

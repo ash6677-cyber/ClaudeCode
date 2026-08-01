@@ -18,10 +18,11 @@ export function useAiGeneration() {
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  async function generate(params: GenerateParams) {
+  async function generate(params: GenerateParams): Promise<string> {
     setOutput('')
     setError(null)
     setStreaming(true)
+    let accumulated = ''
     const controller = new AbortController()
     abortRef.current = controller
     const adapter = getProviderAdapter(params.provider.kind)
@@ -33,7 +34,10 @@ export function useAiGeneration() {
         temperature: params.temperature,
         topP: params.topP,
         signal: controller.signal,
-        onToken: (delta) => setOutput((prev) => prev + delta),
+        onToken: (delta) => {
+          accumulated += delta
+          setOutput(accumulated)
+        },
       })
     } catch (err) {
       if (!controller.signal.aborted) {
@@ -43,6 +47,7 @@ export function useAiGeneration() {
       setStreaming(false)
       abortRef.current = null
     }
+    return accumulated
   }
 
   function stop() {

@@ -5,6 +5,7 @@ import {
   FileSearch,
   FilePlus,
   Image,
+  Keyboard,
   LayoutList,
   Library,
   Maximize2,
@@ -21,6 +22,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { VisuallyHidden } from '@/components/common/visually-hidden'
 import { ENTRY_TYPE_ICON } from '@/features/codex/lib/entry-type'
+import { matchesShortcut } from '@/lib/shortcuts'
 import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { useProjectStore } from '@/stores/project-store'
@@ -75,7 +77,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (matchesShortcut(e, 'command-palette')) {
         e.preventDefault()
         setOpen(!open)
       }
@@ -110,6 +112,14 @@ export function CommandPalette() {
       label: `Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`,
       icon: SunMoon,
       run: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
+    })
+
+    list.push({
+      id: 'action-shortcuts',
+      section: 'Actions',
+      label: 'Keyboard shortcuts',
+      icon: Keyboard,
+      run: () => navigate('/settings?tab=shortcuts'),
     })
 
     if (location.pathname.startsWith('/editor') && editorProjectId) {

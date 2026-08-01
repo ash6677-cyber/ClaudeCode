@@ -30,9 +30,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { ChapterRow, SceneRow, StatusDot } from '@/features/editor/components/tree-items'
+import {
+  ChapterOnlyRow,
+  ChapterRow,
+  SceneRow,
+  StatusDot,
+} from '@/features/editor/components/tree-items'
 import { useEditorStore } from '@/stores/editor-store'
-import type { Scene } from '@/types'
+import type { Scene, StructureMode } from '@/types'
 
 type DragItemData = { type: 'chapter'; chapterId: string } | { type: 'scene'; chapterId: string }
 
@@ -42,7 +47,11 @@ interface PendingDelete {
   title: string
 }
 
-export function ChapterSceneTree() {
+interface ChapterSceneTreeProps {
+  structureMode?: StructureMode
+}
+
+export function ChapterSceneTree({ structureMode = 'scenes' }: ChapterSceneTreeProps) {
   const chapters = useEditorStore((s) => s.chapters)
   const scenes = useEditorStore((s) => s.scenes)
   const activeSceneId = useEditorStore((s) => s.activeSceneId)
@@ -160,6 +169,11 @@ export function ChapterSceneTree() {
     }
   }
 
+  async function handleAddChapter() {
+    const chapter = await createChapter()
+    if (structureMode === 'chapters-only') await createScene(chapter.id)
+  }
+
   async function handleConfirmDelete() {
     if (!pendingDelete) return
     setDeleting(true)
@@ -187,7 +201,7 @@ export function ChapterSceneTree() {
           variant="ghost"
           size="sm"
           className="h-6 gap-1 px-1.5 text-xs"
-          onClick={() => createChapter()}
+          onClick={handleAddChapter}
         >
           <Plus className="size-3.5" /> Chapter
         </Button>
@@ -217,6 +231,28 @@ export function ChapterSceneTree() {
               {chaptersSorted.map((chapter) => {
                 const chapterScenes = scenesByChapter.get(chapter.id) ?? []
                 const wordCount = chapterScenes.reduce((sum, s) => sum + s.wordCount, 0)
+
+                if (structureMode === 'chapters-only') {
+                  const scene = chapterScenes[0]
+                  return (
+                    <ChapterOnlyRow
+                      key={chapter.id}
+                      chapter={chapter}
+                      status={scene?.status ?? null}
+                      wordCount={wordCount}
+                      active={scene ? scene.id === activeSceneId : false}
+                      onSelect={async () => {
+                        if (scene) setActiveScene(scene.id)
+                        else setActiveScene((await createScene(chapter.id)).id)
+                      }}
+                      onRename={(title) => renameChapter(chapter.id, title)}
+                      onDelete={() =>
+                        setPendingDelete({ kind: 'chapter', id: chapter.id, title: chapter.title })
+                      }
+                    />
+                  )
+                }
+
                 return (
                   <ChapterRow
                     key={chapter.id}

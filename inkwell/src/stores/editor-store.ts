@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { chapterRepo, sceneRepo, snapshotRepo } from '@/lib/db/repositories'
+import { useStatsStore } from '@/stores/stats-store'
 import type { Chapter, Scene, SceneStatus, Snapshot } from '@/types'
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -32,7 +33,7 @@ interface EditorStoreState {
   ) => Promise<void>
   updateSceneMeta: (
     id: string,
-    changes: Partial<Pick<Scene, 'status' | 'summary' | 'labels'>>,
+    changes: Partial<Pick<Scene, 'status' | 'summary' | 'labels' | 'beats'>>,
   ) => Promise<void>
   updateChapterStatus: (id: string, status: SceneStatus) => Promise<void>
 
@@ -63,11 +64,16 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
       const scenes = allScenes
         .filter((s) => s.projectId === projectId)
         .sort((a, b) => a.order - b.order)
+      // Scene `order` is only unique within its own chapter (each chapter's scenes
+      // start back at 0), so picking scenes[0] directly can land on any chapter's
+      // first scene depending on IndexedDB row order. Resolve the true first scene
+      // via the first chapter instead.
+      const firstScene = chapters.length > 0 ? scenes.find((s) => s.chapterId === chapters[0].id) : undefined
       set({
         chapters,
         scenes,
         status: 'ready',
-        activeSceneId: get().activeSceneId ?? scenes[0]?.id ?? null,
+        activeSceneId: get().activeSceneId ?? firstScene?.id ?? null,
       })
     } catch {
       set({ status: 'error', error: 'Could not load this manuscript from local storage.' })
@@ -170,10 +176,22 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   },
 
   updateSceneContent: async (id, input) => {
+    // Every prose edit funnels through here, which makes it the one honest
+    // place to measure writing progress. Only growth counts: deleting a
+    // paragraph shouldn't subtract from the day's effort, and re-typing it
+    // shouldn't then count twice.
+    const previous = get().scenes.find((s) => s.id === id)
+    const gained = previous ? input.wordCount - previous.wordCount : 0
+    const projectId = get().projectId
+
     await sceneRepo.update(id, input)
     set({
       scenes: get().scenes.map((s) => (s.id === id ? { ...s, ...input } : s)),
     })
+
+    if (projectId && gained > 0) {
+      void useStatsStore.getState().recordProgress(projectId, gained)
+    }
   },
 
   updateSceneMeta: async (id, changes) => {

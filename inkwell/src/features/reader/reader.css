@@ -1,0 +1,313 @@
+/* ---- Book reader -------------------------------------------------------
+   Everything here is composited on the GPU: the turning sheet only ever
+   animates `transform` and `opacity`, never a property that would force
+   layout or paint mid-turn. That's what keeps the animation on the
+   compositor and able to use the display's full refresh rate.
+   ----------------------------------------------------------------------- */
+
+.book-reader {
+  --paper: oklch(97.5% 0.012 85);
+  --paper-edge: oklch(92% 0.014 85);
+  --ink: oklch(24% 0.012 60);
+  --ink-soft: oklch(45% 0.012 60);
+}
+
+:root.dark .book-reader,
+.dark .book-reader {
+  --paper: oklch(23.5% 0.008 70);
+  --paper-edge: oklch(19% 0.008 70);
+  --ink: oklch(88% 0.008 80);
+  --ink-soft: oklch(66% 0.008 80);
+}
+
+.book-stage {
+  position: relative;
+  /* A long viewing distance relative to the page keeps the sheet from
+     ballooning past the covers when it swings toward the reader at the
+     midpoint of a turn. */
+  perspective: 5200px;
+  perspective-origin: 50% 45%;
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
+  filter: drop-shadow(0 26px 50px oklch(0% 0 0 / 0.45));
+}
+
+.book-stage:active {
+  cursor: grabbing;
+}
+
+.book-side {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.book-side-left {
+  left: 0;
+}
+
+.book-side-right {
+  right: 0;
+}
+
+.book-stage-single .book-side-right {
+  left: 0;
+  right: auto;
+}
+
+.book-page {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--ink);
+  box-sizing: border-box;
+  /* Isolates each page's rendering so one page turning can't invalidate
+     the paint of the pages sitting underneath it. */
+  contain: paint;
+}
+
+.book-page-blank {
+  background: var(--paper-edge);
+}
+
+.book-side-left .book-page {
+  border-radius: 3px 0 0 3px;
+  box-shadow: inset -22px 0 34px -26px oklch(0% 0 0 / 0.55);
+}
+
+.book-side-right .book-page {
+  border-radius: 0 3px 3px 0;
+  box-shadow: inset 22px 0 34px -26px oklch(0% 0 0 / 0.55);
+}
+
+.book-stage-single .book-page {
+  border-radius: 3px;
+}
+
+.book-flow {
+  /* The horizontal slide between pages is a transform, so paging never
+     reflows the text — the columns are laid out once per chapter. */
+  will-change: transform;
+  column-fill: auto;
+}
+
+.book-gutter {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-1px);
+  background: linear-gradient(
+    to right,
+    oklch(0% 0 0 / 0.16),
+    oklch(0% 0 0 / 0.3),
+    oklch(0% 0 0 / 0.16)
+  );
+  pointer-events: none;
+}
+
+.book-spine-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 34%;
+  pointer-events: none;
+  background: linear-gradient(to right, oklch(0% 0 0 / 0.8), transparent);
+  transition: none;
+}
+
+.book-stage-single .book-spine-shadow {
+  left: 0;
+  width: 22%;
+}
+
+/* ---- the turning sheet ---- */
+
+.book-leaf-anchor {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+/* ---- the bending sheet ---------------------------------------------------
+   The page is cut into vertical segments hinged end to end. Each carries
+   its own rotation, so together they form a curved surface rather than a
+   plane. Every segment is its own 3D-transformed layer, which is why only
+   `transform` and `opacity` are ever touched per frame.
+   ------------------------------------------------------------------------ */
+
+.curl-leaf {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-style: preserve-3d;
+}
+
+.curl-segment {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+}
+
+.curl-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.curl-face-back {
+  transform: rotateY(180deg);
+}
+
+/* The full page, slid sideways so this segment frames its own slice of it. */
+.curl-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Per-segment lighting. Because neighbouring segments sit at slightly
+   different angles, these opacities form a continuous gradient across the
+   bow — the cue that reads as a curved surface rather than a folded one. */
+.curl-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: oklch(12% 0.01 60);
+}
+
+/* ---- page typography ---- */
+
+.book-flow {
+  font-family: var(--font-editor, 'Literata', Georgia, serif);
+  font-size: 1.02rem;
+  line-height: 1.72;
+  color: var(--ink);
+  text-align: justify;
+  hyphens: auto;
+  orphans: 2;
+  widows: 2;
+}
+
+.book-p {
+  margin: 0;
+  text-indent: 1.35em;
+}
+
+/* First line of a chapter or after a break is flush left, as in print. */
+.book-chapter-open + .book-p,
+.book-scene-break + .book-p,
+.book-h + .book-p {
+  text-indent: 0;
+}
+
+.book-chapter-open {
+  break-after: avoid;
+  margin-bottom: 1.9em;
+  text-align: center;
+}
+
+.book-chapter-number {
+  margin: 0 0 0.45em;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.book-chapter-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.book-h {
+  break-after: avoid;
+  margin: 1.4em 0 0.6em;
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+.book-scene-break {
+  margin: 1.5em 0;
+  text-align: center;
+  color: var(--ink-soft);
+  text-indent: 0;
+}
+
+.book-quote {
+  margin: 1.1em 1.6em;
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.book-list {
+  margin: 1em 0 1em 1.4em;
+  padding: 0;
+}
+
+.book-pre {
+  margin: 1.1em 0;
+  font-size: 0.85em;
+  white-space: pre-wrap;
+}
+
+.book-rule {
+  margin: 1.6em auto;
+  width: 32%;
+  border: 0;
+  border-top: 1px solid var(--ink-soft);
+  opacity: 0.5;
+}
+
+.book-empty {
+  margin-top: 2em;
+  text-align: center;
+  font-style: italic;
+  color: var(--ink-soft);
+  text-indent: 0;
+}
+
+.book-folio {
+  position: absolute;
+  bottom: 18px;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.book-folio-left {
+  left: 34px;
+}
+
+.book-folio-right {
+  right: 34px;
+}
+
+.book-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-stage {
+    filter: none;
+  }
+}

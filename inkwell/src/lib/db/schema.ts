@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from 'dexie'
 import type {
   AiPreset,
   AiProviderConfig,
+  BaseEntity,
   CardChat,
   CharacterCard,
   Chapter,
@@ -17,6 +18,13 @@ import type {
   SessionLog,
   Snapshot,
 } from '@/types'
+
+import { syncEngine } from '@/lib/sync/sync-engine'
+import { createSyncedTable } from '@/lib/sync/synced-table'
+
+import type { TableLike } from './repository'
+import { isTauriRuntime } from './tauri-bridge'
+import { tauriTables } from './tauri-db'
 
 export class InkwellDB extends Dexie {
   projects!: EntityTable<Project, 'id'>
@@ -60,4 +68,50 @@ export class InkwellDB extends Dexie {
   }
 }
 
-export const db = new InkwellDB()
+interface DbTables {
+  projects: TableLike<Project>
+  series: TableLike<Series>
+  chapters: TableLike<Chapter>
+  scenes: TableLike<Scene>
+  snapshots: TableLike<Snapshot>
+  codexEntries: TableLike<CodexEntry>
+  characterCards: TableLike<CharacterCard>
+  cardChats: TableLike<CardChat>
+  personas: TableLike<Persona>
+  lorebooks: TableLike<Lorebook>
+  covers: TableLike<Cover>
+  aiPresets: TableLike<AiPreset>
+  aiProviders: TableLike<AiProviderConfig>
+  imageAssets: TableLike<ImageAsset>
+  goals: TableLike<Goal>
+  sessionLogs: TableLike<SessionLog>
+}
+
+/** Browser build (web) reads/writes IndexedDB via Dexie; the desktop build
+ * (Tauri) never touches Dexie at all — it uses an in-memory store that's
+ * hydrated from and persisted to a real file on disk. Every store and
+ * component goes through `db.<table>` exactly the same way either way. */
+function createRawDbTables(): DbTables {
+  if (isTauriRuntime()) return tauriTables
+  return new InkwellDB()
+}
+
+/**
+ * Registers each raw table with the sync engine (so incoming remote changes
+ * can be written straight to storage) and hands back wrapped tables that
+ * report outgoing local edits. Local-only use is unaffected: with no user
+ * signed in, the engine drops every notification on the floor.
+ */
+function withCloudSync(raw: DbTables): DbTables {
+  const wrapped: Record<string, TableLike<BaseEntity>> = {}
+  for (const [name, table] of Object.entries(raw)) {
+    const typed = table as TableLike<BaseEntity>
+    syncEngine.registerTable(name, typed)
+    wrapped[name] = createSyncedTable(name, typed, (t, id, kind) =>
+      syncEngine.notifyLocalChange(t, id, kind),
+    )
+  }
+  return wrapped as unknown as DbTables
+}
+
+export const db: DbTables = withCloudSync(createRawDbTables())

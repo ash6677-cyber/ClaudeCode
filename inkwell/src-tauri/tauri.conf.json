@@ -1,0 +1,64 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "INKWELL",
+  "version": "0.1.0",
+  "identifier": "com.inkwell.app",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "INKWELL",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "dragDropEnabled": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.anthropic.com https://api.openai.com https://openrouter.ai https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com http://127.0.0.1:9099 http://127.0.0.1:8080; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; img-src 'self' asset: http://asset.localhost data: blob: https://lh3.googleusercontent.com https://platform-lookaside.fbsbx.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUxRkZGNTI2QTMxRTE0ODAKUldTQUZCNmpKdlgvVWJJNHVDakhJVXgrKzI1dmxWV0h4R3VzYTdQcklZeDBiQmpJM2t4TmlqWUsK",
+      "endpoints": [
+        "https://github.com/ash6677-cyber/ClaudeCode/releases/latest/download/latest.json"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["nsis"],
+    "publisher": "INKWELL",
+    "copyright": "Copyright INKWELL",
+    "shortDescription": "A calm, local-first novel-writing studio",
+    "longDescription": "INKWELL is a local-first novel-writing studio: a distraction-free manuscript editor, a linked worldbuilding Codex, character cards, a Cover Studio, and a guided Book Creator wizard.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    }
+  }
+}

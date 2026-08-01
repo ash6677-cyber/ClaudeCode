@@ -3,6 +3,11 @@ import { lazy } from 'react'
 export const ProjectsHome = lazy(() =>
   import('@/features/projects/routes/projects-home').then((m) => ({ default: m.ProjectsHome })),
 )
+export const BookCreatorWizard = lazy(() =>
+  import('@/features/book-creator/routes/book-creator-wizard').then((m) => ({
+    default: m.BookCreatorWizard,
+  })),
+)
 export const EditorHome = lazy(() =>
   import('@/features/editor/routes/editor-home').then((m) => ({ default: m.EditorHome })),
 )
@@ -17,6 +22,19 @@ export const CodexEntryDetail = lazy(() =>
 export const CardsHome = lazy(() =>
   import('@/features/cards/routes/cards-home').then((m) => ({ default: m.CardsHome })),
 )
+export const CardDetail = lazy(() =>
+  import('@/features/cards/routes/card-detail').then((m) => ({ default: m.CardDetail })),
+)
+export const CardChat = lazy(() =>
+  import('@/features/cards/routes/card-chat').then((m) => ({ default: m.CardChat })),
+)
+export const LorebooksHome = lazy(() =>
+  import('@/features/cards/routes/lorebooks-home').then((m) => ({ default: m.LorebooksHome })),
+)
+export const ReaderHome = lazy(() =>
+  import('@/features/reader/routes/reader-home').then((m) => ({ default: m.ReaderHome })),
+)
+
 export const PlanningHome = lazy(() =>
   import('@/features/planning/routes/planning-home').then((m) => ({ default: m.PlanningHome })),
 )

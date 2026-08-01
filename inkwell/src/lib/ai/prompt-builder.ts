@@ -84,7 +84,7 @@ function actionInstruction(input: PromptBuilderInput): string {
     case 'summarise':
       return 'Summarise the scene below in two to three sentences, capturing the key events and character beats. Return only the summary.'
     case 'beats-to-prose':
-      return `Expand the following beat into prose, in the established voice, POV, and tense:\n\n${instruction}`
+      return `Expand the following beats into continuous prose, in the established voice, POV, and tense. Cover every beat in order and turn them into a flowing scene — not a list, headings, or commentary. Return only the prose.\n\nBeats:\n${instruction}`
   }
 }
 

@@ -19,6 +19,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { STRUCTURE_OPTIONS } from '@/features/projects/lib/structure-options'
+import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/auth-store'
 import type { ProjectFormInput } from '@/stores/project-store'
 import type { Project } from '@/types'
 
@@ -38,6 +41,7 @@ const EMPTY_FORM: ProjectFormInput = {
   status: 'planning',
   pov: 'third-limited',
   tense: 'past',
+  structureMode: 'scenes',
 }
 
 function formFromProject(project: Project): ProjectFormInput {
@@ -50,6 +54,7 @@ function formFromProject(project: Project): ProjectFormInput {
     status: project.status,
     pov: project.settings.pov,
     tense: project.settings.tense,
+    structureMode: project.settings.structureMode ?? 'scenes',
   }
 }
 
@@ -63,7 +68,9 @@ export function ProjectFormDialog({
   // Remounted via a `key` from the parent each time it opens, so these
   // initializers run fresh instead of needing an effect to resync on reopen.
   const [form, setForm] = useState<ProjectFormInput>(() =>
-    project ? formFromProject(project) : EMPTY_FORM,
+    project
+      ? formFromProject(project)
+      : { ...EMPTY_FORM, author: useAuthStore.getState().user?.authorName ?? '' },
   )
   const [titleError, setTitleError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -148,6 +155,44 @@ export function ProjectFormDialog({
                 placeholder="A sentence or two about what this book is about"
                 rows={3}
               />
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label>Manuscript structure</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {STRUCTURE_OPTIONS.map((option) => {
+                  const Icon = option.icon
+                  const selected = form.structureMode === option.value
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, structureMode: option.value })}
+                      aria-pressed={selected}
+                      className={cn(
+                        'flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-colors',
+                        selected
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border hover:bg-accent',
+                      )}
+                    >
+                      <Icon
+                        className={cn(
+                          'size-4',
+                          selected ? 'text-primary' : 'text-muted-foreground',
+                        )}
+                      />
+                      <span className="text-sm font-medium">{option.label}</span>
+                      <span className="text-xs text-muted-foreground">{option.description}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {project && (
+                <p className="text-xs text-muted-foreground/70">
+                  This changes new chapters going forward — existing scenes are unaffected.
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

@@ -1,4 +1,4 @@
-import { History, X } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronUp, History, ListPlus, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
@@ -23,8 +23,9 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime, formatWordCount } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { useEditorStore } from '@/stores/editor-store'
-import type { Scene, SceneStatus, Snapshot } from '@/types'
+import type { Scene, SceneBeat, SceneStatus, Snapshot } from '@/types'
 
 const STATUS_OPTIONS: { value: SceneStatus; label: string }[] = [
   { value: 'outline', label: 'Outline' },
@@ -54,15 +55,17 @@ export function SceneMetadataDrawer({
 
   const [summaryDraft, setSummaryDraft] = useState(scene.summary)
   const [labelDraft, setLabelDraft] = useState('')
+  const [beatsDraft, setBeatsDraft] = useState(scene.beats)
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [pendingRestore, setPendingRestore] = useState<Snapshot | null>(null)
 
-  // Reset the summary draft whenever the active scene changes, without an effect:
+  // Reset local drafts whenever the active scene changes, without an effect:
   // React's recommended way to adjust state in response to a prop change.
   const [renderedSceneId, setRenderedSceneId] = useState(scene.id)
   if (scene.id !== renderedSceneId) {
     setRenderedSceneId(scene.id)
     setSummaryDraft(scene.summary)
+    setBeatsDraft(scene.beats)
   }
 
   useEffect(() => {
@@ -79,6 +82,36 @@ export function SceneMetadataDrawer({
     }
     updateSceneMeta(scene.id, { labels: [...scene.labels, label] })
     setLabelDraft('')
+  }
+
+  function addBeat() {
+    const beat: SceneBeat = { id: crypto.randomUUID(), text: '', order: beatsDraft.length, generated: false }
+    const next = [...beatsDraft, beat]
+    setBeatsDraft(next)
+    updateSceneMeta(scene.id, { beats: next })
+  }
+
+  function persistBeatText(id: string, text: string) {
+    if (beatsDraft.find((b) => b.id === id)?.text === text) return
+    const next = beatsDraft.map((b) => (b.id === id ? { ...b, text } : b))
+    updateSceneMeta(scene.id, { beats: next })
+  }
+
+  function removeBeat(id: string) {
+    const next = beatsDraft.filter((b) => b.id !== id).map((b, i) => ({ ...b, order: i }))
+    setBeatsDraft(next)
+    updateSceneMeta(scene.id, { beats: next })
+  }
+
+  function moveBeat(id: string, direction: -1 | 1) {
+    const index = beatsDraft.findIndex((b) => b.id === id)
+    const swapWith = index + direction
+    if (index === -1 || swapWith < 0 || swapWith >= beatsDraft.length) return
+    const next = [...beatsDraft]
+    ;[next[index], next[swapWith]] = [next[swapWith], next[index]]
+    const reordered = next.map((b, i) => ({ ...b, order: i }))
+    setBeatsDraft(reordered)
+    updateSceneMeta(scene.id, { beats: reordered })
   }
 
   async function handleRestore() {
@@ -147,6 +180,76 @@ export function SceneMetadataDrawer({
             }}
             placeholder="What happens in this scene? Used for planning and AI context later."
           />
+        </div>
+
+        <div className="grid gap-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-sm font-medium">
+              <ListPlus className="size-3.5" /> Beats
+            </div>
+            <Button variant="ghost" size="sm" className="h-6 gap-1 px-1.5 text-xs" onClick={addBeat}>
+              <Plus className="size-3" /> Add
+            </Button>
+          </div>
+
+          {beatsDraft.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Break this scene into plot points, then expand them into a full draft from the AI
+              assistant's "Beats → prose" action.
+            </p>
+          ) : (
+            <ul className="space-y-1.5">
+              {beatsDraft.map((beat, index) => (
+                <li key={beat.id} className="flex items-start gap-1">
+                  <div className="flex flex-col pt-1">
+                    <button
+                      type="button"
+                      aria-label="Move beat up"
+                      disabled={index === 0}
+                      onClick={() => moveBeat(beat.id, -1)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-30"
+                    >
+                      <ChevronUp className="size-3" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Move beat down"
+                      disabled={index === beatsDraft.length - 1}
+                      onClick={() => moveBeat(beat.id, 1)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-30"
+                    >
+                      <ChevronDown className="size-3" />
+                    </button>
+                  </div>
+                  <Textarea
+                    value={beat.text}
+                    onChange={(e) =>
+                      setBeatsDraft((prev) =>
+                        prev.map((b) => (b.id === beat.id ? { ...b, text: e.target.value } : b)),
+                      )
+                    }
+                    onBlur={(e) => persistBeatText(beat.id, e.target.value)}
+                    placeholder={`Beat ${index + 1}: what happens here?`}
+                    rows={2}
+                    className={cn('min-h-0 flex-1 resize-none text-sm', beat.generated && 'text-muted-foreground')}
+                  />
+                  <div className="flex flex-col items-center gap-1 pt-1">
+                    {beat.generated && (
+                      <CheckCircle2 className="size-3.5 shrink-0 text-success" aria-label="Prose generated from this beat" />
+                    )}
+                    <button
+                      type="button"
+                      aria-label="Delete beat"
+                      onClick={() => removeBeat(beat.id)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-destructive"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className="grid gap-1.5">

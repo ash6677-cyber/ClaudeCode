@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import type { PresetInput } from '@/stores/ai-store'
 import type { AiPreset, AiProviderConfig } from '@/types'
@@ -44,7 +45,7 @@ function formFromPreset(preset: AiPreset | undefined, providers: AiProviderConfi
       includeCodex: true,
       codexTokenBudget: 1200,
       includeLorebook: false,
-      lorebookTokenBudget: 0,
+      lorebookTokenBudget: 800,
     },
   }
 }
@@ -197,22 +198,83 @@ export function PresetFormDialog({ open, onOpenChange, preset, providers, onSubm
                   }
                 />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${titleId}-budget`}>Codex token budget</Label>
-                <Input
-                  id={`${titleId}-budget`}
-                  type="number"
-                  min={0}
-                  step={100}
-                  value={form.contextRules.codexTokenBudget}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      contextRules: { ...form.contextRules, codexTokenBudget: Number(e.target.value) },
-                    })
+              <div />
+            </div>
+
+            <div className="grid gap-3 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor={`${titleId}-include-codex`}>Include Codex context</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Pull in worldbuilding entries mentioned nearby.
+                  </p>
+                </div>
+                <Switch
+                  id={`${titleId}-include-codex`}
+                  checked={form.contextRules.includeCodex}
+                  onCheckedChange={(v) =>
+                    setForm({ ...form, contextRules: { ...form.contextRules, includeCodex: v } })
                   }
                 />
               </div>
+              {form.contextRules.includeCodex && (
+                <div className="grid gap-1.5 pl-0.5">
+                  <Label htmlFor={`${titleId}-codex-budget`} className="text-xs">
+                    Codex token budget
+                  </Label>
+                  <Input
+                    id={`${titleId}-codex-budget`}
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={form.contextRules.codexTokenBudget}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        contextRules: { ...form.contextRules, codexTokenBudget: Number(e.target.value) },
+                      })
+                    }
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid gap-3 rounded-md border border-border p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor={`${titleId}-include-lorebook`}>Include lorebook context</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Inject matching lorebook entries into character chats.
+                  </p>
+                </div>
+                <Switch
+                  id={`${titleId}-include-lorebook`}
+                  checked={form.contextRules.includeLorebook}
+                  onCheckedChange={(v) =>
+                    setForm({ ...form, contextRules: { ...form.contextRules, includeLorebook: v } })
+                  }
+                />
+              </div>
+              {form.contextRules.includeLorebook && (
+                <div className="grid gap-1.5 pl-0.5">
+                  <Label htmlFor={`${titleId}-lorebook-budget`} className="text-xs">
+                    Lorebook token budget
+                  </Label>
+                  <Input
+                    id={`${titleId}-lorebook-budget`}
+                    type="number"
+                    min={0}
+                    step={100}
+                    value={form.contextRules.lorebookTokenBudget}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        contextRules: { ...form.contextRules, lorebookTokenBudget: Number(e.target.value) },
+                      })
+                    }
+                  />
+                </div>
+              )}
             </div>
           </div>
 

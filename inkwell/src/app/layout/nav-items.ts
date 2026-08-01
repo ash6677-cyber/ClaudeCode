@@ -1,8 +1,18 @@
-import { BarChart3, BookOpen, Feather, Image, LayoutList, Library, Users } from 'lucide-react'
+import {
+  BarChart3,
+  BookMarked,
+  BookOpen,
+  Feather,
+  Image,
+  LayoutList,
+  Library,
+  Users,
+} from 'lucide-react'
 
 export const NAV_ITEMS = [
   { to: '/projects', label: 'Projects', icon: Library, projectScoped: false },
   { to: '/editor', label: 'Editor', icon: Feather, projectScoped: true },
+  { to: '/read', label: 'Read', icon: BookMarked, projectScoped: true },
   { to: '/codex', label: 'Codex', icon: BookOpen, projectScoped: true },
   { to: '/cards', label: 'Cards', icon: Users, projectScoped: true },
   { to: '/planning', label: 'Planning', icon: LayoutList, projectScoped: true },

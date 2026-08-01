@@ -1,5 +1,6 @@
-import { Library, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Library, Plus, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
@@ -8,8 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { ProjectCard } from '@/features/projects/components/project-card'
+import { ExportDialog } from '@/features/export/components/export-dialog'
 import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog'
 import { useProjectStore } from '@/stores/project-store'
+import { useUiStore } from '@/stores/ui-store'
 import type { Project } from '@/types'
 
 export function ProjectsHome() {
@@ -29,6 +32,7 @@ export function ProjectsHome() {
   const [formKey, setFormKey] = useState(0)
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
+  const [exportingProject, setExportingProject] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -40,6 +44,15 @@ export function ProjectsHome() {
     setFormKey((k) => k + 1)
     setFormOpen(true)
   }
+
+  const newProjectRequestNonce = useUiStore((s) => s.newProjectRequestNonce)
+  const lastHandledNonce = useRef(newProjectRequestNonce)
+  useEffect(() => {
+    if (newProjectRequestNonce !== lastHandledNonce.current) {
+      lastHandledNonce.current = newProjectRequestNonce
+      openCreateDialog()
+    }
+  }, [newProjectRequestNonce])
 
   function openEditDialog(project: Project) {
     setEditingProject(project)
@@ -83,9 +96,16 @@ export function ProjectsHome() {
         actions={
           status === 'ready' &&
           projects.length > 0 && (
-            <Button size="sm" onClick={openCreateDialog}>
-              <Plus /> New project
-            </Button>
+            <>
+              <Button size="sm" variant="outline" asChild>
+                <Link to="/book-creator">
+                  <Sparkles /> Book Creator
+                </Link>
+              </Button>
+              <Button size="sm" onClick={openCreateDialog}>
+                <Plus /> New project
+              </Button>
+            </>
           )
         }
       />
@@ -115,9 +135,16 @@ export function ProjectsHome() {
               title="No projects yet"
               description="Create your first project to start building your manuscript, worldbuilding, and characters."
               action={
-                <Button onClick={openCreateDialog}>
-                  <Plus /> New project
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button onClick={openCreateDialog}>
+                    <Plus /> New project
+                  </Button>
+                  <Button variant="outline" asChild>
+                    <Link to="/book-creator">
+                      <Sparkles /> Use Book Creator
+                    </Link>
+                  </Button>
+                </div>
               }
               className="max-w-md border-none bg-transparent"
             />
@@ -130,12 +157,19 @@ export function ProjectsHome() {
                 project={project}
                 currentWordCount={wordCounts[project.id] ?? 0}
                 onEdit={() => openEditDialog(project)}
+                onExport={() => setExportingProject(project)}
                 onDelete={() => setDeletingProject(project)}
               />
             ))}
           </div>
         )}
       </div>
+
+      <ExportDialog
+        project={exportingProject}
+        open={exportingProject !== null}
+        onOpenChange={(open) => !open && setExportingProject(null)}
+      />
 
       <ProjectFormDialog
         key={formKey}

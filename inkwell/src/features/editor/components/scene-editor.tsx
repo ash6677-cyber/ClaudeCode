@@ -4,8 +4,22 @@ import { useEffect, useRef, useState } from 'react'
 import { CodexHoverCard } from '@/features/editor/components/codex-hover-card'
 import { CodexHighlight, setCodexHighlightEntries } from '@/lib/editor/codex-highlight'
 import { createProseExtensions } from '@/lib/editor/extensions'
+import { FocusDim, setFocusDimEnabled } from '@/lib/editor/focus-dim'
+import { findScrollParent } from '@/lib/editor/scroll-utils'
 import { cn } from '@/lib/utils'
+import { usePreferencesStore } from '@/stores/preferences-store'
 import type { CodexEntry, RichContent } from '@/types'
+
+function recenterCaret(editor: Editor) {
+  const { from } = editor.state.selection
+  const coords = editor.view.coordsAtPos(from)
+  const container = findScrollParent(editor.view.dom as HTMLElement)
+  if (!container) return
+  const containerRect = container.getBoundingClientRect()
+  const targetY = containerRect.top + containerRect.height * 0.4
+  const delta = coords.top - targetY
+  if (Math.abs(delta) > 2) container.scrollTop += delta
+}
 
 interface SceneEditorProps {
   sceneId: string
@@ -37,6 +51,13 @@ export function SceneEditor({
     onEditorInstanceRef.current = onEditorInstance
   }, [onChange, onEditorInstance])
 
+  const typewriterMode = usePreferencesStore((s) => s.typewriterMode)
+  const dimInactiveParagraphs = usePreferencesStore((s) => s.dimInactiveParagraphs)
+  const typewriterActiveRef = useRef(false)
+  useEffect(() => {
+    typewriterActiveRef.current = focusMode && typewriterMode
+  }, [focusMode, typewriterMode])
+
   const [hover, setHover] = useState<{ entryId: string; rect: DOMRect } | null>(null)
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -54,7 +75,7 @@ export function SceneEditor({
 
   const editor = useEditor(
     {
-      extensions: [...createProseExtensions(), CodexHighlight],
+      extensions: [...createProseExtensions(), CodexHighlight, FocusDim],
       content: content ?? '',
       autofocus: false,
       editorProps: {
@@ -92,6 +113,10 @@ export function SceneEditor({
           plainText: editor.getText(),
           wordCount: editor.storage.characterCount.words(),
         })
+        if (typewriterActiveRef.current) recenterCaret(editor)
+      },
+      onSelectionUpdate: ({ editor }) => {
+        if (typewriterActiveRef.current) recenterCaret(editor)
       },
     },
     [sceneId],
@@ -108,6 +133,16 @@ export function SceneEditor({
     if (!editor) return
     setCodexHighlightEntries(editor, codexEntries)
   }, [editor, codexEntries])
+
+  useEffect(() => {
+    if (!editor) return
+    setFocusDimEnabled(editor, focusMode && dimInactiveParagraphs)
+  }, [editor, focusMode, dimInactiveParagraphs])
+
+  useEffect(() => {
+    if (!editor || !focusMode || !typewriterMode) return
+    recenterCaret(editor)
+  }, [editor, focusMode, typewriterMode])
 
   const hoveredEntry = hover ? codexEntries.find((e) => e.id === hover.entryId) : undefined
 

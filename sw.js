@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_VERSION = 'fc-career-tracker-v20';
+const CACHE_VERSION = 'fc-career-tracker-v21';
 const CORE_ASSETS = [
   './',
   './index.html',
@@ -35,6 +35,15 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+
+  // INKWELL is a separate app published under /inkwell/, inside this worker's
+  // scope but nothing to do with the tracker. Leave it entirely alone.
+  //
+  // Without this, the stale-while-revalidate below would hand back a cached
+  // copy of INKWELL's index.html on every visit and only refresh it in the
+  // background, pinning it one deploy behind for good — and its build assets
+  // would accumulate in a cache meant for the tracker.
+  if (url.pathname.includes('/inkwell/')) return;
 
   event.respondWith(
     caches.open(CACHE_VERSION).then(cache =>

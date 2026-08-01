@@ -1,10 +1,25 @@
 import type { Editor } from '@tiptap/react'
-import { Library, Maximize2, Minimize2, PanelLeft, PanelRight, Search, Sparkles } from 'lucide-react'
+import {
+  Library,
+  Maximize2,
+  Minimize2,
+  PanelLeft,
+  PanelRight,
+  Search,
+  Settings2,
+  Sparkles,
+} from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -19,10 +34,12 @@ import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { projectRepo, snapshotRepo } from '@/lib/db/repositories'
 import { formatWordCount } from '@/lib/format'
+import { matchesShortcut } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAiStore } from '@/stores/ai-store'
 import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
+import { usePreferencesStore } from '@/stores/preferences-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project, RichContent } from '@/types'
 
@@ -71,6 +88,10 @@ export function EditorHome() {
 
   const focusMode = useUiStore((s) => s.focusMode)
   const setFocusMode = useUiStore((s) => s.setFocusMode)
+  const typewriterMode = usePreferencesStore((s) => s.typewriterMode)
+  const setTypewriterMode = usePreferencesStore((s) => s.setTypewriterMode)
+  const dimInactiveParagraphs = usePreferencesStore((s) => s.dimInactiveParagraphs)
+  const setDimInactiveParagraphs = usePreferencesStore((s) => s.setDimInactiveParagraphs)
   const manuscriptSearchOpen = useUiStore((s) => s.manuscriptSearchOpen)
   const setManuscriptSearchOpen = useUiStore((s) => s.setManuscriptSearchOpen)
 
@@ -99,6 +120,7 @@ export function EditorHome() {
   )
 
   const bookWordCount = useMemo(() => scenes.reduce((sum, s) => sum + s.wordCount, 0), [scenes])
+  const structureMode = project?.settings.structureMode ?? 'scenes'
 
   // Reset the save-status pill when the active scene changes, via render-time adjustment
   // rather than an effect (React's recommended pattern for this).
@@ -117,19 +139,23 @@ export function EditorHome() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (matchesShortcut(e, 'toggle-focus-mode')) {
+        e.preventDefault()
+        setFocusMode(!focusMode)
+        return
+      }
       if (!activeScene) return
-      const meta = e.metaKey || e.ctrlKey
-      if (meta && e.key.toLowerCase() === 'f' && e.shiftKey) {
+      if (matchesShortcut(e, 'search-manuscript')) {
         e.preventDefault()
         setManuscriptSearchOpen(true)
-      } else if (meta && e.key.toLowerCase() === 'f') {
+      } else if (matchesShortcut(e, 'find-in-scene')) {
         e.preventDefault()
         openFind()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeScene, setManuscriptSearchOpen])
+  }, [activeScene, setManuscriptSearchOpen, focusMode, setFocusMode])
 
   // Reads the scene fresh from the store at call time (via getState) rather than closing
   // over the `activeScene` from render — this fires after a debounce delay, so a closure
@@ -228,7 +254,7 @@ export function EditorHome() {
     <div className="flex h-full">
       {!focusMode && (
         <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border py-2 lg:block">
-          <ChapterSceneTree />
+          <ChapterSceneTree structureMode={structureMode} />
         </aside>
       )}
 
@@ -244,7 +270,7 @@ export function EditorHome() {
               <p className="truncate text-sm font-medium">{project.title}</p>
             </div>
             <div className="overflow-y-auto py-2">
-              <ChapterSceneTree />
+              <ChapterSceneTree structureMode={structureMode} />
             </div>
           </SheetContent>
         </Sheet>
@@ -256,6 +282,37 @@ export function EditorHome() {
             <span className="pointer-events-none text-xs tabular-nums text-muted-foreground">
               {formatWordCount(bookWordCount)} words
             </span>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="pointer-events-auto size-6"
+                      aria-label="Focus mode settings"
+                    >
+                      <Settings2 className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Focus mode settings</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end" className="pointer-events-auto">
+                <DropdownMenuCheckboxItem
+                  checked={typewriterMode}
+                  onCheckedChange={setTypewriterMode}
+                >
+                  Typewriter scrolling
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={dimInactiveParagraphs}
+                  onCheckedChange={setDimInactiveParagraphs}
+                >
+                  Dim other paragraphs
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -283,7 +340,11 @@ export function EditorHome() {
               >
                 <PanelLeft className="size-4" />
               </Button>
-              {activeScene ? (
+              {activeScene && structureMode === 'chapters-only' ? (
+                <p className="truncate text-sm font-medium">
+                  {activeChapter?.title ?? project.title}
+                </p>
+              ) : activeScene ? (
                 <p className="truncate text-sm">
                   <span className="text-muted-foreground">
                     {activeChapter?.title ?? project.title}
@@ -329,7 +390,7 @@ export function EditorHome() {
                       <Search className="size-4" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>Find in scene (⌘F)</TooltipContent>
+                  <TooltipContent>Find in scene (Ctrl+F)</TooltipContent>
                 </Tooltip>
               )}
 

@@ -1,3 +1,4 @@
+import { useLiveQuery } from 'dexie-react-hooks'
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
@@ -9,7 +10,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { imageAssetRepo } from '@/lib/db/repositories'
 import { formatRelativeTime, formatWordCount } from '@/lib/format'
+import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import { cn } from '@/lib/utils'
 import type { Project, ProjectStatus } from '@/types'
 
@@ -33,15 +36,28 @@ interface ProjectCardProps {
   project: Project
   currentWordCount: number
   onEdit: () => void
+  onExport: () => void
   onDelete: () => void
 }
 
-export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  currentWordCount,
+  onEdit,
+  onExport,
+  onDelete,
+}: ProjectCardProps) {
   const navigate = useNavigate()
   const progress =
     project.targetWordCount > 0
       ? Math.min(100, Math.round((currentWordCount / project.targetWordCount) * 100))
       : 0
+
+  const coverImage = useLiveQuery(
+    () => (project.coverId ? imageAssetRepo.get(project.coverId) : Promise.resolve(undefined)),
+    [project.coverId],
+  )
+  const coverUrl = useObjectUrl(coverImage?.blob)
 
   return (
     <Card
@@ -54,17 +70,26 @@ export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: Pro
           navigate(`/editor?project=${project.id}`)
         }
       }}
-      className="group flex cursor-pointer flex-col gap-3 p-5 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="group flex cursor-pointer flex-col gap-3 p-5 transition-[box-shadow,transform,border-color] duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h3 className="truncate font-serif text-base font-semibold leading-snug">
-            {project.title}
-          </h3>
-          <p className="truncate text-sm text-muted-foreground">
-            {project.author || 'No author set'}
-            {project.genre && ` · ${project.genre}`}
-          </p>
+        <div className="flex min-w-0 gap-3">
+          {coverUrl && (
+            <img
+              src={coverUrl}
+              alt=""
+              className="h-14 w-10 shrink-0 rounded-sm border border-border object-cover shadow-sm"
+            />
+          )}
+          <div className="min-w-0">
+            <h3 className="truncate font-serif text-base font-semibold leading-snug">
+              {project.title}
+            </h3>
+            <p className="truncate text-sm text-muted-foreground">
+              {project.author || 'No author set'}
+              {project.genre && ` · ${project.genre}`}
+            </p>
+          </div>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -81,6 +106,7 @@ export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: Pro
             <DropdownMenuItem onClick={onEdit}>
               <Pencil /> Edit
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>Export…</DropdownMenuItem>
             <DropdownMenuItem
               onClick={onDelete}
               className="text-destructive focus:text-destructive"
@@ -107,10 +133,13 @@ export function ProjectCard({ project, currentWordCount, onEdit, onDelete }: Pro
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+          className="h-2 w-full overflow-hidden rounded-full bg-muted/80 ring-1 ring-inset ring-border/50"
         >
           <div
-            className={cn('h-full rounded-full brand-gradient-surface transition-[width] duration-300')}
+            className={cn(
+              'h-full rounded-full brand-gradient-surface transition-[width] duration-300',
+              progress > 0 && 'shadow-[0_0_10px_-1px_var(--primary)]',
+            )}
             style={{ width: `${progress}%` }}
           />
         </div>
