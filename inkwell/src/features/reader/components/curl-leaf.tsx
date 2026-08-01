@@ -68,9 +68,14 @@ export const CurlLeaf = forwardRef<CurlHandle, CurlLeafProps>(function CurlLeaf(
             // Rounded to hundredths: the extra precision is invisible but
             // the shorter string cuts per-frame parsing when eighteen of
             // these are rewritten sixty times a second.
+            // scaleY narrows the sheet toward its free edge so the
+            // silhouette tapers like a cone instead of staying a rectangle.
+            // Applied after the rotation, about the segment's own centre,
+            // so the hinge chain is untouched and still closes exactly.
             node.style.transform =
               `translate3d(${segment.x.toFixed(2)}px,0,${segment.z.toFixed(2)}px)` +
-              `rotateY(${segment.angle.toFixed(4)}rad)`
+              `rotateY(${segment.angle.toFixed(4)}rad)` +
+              `scaleY(${segment.taper.toFixed(4)})`
           }
 
           const frontShade = frontShadeRefs.current[i]

@@ -25,7 +25,7 @@
   /* A long viewing distance relative to the page keeps the sheet from
      ballooning past the covers when it swings toward the reader at the
      midpoint of a turn. */
-  perspective: 5200px;
+  perspective: 2200px;
   perspective-origin: 50% 45%;
   touch-action: pan-y;
   user-select: none;
@@ -199,7 +199,16 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: oklch(12% 0.01 60);
+  /* A ramp across the strip, not a flat fill. Each segment covers a range
+     of angles, so shading it uniformly paints eighteen flat bands and the
+     sheet reads as fluted card however finely it is subdivided. Ramping
+     from lighter to darker across each strip lets neighbours meet at
+     nearly the same value, and the banding dissolves into a gradient. */
+  background: linear-gradient(
+    to right,
+    oklch(12% 0.01 60 / 0.72),
+    oklch(12% 0.01 60 / 1)
+  );
   will-change: opacity;
 }
 
@@ -217,12 +226,14 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    to right,
-    oklch(100% 0 0 / 0) 0%,
-    oklch(99% 0.012 85) 45%,
-    oklch(100% 0 0 / 0) 100%
-  );
+  /* A flat fill, emphatically not a gradient. A highlight gradient drawn
+     inside each segment repeats once per strip, so the sheet gains one
+     bright band per segment and reads as fluted card — which is exactly
+     what it looked like. The travelling highlight comes from the
+     per-segment opacity instead: each strip is lit according to its own
+     angle, and eighteen of those together form one smooth band across the
+     bow. The gradient was the corrugation. */
+  background: oklch(99% 0.012 85);
   will-change: opacity;
 }
 

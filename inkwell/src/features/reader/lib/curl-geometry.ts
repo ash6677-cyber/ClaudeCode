@@ -46,6 +46,24 @@ const EDGE_WEIGHT = 1.55
  */
 const PEAK_AT = 0.45
 
+/**
+ * How much the sheet narrows toward its free edge at peak curl.
+ *
+ * This is what stops the page looking like cardboard. Hinged about vertical
+ * axes alone, the sheet wraps a cylinder: every horizontal slice bends
+ * identically and the top and bottom edges stay parallel straight lines,
+ * which the eye reads as a rigid board. Real paper lifted away from the
+ * spine wraps a cone — the lifted part is foreshortened, so its edges
+ * converge rather than running parallel.
+ *
+ * Tapering each segment vertically reproduces that convergence while
+ * leaving the hinges vertical, so the chain of segments still closes
+ * exactly. Tilting the hinge axes instead — the obvious way to build a
+ * literal cone — splays the segments apart into a venetian blind, because
+ * each one spans the full page height and the chain no longer meets.
+ */
+const MAX_TAPER = 0.13
+
 export interface Segment {
   /** Offset from the spine, in px, of this segment's hinge. */
   x: number
@@ -53,6 +71,8 @@ export interface Segment {
   z: number
   /** Segment angle in radians. */
   angle: number
+  /** Vertical scale, below 1 where the sheet is foreshortened by the curl. */
+  taper: number
   /** 0..1 shading for the front face — higher is darker. */
   frontShade: number
   /** 0..1 shading for the reverse. */
@@ -91,6 +111,10 @@ export function computeCurl(progress: number, width: number, count: number): Seg
   // its rotation rather than swinging its free edge ahead of the spine.
   const startAngle = sweep - bend / 2
 
+  // Foreshortening tracks the bend: none when the page lies flat, most when
+  // it is standing up and the curl is deepest.
+  const maxTaper = MAX_TAPER * bendEnvelope(p)
+
   const segments: Segment[] = []
   let x = 0
   let z = 0
@@ -100,6 +124,9 @@ export function computeCurl(progress: number, width: number, count: number): Seg
     // Curvature concentrated toward the free edge rather than spread evenly.
     const shaped = Math.pow(t, EDGE_WEIGHT)
     const angle = startAngle + bend * shaped
+    // Narrowing toward the free edge, so the sheet's silhouette is a
+    // trapezoid rather than a rectangle — the cue that reads as a cone.
+    const taper = 1 - maxTaper * shaped
 
     // Lambert-ish term: 1 when the face is square to the reader, 0 edge-on.
     const facing = Math.cos(angle)
@@ -116,6 +143,7 @@ export function computeCurl(progress: number, width: number, count: number): Seg
       x,
       z,
       angle,
+      taper,
       frontShade: clamp01((1 - frontFacing) * 0.46),
       backShade: clamp01((1 - backFacing) * 0.42),
       frontSheen: clamp01(sheenBand * frontFacing * 0.5),
@@ -145,8 +173,13 @@ function clamp01(value: number): number {
  * when the bend is at its worst.
  */
 export function seamOverlap(segmentLength: number, count: number): number {
+  // Kept as small as it can be. Segments carry a translucent shade, so
+  // wherever two overlap the shade is painted twice and the seam shows as a
+  // dark vertical stripe — with eighteen of them the sheet reads as fluted
+  // card. A wide overlap hides hairline gaps at the cost of corrugating the
+  // whole page, which is much the worse trade.
   const maxHingeAngle = (MAX_BEND * EDGE_WEIGHT) / Math.max(1, count - 1)
-  return segmentLength * (1 - Math.cos(maxHingeAngle)) + 1.1
+  return segmentLength * (1 - Math.cos(maxHingeAngle)) + 0.35
 }
 
 /** Straight-line distance from the spine to the sheet's free edge. Shorter
