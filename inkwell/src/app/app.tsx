@@ -6,6 +6,7 @@ import { DesktopMenuBridge } from '@/app/desktop-menu-bridge'
 import { GlobalShortcuts } from '@/app/global-shortcuts'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { router } from '@/app/router'
+import { BackupNudge } from '@/components/common/backup-nudge'
 import { ImportConfirmDialog } from '@/components/common/import-confirm-dialog'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -21,6 +22,7 @@ export function App() {
           <DesktopMenuBridge />
           <GlobalShortcuts />
           <ImportConfirmDialog />
+          <BackupNudge />
           <AuthBridge />
         </DesktopBootGate>
         <Toaster />

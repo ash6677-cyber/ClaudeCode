@@ -7,9 +7,15 @@ interface PreferencesState {
   editorFont: string
   typewriterMode: boolean
   dimInactiveParagraphs: boolean
+  /** When the whole library was last exported to a file, or null if never. */
+  lastBackupAt: number | null
+  /** Epoch ms until which the backup reminder stays hidden. */
+  backupSnoozedUntil: number
   setEditorFont: (id: string) => void
   setTypewriterMode: (value: boolean) => void
   setDimInactiveParagraphs: (value: boolean) => void
+  markBackedUp: () => void
+  snoozeBackupReminder: (days: number) => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -18,9 +24,14 @@ export const usePreferencesStore = create<PreferencesState>()(
       editorFont: DEFAULT_EDITOR_FONT_ID,
       typewriterMode: false,
       dimInactiveParagraphs: false,
+      lastBackupAt: null,
+      backupSnoozedUntil: 0,
       setEditorFont: (id) => set({ editorFont: id }),
       setTypewriterMode: (value) => set({ typewriterMode: value }),
       setDimInactiveParagraphs: (value) => set({ dimInactiveParagraphs: value }),
+      markBackedUp: () => set({ lastBackupAt: Date.now(), backupSnoozedUntil: 0 }),
+      snoozeBackupReminder: (days) =>
+        set({ backupSnoozedUntil: Date.now() + days * 24 * 60 * 60 * 1000 }),
     }),
     { name: 'inkwell-preferences' },
   ),
