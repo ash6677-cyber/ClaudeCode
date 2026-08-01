@@ -9,6 +9,8 @@ import {
   persistentMultipleTabManager,
 } from 'firebase/firestore'
 
+import { isTauriRuntime } from '@/lib/db/tauri-bridge'
+
 /**
  * Real projects set these via `.env.local` (see `.env.example`). With none
  * set, we fall back to a `demo-` project id talking only to the local
@@ -54,12 +56,21 @@ export const firebaseAuth = getAuth(app)
  * private-browsing modes and locked-down webviews both block the storage it
  * needs — so fall back to the in-memory cache rather than leaving the app
  * with no Firestore at all.
+ *
+ * `experimentalForceLongPolling` in the desktop shell is not a guess: with
+ * Firestore's default streaming transport, sync in the packaged Tauri app
+ * hung on "Syncing…" forever and never wrote a single document, while
+ * authentication (plain HTTPS) worked fine. The WebChannel stream doesn't
+ * complete inside the webview, and the SDK's auto-detection doesn't fail
+ * over. Long-polling is slightly chattier but actually works there.
  */
 function createFirestore(): Firestore {
+  const settings = {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    ...(isTauriRuntime() ? { experimentalForceLongPolling: true } : {}),
+  }
   try {
-    return initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    })
+    return initializeFirestore(app, settings)
   } catch {
     return getFirestore(app)
   }

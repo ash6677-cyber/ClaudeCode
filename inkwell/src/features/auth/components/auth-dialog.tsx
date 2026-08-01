@@ -18,6 +18,8 @@ import {
   FacebookIcon,
   GoogleIcon,
 } from '@/features/auth/components/provider-icons'
+import { isTauriRuntime } from '@/lib/db/tauri-bridge'
+import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 
 interface AuthDialogProps {
@@ -32,6 +34,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [authorName, setAuthorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [socialPending, setSocialPending] = useState<string | null>(null)
+  const desktopShell = isTauriRuntime()
 
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
@@ -104,7 +107,12 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-2">
+        {/* Social sign-in relies on an OAuth popup handing its result back to
+            the page's origin. The desktop shell runs on an internal
+            `tauri://` origin that Firebase can't authorize, so these buttons
+            cannot succeed there — hidden rather than shown-and-broken. See
+            docs/CLOUD_AUTH_SETUP.md for the deep-link flow that would fix it. */}
+        <div className={cn('flex-col gap-2', desktopShell ? 'hidden' : 'flex')}>
           <Button
             variant="outline"
             className="gap-2"
@@ -146,11 +154,13 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="h-px flex-1 bg-border" />
-          or
-          <div className="h-px flex-1 bg-border" />
-        </div>
+        {!desktopShell && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="h-px flex-1 bg-border" />
+            or
+            <div className="h-px flex-1 bg-border" />
+          </div>
+        )}
 
         <form className="flex flex-col gap-3" onSubmit={handleEmailSubmit}>
           {mode === 'signup' && (
