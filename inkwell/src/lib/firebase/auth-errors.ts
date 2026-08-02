@@ -26,10 +26,67 @@ function errorEmail(err: unknown): string | null {
  */
 export function isDismissedByUser(err: unknown): boolean {
   const code = errorCode(err)
-  return code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request'
+  return (
+    code === 'auth/popup-closed-by-user' ||
+    code === 'auth/cancelled-popup-request' ||
+    // The redirect flow's equivalents: backing out on the provider's own
+    // consent screen rather than closing a popup.
+    code === 'auth/user-cancelled' ||
+    code === 'auth/redirect-cancelled-by-user'
+  )
 }
 
+/**
+ * Whether a failed popup should be retried as a full-page redirect.
+ *
+ * The first two mean "this browser would not open the window", not "the
+ * sign-in was refused" — a blocker extension, an aggressive popup policy, or
+ * an embedded webview with no popup support at all.
+ *
+ * `auth/internal-error` is here for a narrower and less obvious reason.
+ * Before it can open a popup, the SDK loads `apis.google.com/js/api.js` and
+ * stands up a hidden iframe to receive the result; if that script can't be
+ * fetched the script tag's `onerror` surfaces as exactly this code, and the
+ * writer gets "Something went wrong" for what is really a blocked host — a
+ * corporate firewall, a filtering DNS resolver, a broad ad-blocking list.
+ * Measured directly: on a network that can't reach `apis.google.com`, the
+ * popup fails this way every time while the redirect flow, which needs no
+ * iframe and no gapi, completes normally. A dead end that a single retry can
+ * turn into a working sign-in is worth the retry, and this only ever runs
+ * after a popup has already failed.
+ *
+ * Everything else is a real failure that a redirect would hit identically,
+ * slower and with the page's state thrown away by the navigation.
+ */
+export function shouldFallBackToRedirect(err: unknown): boolean {
+  const code = errorCode(err)
+  return (
+    code === 'auth/popup-blocked' ||
+    code === 'auth/operation-not-supported-in-this-environment' ||
+    code === 'auth/internal-error'
+  )
+}
+
+/** Shown when nothing more specific can be said. */
+const GENERIC_AUTH_ERROR = 'Something went wrong signing in. Please try again.'
+
 export function readableAuthError(err: unknown): string {
+  return describeAuthError(err) ?? GENERIC_AUTH_ERROR
+}
+
+/**
+ * Like `readableAuthError`, but null for a code we can't name.
+ *
+ * This exists for the return leg of a redirect sign-in, where nobody is
+ * waiting on an answer and the writer may simply have pressed Back on the
+ * provider's page. Firebase reports an abandoned redirect as a bare timeout
+ * or internal error — indistinguishable from a genuine hiccup — and greeting
+ * someone who changed their mind with "Something went wrong signing in" is a
+ * false alarm about a page they deliberately left. So on that path anything
+ * we can actually name is worth saying, and anything we can't is worth
+ * nothing: the writer is simply signed out, exactly as they were before.
+ */
+export function describeAuthError(err: unknown): string | null {
   const code = errorCode(err)
   switch (code) {
     case 'auth/email-already-in-use':
@@ -55,11 +112,14 @@ export function readableAuthError(err: unknown): string {
     }
 
     case 'auth/popup-closed-by-user':
+    case 'auth/user-cancelled':
+    case 'auth/redirect-cancelled-by-user':
       return 'Sign-in was closed before finishing.'
     case 'auth/cancelled-popup-request':
       return 'Another sign-in window is already open.'
     case 'auth/popup-blocked':
-      return 'Your browser blocked the sign-in popup. Allow popups for this site, then try again.'
+    case 'auth/operation-not-supported-in-this-environment':
+      return 'Your browser blocked the sign-in window. Allow popups for this site, then try again.'
 
     // The two that will greet a first deployment. Without naming them the
     // user is left guessing at their Firebase console.
@@ -67,6 +127,23 @@ export function readableAuthError(err: unknown): string {
       return 'This site’s domain isn’t on the Firebase authorised domains list. Add it under Authentication → Settings → Authorized domains.'
     case 'auth/operation-not-allowed':
       return 'That sign-in method isn’t enabled for this Firebase project yet. Turn it on under Authentication → Sign-in method.'
+    case 'auth/configuration-not-found':
+    case 'auth/invalid-api-key':
+      return 'This build’s Firebase settings don’t match a real project. Check the VITE_FIREBASE_* values it was built with.'
+
+    // Both mean the browser threw away the state the sign-in was relying on:
+    // `missing-initial-state` is what Safari and other third-party-storage
+    // blockers return on the way back from a redirect, and
+    // `web-storage-unsupported` is a private window with storage switched
+    // off. Neither is retryable in the same tab, so say what to change.
+    case 'auth/missing-or-invalid-nonce':
+    case 'auth/missing-initial-state':
+      return 'The sign-in didn’t survive the trip back to this page. This usually means the browser is blocking storage for this site — try a normal (non-private) window, or sign in with your email instead.'
+    case 'auth/web-storage-unsupported':
+      return 'This browser is blocking the storage sign-in needs. Enable cookies and site data for this site, or sign in with your email instead.'
+
+    case 'auth/credential-already-in-use':
+      return 'That account is already linked to a different INKWELL sign-in.'
 
     case 'auth/network-request-failed':
       return 'Couldn’t reach the sign-in service. Check your connection and try again.'
@@ -76,7 +153,7 @@ export function readableAuthError(err: unknown): string {
       return 'That account has been disabled.'
 
     default:
-      return 'Something went wrong signing in. Please try again.'
+      return null
   }
 }
 

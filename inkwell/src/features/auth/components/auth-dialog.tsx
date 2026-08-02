@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ComponentType } from 'react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -19,8 +19,18 @@ import {
   GoogleIcon,
 } from '@/features/auth/components/provider-icons'
 import { isTauriRuntime } from '@/lib/db/tauri-bridge'
-import { cn } from '@/lib/utils'
+import {
+  AUTH_PROVIDER_LABELS,
+  enabledAuthProviders,
+  type AuthProviderId,
+} from '@/lib/firebase/auth-providers'
 import { useAuthStore } from '@/stores/auth-store'
+
+const PROVIDER_ICONS: Record<AuthProviderId, ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  google: GoogleIcon,
+  apple: AppleIcon,
+  facebook: FacebookIcon,
+}
 
 interface AuthDialogProps {
   open: boolean
@@ -33,16 +43,20 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
   const [password, setPassword] = useState('')
   const [authorName, setAuthorName] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [socialPending, setSocialPending] = useState<string | null>(null)
-  const desktopShell = isTauriRuntime()
+  const [socialPending, setSocialPending] = useState<AuthProviderId | null>(null)
+
+  // Social sign-in relies on an OAuth handshake returning to the page's
+  // origin. The desktop shell runs on an internal `tauri://` origin that
+  // Firebase can't authorize, so these buttons cannot succeed there — hidden
+  // rather than shown-and-broken. See docs/CLOUD_AUTH_SETUP.md for the
+  // deep-link flow that would fix it.
+  const providers = isTauriRuntime() ? [] : enabledAuthProviders
 
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
   const signInWithEmail = useAuthStore((s) => s.signInWithEmail)
   const signUpWithEmail = useAuthStore((s) => s.signUpWithEmail)
-  const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle)
-  const signInWithFacebook = useAuthStore((s) => s.signInWithFacebook)
-  const signInWithApple = useAuthStore((s) => s.signInWithApple)
+  const signInWith = useAuthStore((s) => s.signInWith)
   const { toast } = useToast()
 
   function reset() {
@@ -72,13 +86,15 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
     }
   }
 
-  async function handleSocial(provider: 'google' | 'facebook' | 'apple') {
+  async function handleSocial(provider: AuthProviderId) {
     setSocialPending(provider)
     clearError()
     try {
-      if (provider === 'google') await signInWithGoogle()
-      else if (provider === 'facebook') await signInWithFacebook()
-      else await signInWithApple()
+      // Only a real sign-in gets the congratulations. Closing the provider's
+      // window used to land here too, and the dialog cheerfully announced
+      // "Signed in" and shut itself while the writer was still signed out.
+      const outcome = await signInWith(provider)
+      if (outcome !== 'signed-in') return
       toast({ title: 'Signed in' })
       reset()
       onOpenChange(false)
@@ -107,59 +123,39 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        {/* Social sign-in relies on an OAuth popup handing its result back to
-            the page's origin. The desktop shell runs on an internal
-            `tauri://` origin that Firebase can't authorize, so these buttons
-            cannot succeed there — hidden rather than shown-and-broken. See
-            docs/CLOUD_AUTH_SETUP.md for the deep-link flow that would fix it. */}
-        <div className={cn('flex-col gap-2', desktopShell ? 'hidden' : 'flex')}>
-          <Button
-            variant="outline"
-            className="gap-2"
-            disabled={socialPending !== null}
-            onClick={() => handleSocial('google')}
-          >
-            {socialPending === 'google' ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <GoogleIcon />
-            )}
-            Continue with Google
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            disabled={socialPending !== null}
-            onClick={() => handleSocial('apple')}
-          >
-            {socialPending === 'apple' ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <AppleIcon />
-            )}
-            Continue with Apple
-          </Button>
-          <Button
-            variant="outline"
-            className="gap-2"
-            disabled={socialPending !== null}
-            onClick={() => handleSocial('facebook')}
-          >
-            {socialPending === 'facebook' ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <FacebookIcon />
-            )}
-            Continue with Facebook
-          </Button>
-        </div>
+        {/* Rendered from the configured provider list rather than hardcoded,
+            so a build whose Firebase project has only Google enabled shows
+            only Google. See src/lib/firebase/auth-providers.ts. */}
+        {providers.length > 0 && (
+          <>
+            <div className="flex flex-col gap-2">
+              {providers.map((id) => {
+                const Icon = PROVIDER_ICONS[id]
+                return (
+                  <Button
+                    key={id}
+                    variant="outline"
+                    className="gap-2"
+                    disabled={socialPending !== null}
+                    onClick={() => handleSocial(id)}
+                  >
+                    {socialPending === id ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Icon />
+                    )}
+                    {AUTH_PROVIDER_LABELS[id]}
+                  </Button>
+                )
+              })}
+            </div>
 
-        {!desktopShell && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="h-px flex-1 bg-border" />
-            or
-            <div className="h-px flex-1 bg-border" />
-          </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              or
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          </>
         )}
 
         <form className="flex flex-col gap-3" onSubmit={handleEmailSubmit}>
