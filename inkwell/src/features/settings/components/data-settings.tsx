@@ -1,6 +1,5 @@
 import {
   AlertTriangle,
-  Database,
   Download,
   FolderOpen,
   History,
@@ -22,6 +21,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { exportLibraryToFile, listLibraryBackups, restoreFromBackup } from '@/lib/db/tauri-db'
 import { isTauriRuntime } from '@/lib/db/tauri-bridge'
 import type { BackupInfo } from '@/lib/db/tauri-bridge'
+import { StorageHealth } from '@/features/settings/components/storage-health'
 import { useImportStore } from '@/stores/import-store'
 
 function formatBackupDate(millis: number): string {
@@ -112,18 +112,11 @@ export function DataSettings() {
     }
   }
 
-  if (!desktop) {
-    return (
-      <div className="rounded-lg border border-dashed border-border p-6 text-center">
-        <Database className="mx-auto size-6 text-muted-foreground/50" />
-        <p className="mt-2 text-sm font-medium">Export, import, and backups</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Available in the INKWELL desktop app, where your library lives on disk instead of in
-          browser storage.
-        </p>
-      </div>
-    )
-  }
+  // The browser build keeps its library in IndexedDB rather than on disk, so
+  // it gets its own panel: durability status plus whole-library export and
+  // restore. It used to say only that this was a desktop feature, which left
+  // browser users with no way to get their work out at all.
+  if (!desktop) return <StorageHealth />
 
   return (
     <div className="space-y-8">

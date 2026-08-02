@@ -4,14 +4,32 @@ import { ChapterContent } from '@/features/reader/components/chapter-content'
 import { CurlLeaf, type CurlHandle } from '@/features/reader/components/curl-leaf'
 import { PageSurface, type PageMetrics } from '@/features/reader/components/page-surface'
 import type { BookChapter } from '@/features/reader/lib/compile-book'
+import { criticalDamping, isSpringAtRest, stepSpring } from '@/features/reader/lib/spring'
 import { cn } from '@/lib/utils'
 
 /** Past this fraction of a turn, releasing completes it instead of snapping back. */
 const COMMIT_THRESHOLD = 0.5
-/** A quick flick completes the turn even from a shallow angle, matching the
- * feel of throwing a real page. px/ms. */
-const FLICK_VELOCITY = 0.45
-const MAX_SETTLE_MS = 460
+/**
+ * A flick this fast completes the turn from any angle, in turns per second.
+ * Measured in progress units rather than pixels so a phone and a wide
+ * desktop spread need the same gesture rather than the same distance.
+ */
+const FLICK_VELOCITY = 1.6
+
+/**
+ * Springs for the two ways a turn can end.
+ *
+ * Completing is a page falling — it should feel weighted and unhurried.
+ * Cancelling is the spine pushing back, which is a snappier, stiffer
+ * motion. Both are critically damped: a page settling closed must not
+ * bounce open again.
+ */
+const COMPLETE_SPRING = { stiffness: 130, damping: criticalDamping(130) }
+const CANCEL_SPRING = { stiffness: 210, damping: criticalDamping(210) }
+
+/** Initial speed given to a keyboard or button turn, in turns per second.
+ * Starting from a dead stop is what made those feel mechanical. */
+const NUDGE_VELOCITY = 1.15
 
 type Direction = 'forward' | 'backward'
 
@@ -26,10 +44,6 @@ interface TurnState {
 interface FlatPage {
   chapterIndex: number
   localIndex: number
-}
-
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3)
 }
 
 export function BookView({
@@ -102,36 +116,51 @@ export function BookView({
     [columns, leftPage, onPageIndexChange, totalPages],
   )
 
-  /** Eases the leaf to 0 or 1 and then commits, without React in the loop. */
+  /**
+   * Springs the leaf to 0 or 1 and then commits, without React in the loop.
+   *
+   * Seeded with the speed the sheet already had, so releasing mid-flick
+   * continues the motion instead of stopping dead and starting a fresh
+   * animation — which is what made the old fixed-duration ease feel stiff
+   * no matter how it was tuned.
+   */
   const settle = useCallback(
-    (target: 0 | 1) => {
+    (target: 0 | 1, initialVelocity = 0) => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       // Which end of the rotation counts as "turned" depends on direction:
       // a forward turn finishes lying open on the left (1), a backward turn
       // finishes lying flat on the right (0).
       const committedAt = turnRef.current?.direction === 'backward' ? 0 : 1
       const committed = target === committedAt
+      const config = committed ? COMPLETE_SPRING : CANCEL_SPRING
 
-      const from = progressRef.current
-      const distance = Math.abs(target - from)
-      if (distance < 0.001) {
+      let state = { value: progressRef.current, velocity: initialVelocity }
+      if (isSpringAtRest(state, target)) {
+        progressRef.current = target
+        paint(target)
         finishTurn(committed)
         return
       }
-      const duration = Math.max(140, MAX_SETTLE_MS * distance)
-      const start = performance.now()
 
+      let last = performance.now()
       const step = (now: number) => {
-        const t = Math.min(1, (now - start) / duration)
-        const value = from + (target - from) * easeOutCubic(t)
-        progressRef.current = value
-        paint(value)
-        if (t < 1) {
-          rafRef.current = requestAnimationFrame(step)
-        } else {
+        const dt = (now - last) / 1000
+        last = now
+        state = stepSpring(state, target, dt, config)
+
+        if (isSpringAtRest(state, target)) {
+          progressRef.current = target
+          paint(target)
           rafRef.current = null
           finishTurn(committed)
+          return
         }
+
+        // Clamped for painting only: the spring may momentarily reach past
+        // an end, and a page does not rotate beyond flat.
+        progressRef.current = state.value
+        paint(Math.max(0, Math.min(1, state.value)))
+        rafRef.current = requestAnimationFrame(step)
       }
       rafRef.current = requestAnimationFrame(step)
     },
@@ -175,7 +204,12 @@ export function BookView({
   const jump = useCallback(
     (direction: Direction) => {
       if (!beginTurn(direction)) return
-      requestAnimationFrame(() => settle(direction === 'forward' ? 1 : 0))
+      // Given a push rather than released from rest, so a keyboard turn has
+      // the same weight as a thrown one instead of creeping into motion.
+      const forward = direction === 'forward'
+      requestAnimationFrame(() =>
+        settle(forward ? 1 : 0, forward ? NUDGE_VELOCITY : -NUDGE_VELOCITY),
+      )
     },
     [beginTurn, settle],
   )
@@ -197,20 +231,35 @@ export function BookView({
 
   function handlePointerMove(event: React.PointerEvent) {
     if (!draggingRef.current || !turnRef.current) return
+
     const dx = event.clientX - pointerStartRef.current
-    const span = metrics.width
-
     const base = turnRef.current.direction === 'forward' ? 0 : 1
-    const delta = turnRef.current.direction === 'forward' ? -dx / span : -dx / span
-    const next = Math.max(0, Math.min(1, base + delta))
+    const next = Math.max(0, Math.min(1, base - dx / metrics.width))
 
+    // Velocity in turns per second, which is the unit the spring wants, so
+    // the sheet leaves the finger at exactly the speed it was moving. A
+    // little smoothing because a raw last-two-events reading is noisy enough
+    // to misjudge a flick.
     const now = performance.now()
     const dt = now - lastMoveRef.current.t
-    if (dt > 0) velocityRef.current = (event.clientX - lastMoveRef.current.x) / dt
-    lastMoveRef.current = { x: event.clientX, t: now }
+    if (dt > 0) {
+      const sample = ((next - progressRef.current) / dt) * 1000
+      velocityRef.current = velocityRef.current * 0.7 + sample * 0.3
+      lastMoveRef.current = { x: event.clientX, t: now }
+    }
 
     progressRef.current = next
-    paint(next)
+
+    // Painting is deferred to the next frame rather than done here. A
+    // pointer can fire well above the display's refresh rate — and coalesced
+    // events arrive in bursts — so painting per event meant doing the work
+    // two or three times for a single frame that only shows the last one.
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null
+        paint(progressRef.current)
+      })
+    }
   }
 
   function handlePointerUp(event: React.PointerEvent) {
@@ -222,14 +271,21 @@ export function BookView({
       // Capture can already be gone if the pointer left the window.
     }
 
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+
     const forward = turnRef.current.direction === 'forward'
     const progress = progressRef.current
+    // Now in turns per second: positive means progress is rising, which is
+    // the direction a forward turn completes in either case.
     const velocity = velocityRef.current
 
-    // A decisive flick wins over position: dragging left (negative velocity)
-    // completes a forward turn even if the sheet has barely lifted.
-    const flickedComplete = forward ? velocity < -FLICK_VELOCITY : velocity > FLICK_VELOCITY
-    const flickedCancel = forward ? velocity > FLICK_VELOCITY : velocity < -FLICK_VELOCITY
+    // A decisive flick wins over position — a page thrown from barely lifted
+    // still goes over.
+    const flickedComplete = forward ? velocity > FLICK_VELOCITY : velocity < -FLICK_VELOCITY
+    const flickedCancel = forward ? velocity < -FLICK_VELOCITY : velocity > FLICK_VELOCITY
 
     let target: 0 | 1
     if (flickedComplete) target = forward ? 1 : 0
@@ -237,7 +293,9 @@ export function BookView({
     else if (forward) target = progress > COMMIT_THRESHOLD ? 1 : 0
     else target = progress < 1 - COMMIT_THRESHOLD ? 0 : 1
 
-    settle(target)
+    // Carried straight into the spring, so the release is continuous with
+    // the drag rather than a new animation starting from rest.
+    settle(target, velocity)
   }
 
   useEffect(() => {
