@@ -85,16 +85,18 @@ describe('titleStatesKind', () => {
 })
 
 describe('expandTemplate', () => {
-  it('lays out a prologue and then chapter one', () => {
+  it('lays out a prologue, chapter one and an epilogue', () => {
     const plan = expandTemplate(standard)
-    expect(plan.map((c) => c.title)).toEqual(['Prologue', 'Chapter One'])
-    expect(plan.map((c) => c.kind)).toEqual(['prologue', 'chapter'])
+    expect(plan.map((c) => c.title)).toEqual(['Prologue', 'Chapter One', 'Epilogue'])
+    expect(plan.map((c) => c.kind)).toEqual(['prologue', 'chapter', 'epilogue'])
   })
 
-  it('does not number the prologue', () => {
-    // The whole reason kinds exist: a prologue is not chapter one.
+  it('numbers neither the prologue nor the epilogue', () => {
+    // The whole reason kinds exist: a prologue is not chapter one, and a book
+    // that ends on an epilogue has not gained a second chapter.
     const plan = expandTemplate(standard)
     expect(plan[0].title).toBe('Prologue')
+    expect(plan[2].title).toBe('Epilogue')
   })
 
   it('numbers each kind on its own count, not on position', () => {
@@ -116,7 +118,7 @@ describe('expandTemplate', () => {
 
   it('carries the numbering style into the titles', () => {
     const plan = expandTemplate({ ...standard, numbering: 'roman' })
-    expect(plan.map((c) => c.title)).toEqual(['Prologue', 'Chapter I'])
+    expect(plan.map((c) => c.title)).toEqual(['Prologue', 'Chapter I', 'Epilogue'])
   })
 
   it('leaves a single unnumbered part alone but distinguishes repeats', () => {

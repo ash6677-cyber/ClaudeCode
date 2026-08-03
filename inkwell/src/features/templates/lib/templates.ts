@@ -205,18 +205,11 @@ export const BUILT_IN_TEMPLATES: (Pick<
   {
     id: 'builtin:standard-novel',
     name: 'Standard novel',
-    description: 'A prologue, then chapter one. The rest as you write it.',
-    numbering: 'words',
-    parts: [part('prologue', 'Prologue', 1, 1), part('chapter', 'Chapter {n}', 1, 1)],
-  },
-  {
-    id: 'builtin:full-arc',
-    name: 'Novel with an epilogue',
-    description: 'A prologue, three chapters to open on, and an epilogue.',
+    description: 'A prologue, chapter one, and an epilogue. The rest as you write it.',
     numbering: 'words',
     parts: [
       part('prologue', 'Prologue', 1, 1),
-      part('chapter', 'Chapter {n}', 3, 1),
+      part('chapter', 'Chapter {n}', 1, 1),
       part('epilogue', 'Epilogue', 1, 1),
     ],
   },
