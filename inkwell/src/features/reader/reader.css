@@ -372,3 +372,41 @@
     filter: none;
   }
 }
+
+/* The page the book opens on. Padded like a real jacket rather than bled to
+   the trim, so the art sits on the page instead of becoming it. */
+.book-front-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6%;
+}
+
+.book-front-art {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 2px;
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.28);
+}
+
+.book-front-type {
+  text-align: center;
+}
+
+.book-front-title {
+  font-family: var(--font-serif);
+  font-size: clamp(1.6rem, 4.4cqw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.book-front-author {
+  margin-top: 1.4em;
+  font-family: var(--font-serif);
+  font-size: clamp(0.85rem, 2cqw, 1rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}

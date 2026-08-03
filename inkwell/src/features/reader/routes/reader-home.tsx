@@ -4,7 +4,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
 import { Button } from '@/components/ui/button'
-import { BookView } from '@/features/reader/components/book-view'
+import { BookView, type ReaderPage } from '@/features/reader/components/book-view'
 import { ChapterContent } from '@/features/reader/components/chapter-content'
 import { PageSurface, type PageMetrics } from '@/features/reader/components/page-surface'
 import { compileBook } from '@/features/reader/lib/compile-book'
@@ -98,11 +98,13 @@ export function ReaderHome() {
   }, [])
 
   const flatPages = useMemo(() => {
-    const pages: { chapterIndex: number; localIndex: number }[] = []
+    // The front page first, then the prose. Tagged rather than a magic index
+    // so nothing downstream has to remember that page zero is special.
+    const pages: ReaderPage[] = [{ kind: 'front' }]
     book.forEach((_, chapterIndex) => {
       const count = pageCounts[chapterIndex] ?? 0
       for (let localIndex = 0; localIndex < count; localIndex++) {
-        pages.push({ chapterIndex, localIndex })
+        pages.push({ kind: 'chapter', chapterIndex, localIndex })
       }
     })
     return pages
@@ -115,8 +117,10 @@ export function ReaderHome() {
   const pageIndex =
     flatPages.length > 0 ? Math.min(rawPageIndex, flatPages.length - 1) : rawPageIndex
 
-  const ready = box.width > 0 && flatPages.length > 0
-  const currentChapter = flatPages[pageIndex]?.chapterIndex ?? 0
+  // The front page alone is not a book to read; wait for prose to measure.
+  const ready = box.width > 0 && flatPages.length > 1
+  const here = flatPages[pageIndex]
+  const currentChapter = here?.kind === 'chapter' ? here.chapterIndex : 0
   const progress = flatPages.length > 0 ? (pageIndex + 1) / flatPages.length : 0
 
   if (!projectId) {
@@ -171,6 +175,9 @@ export function ReaderHome() {
             pageIndex={pageIndex}
             onPageIndexChange={setPageIndex}
             flatPages={flatPages}
+            projectId={projectId}
+            title={project?.title ?? ''}
+            author={project?.author ?? ''}
           />
         ) : (
           <p className="text-sm text-muted-foreground">Typesetting your book…</p>
@@ -219,7 +226,9 @@ export function ReaderHome() {
               />
             </div>
             <p className="mt-1.5 truncate text-center text-[11px] text-muted-foreground">
-              {book[currentChapter]?.title} · page {pageIndex + 1} of {flatPages.length}
+              {here?.kind === 'front'
+                ? project?.title
+                : `${book[currentChapter]?.title} · page ${pageIndex} of ${flatPages.length - 1}`}
             </p>
           </div>
 
