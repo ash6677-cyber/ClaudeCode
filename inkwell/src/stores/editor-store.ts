@@ -3,7 +3,7 @@ import { create } from 'zustand'
 import { chapterRepo, sceneRepo, snapshotRepo } from '@/lib/db/repositories'
 import { useStatsStore } from '@/stores/stats-store'
 import { binChapter, binScene } from '@/stores/trash-store'
-import type { Chapter, Scene, SceneStatus, Snapshot } from '@/types'
+import type { Chapter, ChapterKind, Scene, SceneStatus, Snapshot } from '@/types'
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -20,6 +20,7 @@ interface EditorStoreState {
 
   createChapter: (title?: string) => Promise<Chapter>
   renameChapter: (id: string, title: string) => Promise<void>
+  setChapterKind: (id: string, kind: ChapterKind) => Promise<void>
   deleteChapter: (id: string) => Promise<void>
   reorderChapters: (orderedIds: string[]) => Promise<void>
 
@@ -99,6 +100,11 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   renameChapter: async (id, title) => {
     await chapterRepo.update(id, { title })
     set({ chapters: get().chapters.map((c) => (c.id === id ? { ...c, title } : c)) })
+  },
+
+  setChapterKind: async (id, kind) => {
+    await chapterRepo.update(id, { kind })
+    set({ chapters: get().chapters.map((c) => (c.id === id ? { ...c, kind } : c)) })
   },
 
   deleteChapter: async (id) => {

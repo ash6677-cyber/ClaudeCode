@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 
 import { RichText } from '@/features/reader/lib/rich-text'
 import type { BookChapter } from '@/features/reader/lib/compile-book'
+import { CHAPTER_KIND_LABEL, titleStatesKind } from '@/features/templates/lib/templates'
 
 /**
  * A chapter as it reads in print: an opening title block, then each scene's
@@ -17,7 +18,15 @@ export function ChapterContent({ chapter }: { chapter: BookChapter }) {
   return (
     <>
       <header className="book-chapter-open">
-        <p className="book-chapter-number">Chapter {chapter.number}</p>
+        {/* Only the divisions that take a number get the standfirst line.
+            "Chapter 1" over a prologue was wrong twice — the prologue isn't a
+            chapter, and every real chapter after it was numbered one too high.
+            When the title already says it, the line would only repeat it. */}
+        {chapter.number !== null && !titleStatesKind(chapter.title, chapter.kind) && (
+          <p className="book-chapter-number">
+            {CHAPTER_KIND_LABEL[chapter.kind]} {chapter.number}
+          </p>
+        )}
         <h1 className="book-chapter-title">{chapter.title}</h1>
       </header>
 

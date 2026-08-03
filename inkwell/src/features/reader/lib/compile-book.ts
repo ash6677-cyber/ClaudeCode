@@ -1,9 +1,17 @@
-import type { Chapter, Scene } from '@/types'
+import { chapterKind, isNumbered } from '@/features/templates/lib/templates'
+import type { Chapter, ChapterKind, Scene } from '@/types'
 
 export interface BookChapter {
   id: string
   title: string
-  number: number
+  kind: ChapterKind
+  /**
+   * Its number within its own kind, or null for the divisions that don't take
+   * one. A book with a prologue, twelve chapters and an epilogue has twelve
+   * chapters; numbering by position would call the prologue chapter one and
+   * be one out for the whole novel.
+   */
+  number: number | null
   scenes: Scene[]
   wordCount: number
 }
@@ -22,14 +30,23 @@ export function compileBook(chapters: Chapter[], scenes: Scene[]): BookChapter[]
     else byChapter.set(scene.chapterId, [scene])
   }
 
+  const counts = new Map<ChapterKind, number>()
+
   return [...chapters]
     .sort((a, b) => a.order - b.order)
-    .map((chapter, index) => {
+    .map((chapter) => {
       const chapterScenes = byChapter.get(chapter.id) ?? []
+      const kind = chapterKind(chapter)
+      let number: number | null = null
+      if (isNumbered(kind)) {
+        number = (counts.get(kind) ?? 0) + 1
+        counts.set(kind, number)
+      }
       return {
         id: chapter.id,
         title: chapter.title,
-        number: index + 1,
+        kind,
+        number,
         scenes: chapterScenes,
         wordCount: chapterScenes.reduce((sum, scene) => sum + scene.wordCount, 0),
       }

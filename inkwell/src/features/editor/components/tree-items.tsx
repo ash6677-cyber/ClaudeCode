@@ -8,10 +8,18 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  CHAPTER_KIND_LABEL,
+  chapterKind,
+  titleStatesKind,
+} from '@/features/templates/lib/templates'
 import { cn } from '@/lib/utils'
-import type { Chapter, Scene, SceneStatus } from '@/types'
+import type { Chapter, ChapterKind, Scene, SceneStatus } from '@/types'
+
+const KINDS: ChapterKind[] = ['prologue', 'chapter', 'interlude', 'part', 'epilogue']
 
 const STATUS_DOT: Record<SceneStatus, string> = {
   outline: 'bg-muted-foreground/40',
@@ -64,6 +72,7 @@ interface ChapterRowProps {
   expanded: boolean
   onToggleExpand: () => void
   onRename: (title: string) => void
+  onSetKind: (kind: ChapterKind) => void
   onDelete: () => void
   onAddScene: () => void
   isDropTarget: boolean
@@ -76,6 +85,7 @@ export function ChapterRow({
   expanded,
   onToggleExpand,
   onRename,
+  onSetKind,
   onDelete,
   onAddScene,
   isDropTarget,
@@ -90,6 +100,7 @@ export function ChapterRow({
     id: `chapter-drop-${chapter.id}`,
     data: { type: 'chapter', chapterId: chapter.id },
   })
+  const kind = chapterKind(chapter)
 
   return (
     <div
@@ -135,9 +146,17 @@ export function ChapterRow({
           <button
             type="button"
             onDoubleClick={() => setRenaming(true)}
-            className="min-w-0 flex-1 truncate text-left text-sm font-semibold"
+            className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-sm font-semibold"
           >
-            {chapter.title}
+            <span className="truncate">{chapter.title}</span>
+            {/* Tagged only when the title doesn't already say it — otherwise
+                the tag steals the room the title needs and "Prologue" reads
+                as "Pr…" next to the word PROLOGUE. */}
+            {kind !== 'chapter' && !titleStatesKind(chapter.title, kind) && (
+              <span className="shrink-0 rounded-full border border-border px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {CHAPTER_KIND_LABEL[kind]}
+              </span>
+            )}
           </button>
         )}
 
@@ -166,6 +185,21 @@ export function ChapterRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setRenaming(true)}>Rename</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {/* A prologue written as an ordinary chapter throws the numbering
+                out for the whole book, and until now there was no way to say
+                what a division actually was after creating it. */}
+            {KINDS.map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => onSetKind(option)}
+                className={cn(kind === option && 'font-medium text-primary')}
+              >
+                {kind === option ? '✓ ' : '\u2003'}
+                {CHAPTER_KIND_LABEL[option]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onDelete}
               className="text-destructive focus:text-destructive"
@@ -192,6 +226,7 @@ interface ChapterOnlyRowProps {
   active: boolean
   onSelect: () => void
   onRename: (title: string) => void
+  onSetKind: (kind: ChapterKind) => void
   onDelete: () => void
 }
 
@@ -202,6 +237,7 @@ export function ChapterOnlyRow({
   active,
   onSelect,
   onRename,
+  onSetKind,
   onDelete,
 }: ChapterOnlyRowProps) {
   const [renaming, setRenaming] = useState(false)
@@ -209,6 +245,7 @@ export function ChapterOnlyRow({
     id: chapter.id,
     data: { type: 'chapter', chapterId: chapter.id },
   })
+  const kind = chapterKind(chapter)
 
   return (
     <div
@@ -249,11 +286,16 @@ export function ChapterOnlyRow({
             onClick={onSelect}
             onDoubleClick={() => setRenaming(true)}
             className={cn(
-              'min-w-0 flex-1 truncate text-left text-sm',
+              'flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-sm',
               active ? 'font-semibold text-foreground' : 'text-foreground/80',
             )}
           >
-            {chapter.title}
+            <span className="truncate">{chapter.title}</span>
+            {kind !== 'chapter' && !titleStatesKind(chapter.title, kind) && (
+              <span className="shrink-0 rounded-full border border-border px-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                {CHAPTER_KIND_LABEL[kind]}
+              </span>
+            )}
           </button>
         )}
 
@@ -273,6 +315,21 @@ export function ChapterOnlyRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setRenaming(true)}>Rename</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {/* A prologue written as an ordinary chapter throws the numbering
+                out for the whole book, and until now there was no way to say
+                what a division actually was after creating it. */}
+            {KINDS.map((option) => (
+              <DropdownMenuItem
+                key={option}
+                onClick={() => onSetKind(option)}
+                className={cn(kind === option && 'font-medium text-primary')}
+              >
+                {kind === option ? '✓ ' : '\u2003'}
+                {CHAPTER_KIND_LABEL[option]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={onDelete}
               className="text-destructive focus:text-destructive"

@@ -11,6 +11,7 @@ import type {
   Goal,
   ImageAsset,
   Lorebook,
+  ManuscriptTemplate,
   Persona,
   Project,
   Scene,
@@ -44,6 +45,7 @@ export class InkwellDB extends Dexie {
   imageAssets!: EntityTable<ImageAsset, 'id'>
   goals!: EntityTable<Goal, 'id'>
   sessionLogs!: EntityTable<SessionLog, 'id'>
+  manuscriptTemplates!: EntityTable<ManuscriptTemplate, 'id'>
 
   constructor() {
     super('inkwell')
@@ -66,6 +68,13 @@ export class InkwellDB extends Dexie {
       goals: 'id, projectId, updatedAt',
       sessionLogs: 'id, projectId, startedAt',
     })
+
+    // The formats a writer defines for themselves. Added in v2 rather than
+    // folded into v1 because an existing library must open untouched: Dexie
+    // creates the new store and leaves every other table exactly as it is.
+    this.version(2).stores({
+      manuscriptTemplates: 'id, updatedAt',
+    })
   }
 }
 
@@ -86,6 +95,7 @@ interface DbTables {
   imageAssets: TrashableTable<ImageAsset>
   goals: TrashableTable<Goal>
   sessionLogs: TrashableTable<SessionLog>
+  manuscriptTemplates: TrashableTable<ManuscriptTemplate>
 }
 
 /** The raw tables, before soft-delete or sync wrapping. */

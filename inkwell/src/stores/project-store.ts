@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 
+import { applyTemplate } from '@/features/templates/lib/apply-template'
 import { db } from '@/lib/db/schema'
 import { binProject } from '@/stores/trash-store'
+import { findTemplate, templateChoices, useTemplateStore } from '@/stores/template-store'
 import { projectRepo } from '@/lib/db/repositories'
 import type { Project } from '@/types'
 
@@ -15,6 +17,12 @@ export interface ProjectFormInput {
   pov: Project['settings']['pov']
   tense: Project['settings']['tense']
   structureMode: Project['settings']['structureMode']
+  /**
+   * Which format to lay the manuscript out in. Only read when creating —
+   * a book already has its shape, and re-applying a template to it would
+   * add a second prologue rather than change anything.
+   */
+  templateId?: string | null
 }
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -70,6 +78,13 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         structureMode: input.structureMode,
       },
     })
+    // Laid out after the project exists so a template that fails leaves a
+    // usable empty book rather than no book at all.
+    const template = findTemplate(templateChoices(useTemplateStore.getState().custom), input.templateId)
+    if (template && template.parts.length > 0) {
+      await applyTemplate(project.id, template, input.structureMode)
+    }
+
     set({ projects: [project, ...get().projects] })
     return project
   },

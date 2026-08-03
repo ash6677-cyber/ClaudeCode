@@ -40,6 +40,7 @@ const TABLES = [
   'aiPresets',
   'goals',
   'sessionLogs',
+  'manuscriptTemplates',
 ] as const
 
 export async function buildLibraryDocument(): Promise<LibraryDocument> {

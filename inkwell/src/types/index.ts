@@ -1,6 +1,7 @@
 export * from './base'
 export * from './project'
 export * from './editor'
+export * from './templates'
 export * from './codex'
 export * from './cards'
 export * from './lorebook'

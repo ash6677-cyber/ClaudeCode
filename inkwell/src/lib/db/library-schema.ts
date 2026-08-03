@@ -8,6 +8,7 @@ import type {
   Cover,
   Goal,
   Lorebook,
+  ManuscriptTemplate,
   Persona,
   Project,
   Scene,
@@ -49,6 +50,7 @@ export interface LibraryDocument {
   imageAssets: StoredImageAsset[]
   goals: Goal[]
   sessionLogs: SessionLog[]
+  manuscriptTemplates: ManuscriptTemplate[]
 }
 
 const ARRAY_KEYS = [
@@ -68,6 +70,7 @@ const ARRAY_KEYS = [
   'imageAssets',
   'goals',
   'sessionLogs',
+  'manuscriptTemplates',
 ] as const
 
 export function emptyLibrary(): LibraryDocument {
