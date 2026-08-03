@@ -11,7 +11,18 @@ export type SceneStatus = 'outline' | 'drafting' | 'revised' | 'done'
  * printed "Chapter 1" above the prologue and was one out for the rest of
  * the novel.
  */
-export type ChapterKind = 'prologue' | 'chapter' | 'interlude' | 'part' | 'epilogue'
+export type ChapterKind =
+  | 'prologue'
+  | 'chapter'
+  | 'interlude'
+  | 'part'
+  | 'epilogue'
+  // Not everything written here is a novel. A screenplay is divided into
+  // acts, a collection into poems, a diary into entries — and calling any of
+  // those a chapter would be wrong in the tree and wrong again in the reader.
+  | 'act'
+  | 'poem'
+  | 'entry'
 
 export interface Chapter extends BaseEntity {
   projectId: string

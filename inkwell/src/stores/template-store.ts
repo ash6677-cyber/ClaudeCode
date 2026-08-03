@@ -14,13 +14,15 @@ export interface TemplateChoice {
   name: string
   description: string
   numbering: ManuscriptTemplate['numbering']
+  /** Unset on the formats that read either way — a novel, or a blank start. */
+  structureMode?: ManuscriptTemplate['structureMode']
   parts: ManuscriptTemplate['parts']
   custom: boolean
 }
 
 export type TemplateDraft = Pick<
   ManuscriptTemplate,
-  'name' | 'description' | 'numbering' | 'parts'
+  'name' | 'description' | 'numbering' | 'structureMode' | 'parts'
 >
 
 interface TemplateState {
@@ -75,6 +77,7 @@ export function templateChoices(custom: ManuscriptTemplate[]): TemplateChoice[] 
       name: template.name,
       description: template.description,
       numbering: template.numbering,
+      structureMode: template.structureMode,
       parts: template.parts,
       custom: true,
     })),

@@ -26,7 +26,7 @@ import {
   templateSize,
 } from '@/features/templates/lib/templates'
 import { useTemplateStore, type TemplateDraft } from '@/stores/template-store'
-import type { ChapterKind, ChapterNumbering, TemplatePart } from '@/types'
+import type { ChapterKind, ChapterNumbering, StructureMode, TemplatePart } from '@/types'
 
 interface TemplateEditorDialogProps {
   /** Editing an existing format, or undefined to make a new one. */
@@ -35,7 +35,25 @@ interface TemplateEditorDialogProps {
   onSaved: (id: string) => void
 }
 
-const KINDS: ChapterKind[] = ['prologue', 'chapter', 'interlude', 'part', 'epilogue']
+const KINDS: ChapterKind[] = [
+  'prologue',
+  'chapter',
+  'interlude',
+  'part',
+  'epilogue',
+  'act',
+  'poem',
+  'entry',
+]
+
+/** "Whatever the project uses" is a real answer, so it needs a value. */
+const INHERIT = 'inherit'
+
+const STRUCTURES: { value: string; label: string }[] = [
+  { value: INHERIT, label: 'Whatever the project uses' },
+  { value: 'scenes', label: 'Chapters & scenes' },
+  { value: 'chapters-only', label: 'One writable unit each' },
+]
 
 const NUMBERING: { value: ChapterNumbering; label: string; example: string }[] = [
   { value: 'words', label: 'Words', example: 'Chapter Twelve' },
@@ -57,6 +75,7 @@ export function TemplateEditorDialog({
           name: existing.name,
           description: existing.description,
           numbering: existing.numbering,
+          structureMode: existing.structureMode,
           parts: existing.parts.map((part) => ({ ...part })),
         }
       : blankCustomTemplate(),
@@ -81,7 +100,9 @@ export function TemplateEditorDialog({
     })
   }
 
-  const plan = expandTemplate(draft)
+  const plan = expandTemplate(draft, {
+    scenesPerChapter: draft.structureMode === 'chapters-only' ? 'one' : 'template',
+  })
   const size = templateSize(plan)
 
   async function handleSave() {
@@ -145,14 +166,42 @@ export function TemplateEditorDialog({
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="format-description">Description</Label>
-            <Input
-              id="format-description"
-              value={draft.description}
-              onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-              placeholder="What this shape is for"
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="format-description">Description</Label>
+              <Input
+                id="format-description"
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                placeholder="What this shape is for"
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label>Structure</Label>
+              {/* A poem or a diary entry is one whole thing; a format that
+                  knows that switches the project to it when picked, instead
+                  of leaving every poem with a lone "Scene 1" underneath. */}
+              <Select
+                value={draft.structureMode ?? INHERIT}
+                onValueChange={(v) =>
+                  setDraft({
+                    ...draft,
+                    structureMode: v === INHERIT ? undefined : (v as StructureMode),
+                  })
+                }
+              >
+                <SelectTrigger aria-label="Structure">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STRUCTURES.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-2">

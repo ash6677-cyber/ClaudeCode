@@ -30,18 +30,28 @@ export function ChapterContent({ chapter }: { chapter: BookChapter }) {
         <h1 className="book-chapter-title">{chapter.title}</h1>
       </header>
 
-      {!hasProse && <p className="book-empty">This chapter hasn’t been written yet.</p>}
-
-      {chapter.scenes.map((scene, index) => (
-        <Fragment key={scene.id}>
-          {index > 0 && (
-            <p className="book-scene-break" aria-hidden="true">
-              ❧
-            </p>
-          )}
-          <RichText content={scene.content} fallback={scene.plainText} />
-        </Fragment>
-      ))}
+      {/* Named for what it is. A screenplay's acts were being told they were
+          chapters that hadn't been written, and so were poems and diary
+          entries. Nothing else on the page is left to say it instead. */}
+      {!hasProse ? (
+        <p className="book-empty">
+          This {CHAPTER_KIND_LABEL[chapter.kind].toLowerCase()} hasn’t been written yet.
+        </p>
+      ) : (
+        // Scene breaks divide prose from prose. An act laid out with six empty
+        // scenes was drawing five ornaments under the line saying there was
+        // nothing here — dividing nothing from nothing, five times.
+        chapter.scenes.map((scene, index) => (
+          <Fragment key={scene.id}>
+            {index > 0 && (
+              <p className="book-scene-break" aria-hidden="true">
+                ❧
+              </p>
+            )}
+            <RichText content={scene.content} fallback={scene.plainText} />
+          </Fragment>
+        ))
+      )}
     </>
   )
 }

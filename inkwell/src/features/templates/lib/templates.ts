@@ -26,10 +26,20 @@ export const CHAPTER_KIND_LABEL: Record<ChapterKind, string> = {
   interlude: 'Interlude',
   part: 'Part',
   epilogue: 'Epilogue',
+  act: 'Act',
+  poem: 'Poem',
+  entry: 'Entry',
 }
 
 /** Kinds that take a number. A book has chapter twelve, not prologue two. */
-const NUMBERED: ReadonlySet<ChapterKind> = new Set<ChapterKind>(['chapter', 'part', 'interlude'])
+const NUMBERED: ReadonlySet<ChapterKind> = new Set<ChapterKind>([
+  'chapter',
+  'part',
+  'interlude',
+  'act',
+  'poem',
+  'entry',
+])
 
 export function isNumbered(kind: ChapterKind): boolean {
   return NUMBERED.has(kind)
@@ -193,7 +203,7 @@ function part(
  */
 export const BUILT_IN_TEMPLATES: (Pick<
   ManuscriptTemplate,
-  'name' | 'description' | 'numbering' | 'parts'
+  'name' | 'description' | 'numbering' | 'structureMode' | 'parts'
 > & { id: string })[] = [
   {
     id: 'builtin:blank',
@@ -226,6 +236,50 @@ export const BUILT_IN_TEMPLATES: (Pick<
       part('part', 'Part {n}', 1, 1),
       part('chapter', 'Chapter {n}', 4, 1),
     ],
+  },
+  {
+    // Roman numerals because that is how a screenplay's acts are set, and
+    // scenes inside acts because that is the one thing a screenplay's
+    // structure genuinely is: the act holds the scenes.
+    id: 'builtin:screenplay',
+    name: 'Screenplay',
+    description: 'Three acts of scenes, weighted the way a feature is.',
+    numbering: 'roman',
+    structureMode: 'scenes',
+    parts: [
+      part('act', 'Act {n}', 1, 4),
+      part('act', 'Act {n}', 1, 6),
+      part('act', 'Act {n}', 1, 4),
+    ],
+  },
+  {
+    id: 'builtin:stage-script',
+    name: 'Stage script',
+    description: 'Two acts of three scenes, as a play is staged.',
+    numbering: 'roman',
+    structureMode: 'scenes',
+    parts: [part('act', 'Act {n}', 2, 3)],
+  },
+  {
+    // A poem is one whole thing. Split into scenes, every poem in the
+    // collection would carry a lone "Scene 1" beneath it and nothing else.
+    id: 'builtin:poetry',
+    name: 'Poetry collection',
+    description: 'Six poems to open a collection, each one whole.',
+    numbering: 'words',
+    structureMode: 'chapters-only',
+    parts: [part('poem', 'Poem {n}', 6, 1)],
+  },
+  {
+    // Numbered rather than dated: a template cannot know when the diary
+    // starts, and "Entry One" is a placeholder that asks to be renamed to a
+    // date, where "1 January" would quietly claim to be one.
+    id: 'builtin:diary',
+    name: 'Diary',
+    description: 'A week of entries, each one an unbroken sitting.',
+    numbering: 'words',
+    structureMode: 'chapters-only',
+    parts: [part('entry', 'Entry {n}', 7, 1)],
   },
 ]
 

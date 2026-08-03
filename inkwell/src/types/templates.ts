@@ -1,5 +1,6 @@
 import type { BaseEntity } from './base'
 import type { ChapterKind } from './editor'
+import type { StructureMode } from './project'
 
 /** How a template writes the number in a chapter title. */
 export type ChapterNumbering = 'words' | 'digits' | 'roman'
@@ -32,5 +33,14 @@ export interface ManuscriptTemplate extends BaseEntity {
   name: string
   description: string
   numbering: ChapterNumbering
+  /**
+   * The structure this format wants, if it only makes sense in one.
+   *
+   * A poem is one writable thing and so is a diary entry; splitting either
+   * into scenes would give every poem a "Scene 1" under it and nothing else.
+   * A format that says so switches the project to it when picked. Left unset
+   * — as a novel leaves it — the writer's own choice stands.
+   */
+  structureMode?: StructureMode
   parts: TemplatePart[]
 }

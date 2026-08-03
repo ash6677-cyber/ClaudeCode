@@ -206,6 +206,7 @@ export function ProjectFormDialog({
                 value={form.templateId ?? DEFAULT_TEMPLATE_ID}
                 onChange={(templateId) => setForm({ ...form, templateId })}
                 structureMode={form.structureMode}
+                onStructureMode={(structureMode) => setForm((f) => ({ ...f, structureMode }))}
               />
             )}
 

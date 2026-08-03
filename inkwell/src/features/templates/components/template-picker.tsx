@@ -22,6 +22,13 @@ interface TemplatePickerProps {
   value: string | null
   onChange: (id: string) => void
   structureMode: StructureMode
+  /**
+   * Called when the chosen format only makes sense in one structure — a poem
+   * or a diary entry is one writable thing, not a chapter of scenes. The
+   * dialog moves its own selector, so the change is visible and the writer
+   * can still overrule it.
+   */
+  onStructureMode: (mode: StructureMode) => void
 }
 
 /** The first few chapters a template would make, so the choice is visible. */
@@ -65,7 +72,12 @@ function Preview({ choice, structureMode }: { choice: TemplateChoice; structureM
   )
 }
 
-export function TemplatePicker({ value, onChange, structureMode }: TemplatePickerProps) {
+export function TemplatePicker({
+  value,
+  onChange,
+  structureMode,
+  onStructureMode,
+}: TemplatePickerProps) {
   const custom = useTemplateStore((s) => s.custom)
   const load = useTemplateStore((s) => s.load)
   const remove = useTemplateStore((s) => s.remove)
@@ -77,6 +89,12 @@ export function TemplatePicker({ value, onChange, structureMode }: TemplatePicke
 
   const choices = templateChoices(custom)
   const selected = findTemplate(choices, value) ?? choices[0]
+
+  function choose(id: string) {
+    onChange(id)
+    const wanted = findTemplate(choices, id)?.structureMode
+    if (wanted) onStructureMode(wanted)
+  }
 
   return (
     <div className="grid gap-1.5">
@@ -100,7 +118,7 @@ export function TemplatePicker({ value, onChange, structureMode }: TemplatePicke
             <div key={choice.id} className="flex items-center">
               <button
                 type="button"
-                onClick={() => onChange(choice.id)}
+                onClick={() => choose(choice.id)}
                 aria-pressed={active}
                 className={cn(
                   'rounded-full border px-3 py-1 text-xs transition-colors',
@@ -133,7 +151,7 @@ export function TemplatePicker({ value, onChange, structureMode }: TemplatePicke
                     className="rounded p-0.5 text-muted-foreground hover:text-destructive"
                     onClick={async () => {
                       await remove(choice.id)
-                      if (active) onChange(choices[0]?.id ?? '')
+                      if (active) choose(choices[0]?.id ?? '')
                     }}
                   >
                     <Trash2 className="size-3" />
@@ -157,7 +175,7 @@ export function TemplatePicker({ value, onChange, structureMode }: TemplatePicke
           templateId={editing.id}
           onOpenChange={(open) => !open && setEditing(null)}
           onSaved={(id) => {
-            onChange(id)
+            choose(id)
             setEditing(null)
           }}
         />

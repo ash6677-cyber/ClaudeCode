@@ -165,6 +165,65 @@ describe('templateSize', () => {
   })
 })
 
+describe('the formats that are not novels', () => {
+  const byId = (id: string) => BUILT_IN_TEMPLATES.find((t) => t.id === id)!
+
+  it('sets a screenplay in acts, numbered the way a screenplay is', () => {
+    const plan = expandTemplate(byId('builtin:screenplay'))
+    expect(plan.map((c) => c.title)).toEqual(['Act I', 'Act II', 'Act III'])
+    expect(plan.every((c) => c.kind === 'act')).toBe(true)
+    // The middle act is the long one, as a feature's is.
+    expect(plan[1].scenes.length).toBeGreaterThan(plan[0].scenes.length)
+  })
+
+  it('gives a stage script two acts of scenes', () => {
+    const plan = expandTemplate(byId('builtin:stage-script'))
+    expect(plan.map((c) => c.title)).toEqual(['Act I', 'Act II'])
+    expect(plan.every((c) => c.scenes.length === 3)).toBe(true)
+  })
+
+  it('keeps every poem whole rather than splitting it into scenes', () => {
+    const template = byId('builtin:poetry')
+    expect(template.structureMode).toBe('chapters-only')
+    const plan = expandTemplate(template, { scenesPerChapter: 'one' })
+    expect(plan).toHaveLength(6)
+    expect(plan[0].title).toBe('Poem One')
+    expect(plan.every((c) => c.kind === 'poem' && c.scenes.length === 1)).toBe(true)
+  })
+
+  it('gives a diary a week of entries, each an unbroken sitting', () => {
+    const template = byId('builtin:diary')
+    expect(template.structureMode).toBe('chapters-only')
+    const plan = expandTemplate(template, { scenesPerChapter: 'one' })
+    expect(plan).toHaveLength(7)
+    expect(plan.map((c) => c.title)).toEqual([
+      'Entry One',
+      'Entry Two',
+      'Entry Three',
+      'Entry Four',
+      'Entry Five',
+      'Entry Six',
+      'Entry Seven',
+    ])
+    expect(plan.every((c) => c.kind === 'entry')).toBe(true)
+  })
+
+  it('numbers acts, poems and entries but still not a prologue', () => {
+    expect(isNumbered('act')).toBe(true)
+    expect(isNumbered('poem')).toBe(true)
+    expect(isNumbered('entry')).toBe(true)
+    expect(isNumbered('prologue')).toBe(false)
+  })
+
+  it('does not force a structure on the formats that work in either', () => {
+    // A novel is written either way; only the ones that genuinely are not
+    // divisible say so, or the picker would keep overruling the writer.
+    expect(byId('builtin:standard-novel').structureMode).toBeUndefined()
+    expect(byId('builtin:blank').structureMode).toBeUndefined()
+    expect(byId('builtin:three-act').structureMode).toBeUndefined()
+  })
+})
+
 describe('BUILT_IN_TEMPLATES', () => {
   it('offers a blank option, so a template is never forced', () => {
     const blank = BUILT_IN_TEMPLATES.find((t) => t.id === 'builtin:blank')
