@@ -21,6 +21,16 @@ export interface Project extends BaseEntity {
   synopsis: string
   genre: string
   targetWordCount: number
+  /**
+   * The last cover PNG this project exported, as an `imageAssets` id.
+   *
+   * Not the cover design and not a `covers` row — the design is found the
+   * other way round, by `Cover.projectId`. The name reads like a link to one,
+   * which is exactly the mistake the box set used to make: it looked this id
+   * up in the `covers` table, found nothing, and drew blank jackets for books
+   * that had art. Nothing displays from this field. To draw a cover anywhere,
+   * use `resolveCoverArt`.
+   */
   coverId: string | null
   seriesId: string | null
   /**

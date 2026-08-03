@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import { chapterRepo, sceneRepo, snapshotRepo } from '@/lib/db/repositories'
 import { useStatsStore } from '@/stores/stats-store'
+import { binChapter, binScene } from '@/stores/trash-store'
 import type { Chapter, Scene, SceneStatus, Snapshot } from '@/types'
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -104,7 +105,9 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
     const sceneIdsToDelete = get()
       .scenes.filter((s) => s.chapterId === id)
       .map((s) => s.id)
-    await Promise.all([chapterRepo.remove(id), sceneRepo.bulkRemove(sceneIdsToDelete)])
+    // Binned together, so the chapter and its scenes come back together —
+    // and their snapshots come too, which the old delete missed entirely.
+    await binChapter(id)
     set({
       chapters: get().chapters.filter((c) => c.id !== id),
       scenes: get().scenes.filter((s) => s.chapterId !== id),
@@ -156,7 +159,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => ({
   },
 
   deleteScene: async (id) => {
-    await sceneRepo.remove(id)
+    await binScene(id)
     set({
       scenes: get().scenes.filter((s) => s.id !== id),
       activeSceneId: get().activeSceneId === id ? null : get().activeSceneId,

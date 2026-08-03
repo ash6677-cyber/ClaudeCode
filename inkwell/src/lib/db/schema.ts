@@ -23,6 +23,7 @@ import { syncEngine } from '@/lib/sync/sync-engine'
 import { createSyncedTable } from '@/lib/sync/synced-table'
 
 import type { TableLike } from './repository'
+import { createTrashableTable, type TrashableTable } from './soft-delete'
 import { isTauriRuntime } from './tauri-bridge'
 import { tauriTables } from './tauri-db'
 
@@ -69,31 +70,33 @@ export class InkwellDB extends Dexie {
 }
 
 interface DbTables {
-  projects: TableLike<Project>
-  series: TableLike<Series>
-  chapters: TableLike<Chapter>
-  scenes: TableLike<Scene>
-  snapshots: TableLike<Snapshot>
-  codexEntries: TableLike<CodexEntry>
-  characterCards: TableLike<CharacterCard>
-  cardChats: TableLike<CardChat>
-  personas: TableLike<Persona>
-  lorebooks: TableLike<Lorebook>
-  covers: TableLike<Cover>
-  aiPresets: TableLike<AiPreset>
-  aiProviders: TableLike<AiProviderConfig>
-  imageAssets: TableLike<ImageAsset>
-  goals: TableLike<Goal>
-  sessionLogs: TableLike<SessionLog>
+  projects: TrashableTable<Project>
+  series: TrashableTable<Series>
+  chapters: TrashableTable<Chapter>
+  scenes: TrashableTable<Scene>
+  snapshots: TrashableTable<Snapshot>
+  codexEntries: TrashableTable<CodexEntry>
+  characterCards: TrashableTable<CharacterCard>
+  cardChats: TrashableTable<CardChat>
+  personas: TrashableTable<Persona>
+  lorebooks: TrashableTable<Lorebook>
+  covers: TrashableTable<Cover>
+  aiPresets: TrashableTable<AiPreset>
+  aiProviders: TrashableTable<AiProviderConfig>
+  imageAssets: TrashableTable<ImageAsset>
+  goals: TrashableTable<Goal>
+  sessionLogs: TrashableTable<SessionLog>
 }
+
+/** The raw tables, before soft-delete or sync wrapping. */
+type RawDbTables = Record<keyof DbTables, TableLike<BaseEntity>>
 
 /** Browser build (web) reads/writes IndexedDB via Dexie; the desktop build
  * (Tauri) never touches Dexie at all — it uses an in-memory store that's
  * hydrated from and persisted to a real file on disk. Every store and
  * component goes through `db.<table>` exactly the same way either way. */
-function createRawDbTables(): DbTables {
-  if (isTauriRuntime()) return tauriTables
-  return new InkwellDB()
+function createRawDbTables(): RawDbTables {
+  return (isTauriRuntime() ? tauriTables : new InkwellDB()) as unknown as RawDbTables
 }
 
 /**
@@ -102,14 +105,22 @@ function createRawDbTables(): DbTables {
  * report outgoing local edits. Local-only use is unaffected: with no user
  * signed in, the engine drops every notification on the floor.
  */
-function withCloudSync(raw: DbTables): DbTables {
-  const wrapped: Record<string, TableLike<BaseEntity>> = {}
+function withCloudSync(raw: RawDbTables): DbTables {
+  const wrapped: Record<string, TrashableTable<BaseEntity>> = {}
   for (const [name, table] of Object.entries(raw)) {
     const typed = table as TableLike<BaseEntity>
+    // The sync engine writes incoming remote records to the *raw* table, so a
+    // record binned on another device arrives carrying its own `deletedAt`
+    // rather than being re-filtered on the way in.
     syncEngine.registerTable(name, typed)
-    wrapped[name] = createSyncedTable(name, typed, (t, id, kind) =>
+    const synced = createSyncedTable(name, typed, (t, id, kind) =>
       syncEngine.notifyLocalChange(t, id, kind),
     )
+    // Soft-delete sits *outside* sync deliberately. Binning is an update, so
+    // it travels to other devices as one and a restore undoes it there too —
+    // where a hard delete would broadcast a tombstone there is no coming back
+    // from.
+    wrapped[name] = createTrashableTable(synced)
   }
   return wrapped as unknown as DbTables
 }

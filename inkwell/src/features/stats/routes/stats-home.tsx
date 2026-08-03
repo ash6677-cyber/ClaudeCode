@@ -25,6 +25,7 @@ import {
   wordsToday,
   type DayTotal,
 } from '@/stores/stats-store'
+import { ProseReportPanel } from '@/features/stats/components/prose-report-panel'
 import { cn } from '@/lib/utils'
 
 const CHART_DAYS = 30
@@ -346,6 +347,10 @@ export function StatsHome() {
                   </ul>
                 )}
               </Card>
+            </div>
+
+            <div className="border-t border-border/70 pt-6">
+              <ProseReportPanel projects={projects} />
             </div>
           </div>
         )}

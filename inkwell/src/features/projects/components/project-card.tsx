@@ -10,11 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { imageAssetRepo } from '@/lib/db/repositories'
+import { resolveCoverThumbnail } from '@/features/covers/lib/resolve-cover'
 import { formatRelativeTime, formatWordCount } from '@/lib/format'
 import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import { cn } from '@/lib/utils'
 import type { Project, ProjectStatus } from '@/types'
+
+/** The thumbnail is drawn at 40px; this keeps it sharp on a 3× display. */
+const THUMBNAIL_WIDTH = 160
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   planning: 'Planning',
@@ -53,11 +56,15 @@ export function ProjectCard({
       ? Math.min(100, Math.round((currentWordCount / project.targetWordCount) * 100))
       : 0
 
-  const coverImage = useLiveQuery(
-    () => (project.coverId ? imageAssetRepo.get(project.coverId) : Promise.resolve(undefined)),
-    [project.coverId],
+  // The design itself, not the last PNG the writer happened to export. A cover
+  // composed in the studio belongs on the shelf straight away, and one edited
+  // afterwards belongs there as it is now — neither should wait on a button
+  // whose real job is downloading a file.
+  const coverBlob = useLiveQuery(
+    () => resolveCoverThumbnail(project.id, THUMBNAIL_WIDTH),
+    [project.id],
   )
-  const coverUrl = useObjectUrl(coverImage?.blob)
+  const coverUrl = useObjectUrl(coverBlob)
 
   return (
     <Card

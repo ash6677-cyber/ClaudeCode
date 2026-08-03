@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import { db } from '@/lib/db/schema'
+import { binProject } from '@/stores/trash-store'
 import { projectRepo } from '@/lib/db/repositories'
 import type { Project } from '@/types'
 
@@ -98,7 +99,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   },
 
   deleteProject: async (id) => {
-    await projectRepo.remove(id)
+    // Was a bare `remove(id)`, which deleted one row and left every chapter,
+    // scene, snapshot and cover belonging to it stranded in storage with no
+    // parent and no way to reach them. Binning takes the lot, as one event
+    // that can be undone as one.
+    await binProject(id)
     set({ projects: get().projects.filter((p) => p.id !== id) })
   },
 }))

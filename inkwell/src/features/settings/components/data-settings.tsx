@@ -21,6 +21,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { exportLibraryToFile, listLibraryBackups, restoreFromBackup } from '@/lib/db/tauri-db'
 import { isTauriRuntime } from '@/lib/db/tauri-bridge'
 import type { BackupInfo } from '@/lib/db/tauri-bridge'
+import { TrashSettings } from '@/features/settings/components/trash-settings'
 import { StorageHealth } from '@/features/settings/components/storage-health'
 import { useImportStore } from '@/stores/import-store'
 
@@ -116,7 +117,16 @@ export function DataSettings() {
   // it gets its own panel: durability status plus whole-library export and
   // restore. It used to say only that this was a desktop feature, which left
   // browser users with no way to get their work out at all.
-  if (!desktop) return <StorageHealth />
+  // The bin matters on every build, so it sits alongside storage health on
+  // the web rather than only in the desktop shell's data tools.
+  if (!desktop) {
+    return (
+      <div className="space-y-8">
+        <StorageHealth />
+        <TrashSettings />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -214,6 +224,8 @@ export function DataSettings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TrashSettings />
     </div>
   )
 }
