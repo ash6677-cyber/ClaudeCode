@@ -75,6 +75,35 @@ export interface ThemeShape {
   scale: number
 }
 
+/**
+ * The faces a theme chooses, and how big the prose sits.
+ *
+ * Three faces, because they are three genuinely different jobs: the interface
+ * is read in glances, headings are read as shapes, and a book is read for
+ * hours. A single "font" setting would have to be wrong for two of them.
+ *
+ * The writer's own manuscript typeface is deliberately *not* here. That one
+ * lives in preferences, because it is a property of the hand rather than of
+ * the book — it should follow a writer from project to project, and stay put
+ * when they change how the app looks.
+ *
+ * Prose size is separate from `ThemeShape.scale` for the same reason: scale
+ * grows the whole interface, and wanting larger prose in a normal-sized app
+ * is the more common request by a distance.
+ */
+export interface ThemeType {
+  /** Face id for the interface — buttons, labels, navigation. */
+  ui: string
+  /** Face id for headings and titles. */
+  display: string
+  /** Face id for the reader's pages. */
+  reading: string
+  /** Prose size in the editor and the book, as a multiple. */
+  proseScale: number
+  /** Line spacing for prose, as a multiple. */
+  leading: number
+}
+
 export interface Theme extends BaseEntity {
   name: string
   description: string
@@ -94,4 +123,6 @@ export interface Theme extends BaseEntity {
    * newer version of the app.
    */
   shape?: ThemeShape
+  /** Absent on themes made before typography existed. Same reason again. */
+  type?: ThemeType
 }

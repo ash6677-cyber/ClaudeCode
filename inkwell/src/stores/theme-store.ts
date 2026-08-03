@@ -14,12 +14,13 @@ export interface ThemeChoice {
   dark: ThemePalette
   page?: Theme['page']
   shape?: Theme['shape']
+  type?: Theme['type']
   custom: boolean
 }
 
 export type ThemeDraft = Pick<
   Theme,
-  'name' | 'description' | 'light' | 'dark' | 'page' | 'shape'
+  'name' | 'description' | 'light' | 'dark' | 'page' | 'shape' | 'type'
 >
 
 interface ThemeState {
@@ -30,9 +31,19 @@ interface ThemeState {
    * a bright laptop and a dark desktop wants a different answer on each.
    */
   activeId: string
+  /**
+   * The look of the book currently open, when it has asked for one of its own.
+   *
+   * Not persisted and not part of the picker: it is a fact about where the
+   * writer is standing, and it stops being true the moment they leave. A
+   * project's chosen theme lives on the project record; this is only the
+   * app noticing that one is open.
+   */
+  projectThemeId: string | null
   status: 'idle' | 'loading' | 'ready'
   load: () => Promise<void>
   setActive: (id: string) => void
+  setProjectTheme: (id: string | null) => void
   save: (draft: ThemeDraft, id?: string) => Promise<string>
   remove: (id: string) => Promise<void>
 }
@@ -42,6 +53,7 @@ export const useThemeStore = create<ThemeState>()(
     (set, get) => ({
       custom: [],
       activeId: DEFAULT_THEME_ID,
+      projectThemeId: null,
       status: 'idle',
 
       load: async () => {
@@ -52,6 +64,11 @@ export const useThemeStore = create<ThemeState>()(
       },
 
       setActive: (id) => set({ activeId: id }),
+
+      setProjectTheme: (id) =>
+        // Guarded so navigating between screens of the same book does not
+        // restate the same id and re-run every theme effect downstream.
+        set((state) => (state.projectThemeId === id ? state : { projectThemeId: id })),
 
       save: async (draft, id) => {
         if (id) {
@@ -79,6 +96,17 @@ export const useThemeStore = create<ThemeState>()(
   ),
 )
 
+/**
+ * Which theme is actually on: the open book's, or the one the writer chose.
+ *
+ * A book's own look wins while it is open, because that is the point of
+ * giving one to a book — a horror novel that goes back to the app's default
+ * the moment you glance at the outline has not really been given a look.
+ */
+export function activeThemeId(state: Pick<ThemeState, 'activeId' | 'projectThemeId'>): string {
+  return state.projectThemeId ?? state.activeId
+}
+
 export function themeChoices(custom: Theme[]): ThemeChoice[] {
   return [
     ...BUILT_IN_THEMES.map((preset) => ({ ...preset, custom: false })),
@@ -90,6 +118,7 @@ export function themeChoices(custom: Theme[]): ThemeChoice[] {
       dark: theme.dark,
       page: theme.page,
       shape: theme.shape,
+      type: theme.type,
       custom: true,
     })),
   ]
@@ -105,7 +134,7 @@ export function themeChoices(custom: Theme[]): ThemeChoice[] {
 export function resolveTheme(
   custom: Theme[],
   activeId: string,
-): Pick<Theme, 'light' | 'dark' | 'page' | 'shape'> | null {
+): Pick<Theme, 'light' | 'dark' | 'page' | 'shape' | 'type'> | null {
   const preset = findPreset(activeId)
   if (preset) return preset.id === DEFAULT_THEME_ID ? null : preset
   return custom.find((theme) => theme.id === activeId) ?? null

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 
 import { CommandPalette } from '@/app/command-palette'
+import { useProjectTheme } from '@/features/theme/lib/use-project-theme'
 import { useUiStore } from '@/stores/ui-store'
 
 import { MobileTopBar } from './mobile-topbar'
@@ -8,6 +9,9 @@ import { NavRail } from './nav-rail'
 
 export function AppShell() {
   const focusMode = useUiStore((s) => s.focusMode)
+  // Here rather than at the app root because it reads the open project out of
+  // the URL, and the root sits above the router.
+  useProjectTheme()
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden lg:flex-row">

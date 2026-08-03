@@ -2,7 +2,7 @@ import { useTheme } from 'next-themes'
 import { useEffect } from 'react'
 
 import { applyTheme } from '@/features/theme/lib/apply-theme'
-import { resolveTheme, useThemeStore } from '@/stores/theme-store'
+import { activeThemeId, resolveTheme, useThemeStore } from '@/stores/theme-store'
 
 /**
  * Keeps the document wearing the active theme.
@@ -16,7 +16,8 @@ import { resolveTheme, useThemeStore } from '@/stores/theme-store'
  */
 export function useApplyTheme(): void {
   const custom = useThemeStore((s) => s.custom)
-  const activeId = useThemeStore((s) => s.activeId)
+  // The open book's look if it has one, otherwise the writer's own choice.
+  const activeId = useThemeStore(activeThemeId)
   const load = useThemeStore((s) => s.load)
   const { resolvedTheme } = useTheme()
 

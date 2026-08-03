@@ -17,6 +17,7 @@
 import { edgeStyle } from './page-edge'
 import { shapeStyle } from './shape'
 import { isThemeToken, THEME_TOKENS } from './tokens'
+import { typeStyle } from './typography'
 import type { Theme, ThemePalette } from '@/types'
 
 export type ColorMode = 'light' | 'dark'
@@ -67,6 +68,7 @@ export function diffPalettes(
 let applied: ThemePalette = {}
 let appliedEdge: string[] = []
 let appliedShape: string[] = []
+let appliedType: string[] = []
 
 /**
  * Applies a theme's colours for the given mode.
@@ -75,7 +77,7 @@ let appliedShape: string[] = []
  * it only touches the properties that actually changed.
  */
 export function applyTheme(
-  theme: Pick<Theme, 'light' | 'dark' | 'page' | 'shape'> | null,
+  theme: Pick<Theme, 'light' | 'dark' | 'page' | 'shape' | 'type'> | null,
   mode: ColorMode,
   root: HTMLElement = document.documentElement,
 ): void {
@@ -109,6 +111,17 @@ export function applyTheme(
   } else {
     appliedShape = []
   }
+
+  // And the faces. Removing these puts the interface back in the app's own
+  // hand rather than leaving a borrowed one stuck on with nothing choosing it.
+  for (const name of appliedType) root.style.removeProperty(name)
+  const faces = typeStyle(theme?.type)
+  if (faces) {
+    for (const [name, value] of Object.entries(faces)) root.style.setProperty(name, value)
+    appliedType = Object.keys(faces)
+  } else {
+    appliedType = []
+  }
 }
 
 /** Forgets what is applied without touching the DOM. Tests only. */
@@ -116,6 +129,7 @@ export function resetAppliedForTests(): void {
   applied = {}
   appliedEdge = []
   appliedShape = []
+  appliedType = []
 }
 
 const baseCache = new Map<ColorMode, ThemePalette>()
