@@ -161,12 +161,15 @@ export function SceneEditor({
         'mx-auto w-full transition-[max-width,box-shadow,border-color,background-color] duration-200',
         'px-7 sm:px-10',
         focusMode
-          ? 'my-0 min-h-full bg-transparent py-16'
+          ? // No edge at all here, and that is the whole point of focus mode:
+            // a glow around the page is exactly the sort of thing you want
+            // until the moment you are actually trying to write.
+            'my-0 min-h-full bg-transparent py-16'
           : // Tall enough to reach the bottom of the view even when the scene
             // is two paragraphs long. A sheet that stopped at the last line
             // read as a card containing prose rather than a page being
             // written on, and left nothing to click into below the text.
-            'my-6 min-h-[calc(100%-3rem)] rounded-xl border border-border/70 bg-card py-10 shadow-[var(--elevation-sm)] sm:my-8 sm:min-h-[calc(100%-4rem)]',
+            'page-edge my-6 min-h-[calc(100%-3rem)] bg-card py-10 sm:my-8 sm:min-h-[calc(100%-4rem)]',
       )}
       style={{ maxWidth: `calc(${measureWidthCh}ch + 5rem)` }}
     >

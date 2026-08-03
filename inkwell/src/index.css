@@ -5,6 +5,16 @@
 :root {
   --radius: 0.7rem;
 
+  /* The edge around the page you write on and the book you read. Themes
+     override these; the defaults are the app's own quiet border, so a page
+     with no edge set still has one. */
+  --page-edge-color: var(--border);
+  --page-edge-width: 1px;
+  --page-edge-radius: 0.75rem;
+  --page-edge-shadow: var(--elevation-sm);
+  --page-edge-glow: 0 0 0 transparent;
+  --page-edge-book-width: 0px;
+
   /* Warm paper light mode */
   --background: oklch(98.2% 0.006 85);
   --foreground: oklch(20% 0.022 55);
@@ -417,4 +427,15 @@
     text-underline-offset: 3px;
     cursor: pointer;
   }
+}
+
+/* The writing page and the reader's book share one edge. They are the same
+   object at two moments, and a writer who gives their page a gold rule means
+   the book, not one view of it. */
+.page-edge {
+  border-style: solid;
+  border-width: var(--page-edge-width);
+  border-color: var(--page-edge-color);
+  border-radius: var(--page-edge-radius);
+  box-shadow: var(--page-edge-shadow);
 }

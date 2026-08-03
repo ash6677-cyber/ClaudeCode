@@ -14,6 +14,7 @@
  * the app still claiming to have set it.
  */
 
+import { edgeStyle } from './page-edge'
 import { isThemeToken, THEME_TOKENS } from './tokens'
 import type { Theme, ThemePalette } from '@/types'
 
@@ -63,6 +64,7 @@ export function diffPalettes(
 
 /** Tracks what this module last wrote, so it can take it back again. */
 let applied: ThemePalette = {}
+let appliedEdge: string[] = []
 
 /**
  * Applies a theme's colours for the given mode.
@@ -71,7 +73,7 @@ let applied: ThemePalette = {}
  * it only touches the properties that actually changed.
  */
 export function applyTheme(
-  theme: Pick<Theme, 'light' | 'dark'> | null,
+  theme: Pick<Theme, 'light' | 'dark' | 'page'> | null,
   mode: ColorMode,
   root: HTMLElement = document.documentElement,
 ): void {
@@ -82,11 +84,24 @@ export function applyTheme(
   for (const [token, value] of set) root.style.setProperty(cssVar(token), value)
 
   applied = Object.fromEntries(set)
+
+  // The page edge rides on the same element, and is taken back the same way.
+  // Its own defaults live in the stylesheet, so removing these restores the
+  // app's quiet border rather than leaving the page unbordered.
+  for (const name of appliedEdge) root.style.removeProperty(name)
+  const edge = theme?.page && theme.page.enabled ? edgeStyle(theme.page) : null
+  if (edge) {
+    for (const [name, value] of Object.entries(edge)) root.style.setProperty(name, value)
+    appliedEdge = Object.keys(edge)
+  } else {
+    appliedEdge = []
+  }
 }
 
 /** Forgets what is applied without touching the DOM. Tests only. */
 export function resetAppliedForTests(): void {
   applied = {}
+  appliedEdge = []
 }
 
 const baseCache = new Map<ColorMode, ThemePalette>()

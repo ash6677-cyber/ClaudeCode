@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ColorRow } from '@/features/theme/components/color-row'
+import { PageEdgeEditor } from '@/features/theme/components/page-edge-editor'
 import { applyTheme, readBaseTokens, type ColorMode } from '@/features/theme/lib/apply-theme'
 import { parseOklch } from '@/features/theme/lib/oklch'
 import {
@@ -53,6 +54,7 @@ export function ThemeEditorDialog({
     description: start.description,
     light: { ...start.light },
     dark: { ...start.dark },
+    page: start.page ? { ...start.page } : undefined,
   }))
   const [nameError, setNameError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -112,6 +114,9 @@ export function ThemeEditorDialog({
           // theme keeps tracking the design everywhere it did not decide.
           light: pruneRedundant(draft.light, readBaseTokens('light')),
           dark: pruneRedundant(draft.dark, readBaseTokens('dark')),
+          // Kept only when it draws something, so a theme does not carry a
+          // switched-off edge around forever.
+          page: draft.page?.enabled ? draft.page : undefined,
         },
         editingId,
       )
@@ -186,6 +191,8 @@ export function ThemeEditorDialog({
               ))}
             </div>
           </div>
+
+          <PageEdgeEditor edge={draft.page} onChange={(page) => setDraft({ ...draft, page })} />
 
           <div className="rounded-lg border border-border p-3">
             <div className="flex items-center justify-between gap-2">

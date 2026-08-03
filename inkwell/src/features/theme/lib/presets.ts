@@ -12,7 +12,7 @@
 
 import type { Theme } from '@/types'
 
-export type ThemePreset = Pick<Theme, 'name' | 'description' | 'light' | 'dark'> & {
+export type ThemePreset = Pick<Theme, 'name' | 'description' | 'light' | 'dark' | 'page'> & {
   id: string
 }
 
@@ -169,7 +169,17 @@ export const BUILT_IN_THEMES: ThemePreset[] = [
   {
     id: 'builtin:midnight',
     name: 'Midnight',
-    description: 'Near-black with a cold cyan accent. Made for writing at night.',
+    description: 'Near-black with a cold cyan accent, and a lit edge to the page.',
+    page: {
+      enabled: true,
+      source: 'primary',
+      color: 'oklch(80% 0.13 210)',
+      width: 1,
+      borderOpacity: 0.5,
+      radius: 14,
+      glow: 34,
+      glowOpacity: 0.28,
+    },
     light: {
       background: 'oklch(97% 0.006 240)',
       card: 'oklch(99% 0.004 240)',
