@@ -15,6 +15,11 @@
   --page-edge-glow: 0 0 0 transparent;
   --page-edge-book-width: 0px;
 
+  /* Shape. A theme sets these; the values here are the app's own. */
+  --wash-strength: 1;
+  --motion-scale: 1;
+  --ui-scale: 1;
+
   /* Warm paper light mode */
   --background: oklch(98.2% 0.006 85);
   --foreground: oklch(20% 0.022 55);
@@ -160,14 +165,14 @@
   --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
 
-  --animate-fade-in: fade-in 220ms var(--ease-out-soft);
-  --animate-slide-in: slide-in 260ms var(--ease-premium);
-  --animate-scale-in: scale-in 180ms var(--ease-premium);
-  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
-  --animate-sheet-in-left: sheet-in-left 260ms var(--ease-premium);
-  --animate-sheet-in-right: sheet-in-right 260ms var(--ease-premium);
-  --animate-sheet-in-top: sheet-in-top 260ms var(--ease-premium);
-  --animate-sheet-in-bottom: sheet-in-bottom 260ms var(--ease-premium);
+  --animate-fade-in: fade-in calc(220ms * var(--motion-scale)) var(--ease-out-soft);
+  --animate-slide-in: slide-in calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-scale-in: scale-in calc(180ms * var(--motion-scale)) var(--ease-premium);
+  --animate-shimmer: shimmer calc(1.8s * max(var(--motion-scale), 0.001)) ease-in-out infinite;
+  --animate-sheet-in-left: sheet-in-left calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-sheet-in-right: sheet-in-right calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-sheet-in-top: sheet-in-top calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-sheet-in-bottom: sheet-in-bottom calc(260ms * var(--motion-scale)) var(--ease-premium);
 
   @keyframes fade-in {
     from {
@@ -252,21 +257,25 @@
     color-scheme: dark;
   }
 
+  html {
+    font-size: calc(100% * var(--ui-scale));
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     background-image:
-      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 62%),
-      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) 6%, transparent), transparent 60%);
+      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) calc(7% * var(--wash-strength)), transparent), transparent 62%),
+      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) calc(6% * var(--wash-strength)), transparent), transparent 60%);
     background-repeat: no-repeat;
     background-attachment: fixed;
   }
 
   .dark body {
     background-image:
-      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 62%),
-      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) 17%, transparent), transparent 60%),
-      radial-gradient(1200px 700px at 60% 112%, color-mix(in oklch, var(--primary) 8%, transparent), transparent 62%);
+      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) calc(20% * var(--wash-strength)), transparent), transparent 62%),
+      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) calc(17% * var(--wash-strength)), transparent), transparent 60%),
+      radial-gradient(1200px 700px at 60% 112%, color-mix(in oklch, var(--primary) calc(8% * var(--wash-strength)), transparent), transparent 62%);
   }
 
   h1,

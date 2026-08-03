@@ -14,8 +14,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ColorRow } from '@/features/theme/components/color-row'
 import { PageEdgeEditor } from '@/features/theme/components/page-edge-editor'
+import { ShapeEditor } from '@/features/theme/components/shape-editor'
 import { applyTheme, readBaseTokens, type ColorMode } from '@/features/theme/lib/apply-theme'
 import { parseOklch } from '@/features/theme/lib/oklch'
+import { shapeIsDefault } from '@/features/theme/lib/shape'
 import {
   clearColor,
   effectiveColor,
@@ -55,6 +57,7 @@ export function ThemeEditorDialog({
     light: { ...start.light },
     dark: { ...start.dark },
     page: start.page ? { ...start.page } : undefined,
+    shape: start.shape ? { ...start.shape } : undefined,
   }))
   const [nameError, setNameError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -117,6 +120,9 @@ export function ThemeEditorDialog({
           // Kept only when it draws something, so a theme does not carry a
           // switched-off edge around forever.
           page: draft.page?.enabled ? draft.page : undefined,
+          // Same again: a shape identical to the app's own is not stored, so
+          // the theme keeps following the design where it did not decide.
+          shape: shapeIsDefault(draft.shape) ? undefined : draft.shape,
         },
         editingId,
       )
@@ -191,6 +197,8 @@ export function ThemeEditorDialog({
               ))}
             </div>
           </div>
+
+          <ShapeEditor shape={draft.shape} onChange={(shape) => setDraft({ ...draft, shape })} />
 
           <PageEdgeEditor edge={draft.page} onChange={(page) => setDraft({ ...draft, page })} />
 

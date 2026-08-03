@@ -13,10 +13,14 @@ export interface ThemeChoice {
   light: ThemePalette
   dark: ThemePalette
   page?: Theme['page']
+  shape?: Theme['shape']
   custom: boolean
 }
 
-export type ThemeDraft = Pick<Theme, 'name' | 'description' | 'light' | 'dark' | 'page'>
+export type ThemeDraft = Pick<
+  Theme,
+  'name' | 'description' | 'light' | 'dark' | 'page' | 'shape'
+>
 
 interface ThemeState {
   custom: Theme[]
@@ -85,6 +89,7 @@ export function themeChoices(custom: Theme[]): ThemeChoice[] {
       light: theme.light,
       dark: theme.dark,
       page: theme.page,
+      shape: theme.shape,
       custom: true,
     })),
   ]
@@ -100,7 +105,7 @@ export function themeChoices(custom: Theme[]): ThemeChoice[] {
 export function resolveTheme(
   custom: Theme[],
   activeId: string,
-): Pick<Theme, 'light' | 'dark' | 'page'> | null {
+): Pick<Theme, 'light' | 'dark' | 'page' | 'shape'> | null {
   const preset = findPreset(activeId)
   if (preset) return preset.id === DEFAULT_THEME_ID ? null : preset
   return custom.find((theme) => theme.id === activeId) ?? null

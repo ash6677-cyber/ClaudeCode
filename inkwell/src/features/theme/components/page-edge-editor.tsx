@@ -173,7 +173,7 @@ export function PageEdgeEditor({ edge, onChange }: PageEdgeEditorProps) {
               onChange={(borderOpacity) => set({ borderOpacity })}
             />
             <Dial
-              label="Corners"
+              label="Page corners"
               value={current.radius}
               min={0}
               max={40}

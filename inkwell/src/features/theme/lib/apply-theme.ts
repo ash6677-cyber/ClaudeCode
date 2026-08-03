@@ -15,6 +15,7 @@
  */
 
 import { edgeStyle } from './page-edge'
+import { shapeStyle } from './shape'
 import { isThemeToken, THEME_TOKENS } from './tokens'
 import type { Theme, ThemePalette } from '@/types'
 
@@ -65,6 +66,7 @@ export function diffPalettes(
 /** Tracks what this module last wrote, so it can take it back again. */
 let applied: ThemePalette = {}
 let appliedEdge: string[] = []
+let appliedShape: string[] = []
 
 /**
  * Applies a theme's colours for the given mode.
@@ -73,7 +75,7 @@ let appliedEdge: string[] = []
  * it only touches the properties that actually changed.
  */
 export function applyTheme(
-  theme: Pick<Theme, 'light' | 'dark' | 'page'> | null,
+  theme: Pick<Theme, 'light' | 'dark' | 'page' | 'shape'> | null,
   mode: ColorMode,
   root: HTMLElement = document.documentElement,
 ): void {
@@ -96,12 +98,24 @@ export function applyTheme(
   } else {
     appliedEdge = []
   }
+
+  // Shape rides along the same way. Written only when a theme asks for one,
+  // so the stylesheet's own rounding, depth and pace stand otherwise.
+  for (const name of appliedShape) root.style.removeProperty(name)
+  const shape = theme?.shape ? shapeStyle(theme.shape, mode) : null
+  if (shape) {
+    for (const [name, value] of Object.entries(shape)) root.style.setProperty(name, value)
+    appliedShape = Object.keys(shape)
+  } else {
+    appliedShape = []
+  }
 }
 
 /** Forgets what is applied without touching the DOM. Tests only. */
 export function resetAppliedForTests(): void {
   applied = {}
   appliedEdge = []
+  appliedShape = []
 }
 
 const baseCache = new Map<ColorMode, ThemePalette>()

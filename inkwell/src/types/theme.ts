@@ -47,6 +47,34 @@ export interface PageEdge {
   glowOpacity: number
 }
 
+/** How much the interface lifts off the page. */
+export type ThemeDepth = 'flat' | 'soft' | 'lifted' | 'dramatic'
+
+/**
+ * The shape of the interface, as distinct from its colour.
+ *
+ * Rounding, depth, the wash behind everything, how fast things move and how
+ * big it all is. Colour decides what an app looks like; these decide what it
+ * feels like to use, and they are the settings people actually reach for —
+ * "too bouncy", "too rounded", "too small" are all complaints about this and
+ * none of them about the palette.
+ */
+export interface ThemeShape {
+  /** Corner rounding in px. Zero is square; the app's own is about 11. */
+  radius: number
+  depth: ThemeDepth
+  /** Strength of the ambient wash behind everything, 0–1 of the app's own. */
+  wash: number
+  /**
+   * Animation speed, as a multiple. 1 is the app's own pace, 2 is half speed,
+   * 0 is still — which is a real preference and not only an accessibility
+   * setting, though the system one is still honoured on top of it.
+   */
+  motion: number
+  /** Overall size of the interface, as a multiple. */
+  scale: number
+}
+
 export interface Theme extends BaseEntity {
   name: string
   description: string
@@ -60,4 +88,10 @@ export interface Theme extends BaseEntity {
    * newer version.
    */
   page?: PageEdge
+  /**
+   * Absent on themes made before shape existed. Optional for the same reason
+   * as `page`: nothing changes what it looks like by being loaded into a
+   * newer version of the app.
+   */
+  shape?: ThemeShape
 }

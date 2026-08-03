@@ -12,7 +12,10 @@
 
 import type { Theme } from '@/types'
 
-export type ThemePreset = Pick<Theme, 'name' | 'description' | 'light' | 'dark' | 'page'> & {
+export type ThemePreset = Pick<
+  Theme,
+  'name' | 'description' | 'light' | 'dark' | 'page' | 'shape'
+> & {
   id: string
 }
 
@@ -118,7 +121,8 @@ export const BUILT_IN_THEMES: ThemePreset[] = [
     // to be unambiguous.
     id: 'builtin:high-contrast',
     name: 'High contrast',
-    description: 'Maximum separation, minimum colour. For bright rooms and tired eyes.',
+    description: 'Maximum separation, minimum colour. Square, flat, and still.',
+    shape: { radius: 2, depth: 'flat', wash: 0, motion: 0.6, scale: 1 },
     light: {
       background: 'oklch(100% 0 0)',
       card: 'oklch(100% 0 0)',
