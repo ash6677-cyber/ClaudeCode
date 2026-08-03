@@ -74,6 +74,16 @@ export function EditorHome() {
     if (projectId) loadProject(projectId)
   }, [projectId, loadProject])
 
+  // A `?scene=` in the link opens straight to that scene, which is what makes
+  // "appears in" in the Almanac worth clicking. Applied once the manuscript
+  // has loaded and only if the scene really belongs to it, so a stale link
+  // lands on the book rather than on nothing.
+  const requestedSceneId = searchParams.get('scene')
+  useEffect(() => {
+    if (!requestedSceneId || status !== 'ready') return
+    if (scenes.some((scene) => scene.id === requestedSceneId)) setActiveScene(requestedSceneId)
+  }, [requestedSceneId, status, scenes, setActiveScene])
+
   const codexEntries = useCodexStore((s) => s.entries)
   const loadCodexProject = useCodexStore((s) => s.loadProject)
   useEffect(() => {

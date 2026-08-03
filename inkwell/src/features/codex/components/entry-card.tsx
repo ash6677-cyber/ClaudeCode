@@ -26,11 +26,11 @@ export function EntryCard({ entry, projectId }: EntryCardProps) {
     <Card
       role="button"
       tabIndex={0}
-      onClick={() => navigate(`/codex/${entry.id}?project=${projectId}`)}
+      onClick={() => navigate(`/almanac/${entry.id}?project=${projectId}`)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          navigate(`/codex/${entry.id}?project=${projectId}`)
+          navigate(`/almanac/${entry.id}?project=${projectId}`)
         }
       }}
       className="flex cursor-pointer flex-col gap-3 overflow-hidden p-0 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

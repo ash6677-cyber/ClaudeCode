@@ -22,7 +22,7 @@ export function AppearanceSettings() {
           <Type className="size-3.5" /> Manuscript typeface
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
-          Applies to the manuscript editor and Codex entries. Theme (light/dark/system) lives in
+          Applies to the manuscript editor and Almanac entries. Theme (light/dark/system) lives in
           the toggle at the bottom of the left rail.
         </p>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">

@@ -10,8 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { EntryCard } from '@/features/codex/components/entry-card'
 import { EntryFormDialog } from '@/features/codex/components/entry-form-dialog'
-import { ENTRY_TYPES, ENTRY_TYPE_LABEL } from '@/features/codex/lib/entry-type'
-import { cn } from '@/lib/utils'
+import { AlmanacSurvey } from '@/features/almanac/components/almanac-survey'
 import { useCodexStore } from '@/stores/codex-store'
 import type { CodexEntryType } from '@/types'
 
@@ -45,7 +44,7 @@ export function CodexHome() {
 
   async function handleCreate(input: Parameters<typeof createEntry>[0]) {
     const entry = await createEntry(input)
-    toast({ title: `"${entry.name}" added to the Codex` })
+    toast({ title: `"${entry.name}" added to the Almanac` })
   }
 
   if (!projectId) {
@@ -54,7 +53,7 @@ export function CodexHome() {
         <EmptyState
           icon={Library}
           title="No project selected"
-          description="Open a project from the Projects page to view its Codex."
+          description="Open a project from the Projects page to view its Almanac."
           action={
             <Button asChild>
               <Link to="/projects">Go to Projects</Link>
@@ -68,7 +67,7 @@ export function CodexHome() {
   return (
     <div className="flex h-full flex-col">
       <PageHeader
-        title="Codex"
+        title="Almanac"
         description={
           status === 'ready' && entries.length > 0
             ? `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`
@@ -95,39 +94,18 @@ export function CodexHome() {
               className="h-8 pl-8 text-sm"
             />
           </div>
-          <div className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-0">
-            <button
-              type="button"
-              onClick={() => setTypeFilter('all')}
-              className={cn(
-                'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                typeFilter === 'all'
-                  ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                  : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-              )}
-            >
-              All
-            </button>
-            {ENTRY_TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => setTypeFilter(type)}
-                className={cn(
-                  'shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
-                  typeFilter === type
-                    ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-                    : 'border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                )}
-              >
-                {ENTRY_TYPE_LABEL[type]}
-              </button>
-            ))}
-          </div>
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <div className="flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
+        {status === 'ready' && entries.length > 0 && (
+          <AlmanacSurvey
+            projectId={projectId}
+            entries={entries}
+            activeType={typeFilter}
+            onSelectType={(type) => setTypeFilter(type as CodexEntryType | 'all')}
+          />
+        )}
         {status === 'loading' || status === 'idle' ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -137,7 +115,7 @@ export function CodexHome() {
         ) : status === 'error' ? (
           <EmptyState
             icon={BookOpen}
-            title="Couldn't load the Codex"
+            title="Couldn't load the Almanac"
             description={error ?? 'Something went wrong reading from local storage.'}
             action={
               <Button variant="outline" onClick={() => projectId && loadProject(projectId)}>
@@ -149,7 +127,7 @@ export function CodexHome() {
           <div className="flex min-h-[70vh] items-center justify-center">
             <EmptyState
               icon={BookOpen}
-              title="Your Codex is empty"
+              title="Your Almanac is empty"
               description="Add characters, locations, factions, and lore — everything worth remembering about your world."
               action={
                 <Button onClick={() => setFormOpen(true)}>

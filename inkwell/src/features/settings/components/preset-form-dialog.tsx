@@ -204,7 +204,7 @@ export function PresetFormDialog({ open, onOpenChange, preset, providers, onSubm
             <div className="grid gap-3 rounded-md border border-border p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <Label htmlFor={`${titleId}-include-codex`}>Include Codex context</Label>
+                  <Label htmlFor={`${titleId}-include-codex`}>Include Almanac context</Label>
                   <p className="text-xs text-muted-foreground">
                     Pull in worldbuilding entries mentioned nearby.
                   </p>
@@ -220,7 +220,7 @@ export function PresetFormDialog({ open, onOpenChange, preset, providers, onSubm
               {form.contextRules.includeCodex && (
                 <div className="grid gap-1.5 pl-0.5">
                   <Label htmlFor={`${titleId}-codex-budget`} className="text-xs">
-                    Codex token budget
+                    Almanac token budget
                   </Label>
                   <Input
                     id={`${titleId}-codex-budget`}

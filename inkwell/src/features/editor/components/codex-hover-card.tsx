@@ -55,7 +55,7 @@ export function CodexHoverCard({
       )}
       <button
         type="button"
-        onClick={() => navigate(`/codex/${entry.id}?project=${projectId}`)}
+        onClick={() => navigate(`/almanac/${entry.id}?project=${projectId}`)}
         className="mt-2 text-xs font-medium text-primary hover:underline"
       >
         Open in Codex →

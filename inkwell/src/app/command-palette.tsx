@@ -30,7 +30,7 @@ import { useUiStore } from '@/stores/ui-store'
 
 interface PaletteEntry {
   id: string
-  section: 'Actions' | 'Scenes' | 'Codex' | 'Projects' | 'Navigate'
+  section: 'Actions' | 'Scenes' | 'Almanac' | 'Projects' | 'Navigate'
   label: string
   hint?: string
   icon: React.ComponentType<{ className?: string }>
@@ -40,7 +40,7 @@ interface PaletteEntry {
 const NAV_ENTRIES = [
   { to: '/projects', label: 'Projects', icon: Library },
   { to: '/editor', label: 'Editor', icon: Feather },
-  { to: '/codex', label: 'Codex', icon: BookOpen },
+  { to: '/almanac', label: 'Almanac', icon: BookOpen },
   { to: '/cards', label: 'Cards', icon: Users },
   { to: '/planning', label: 'Planning', icon: LayoutList },
   { to: '/covers', label: 'Covers', icon: Image },
@@ -166,11 +166,11 @@ export function CommandPalette() {
       for (const entry of codexEntries) {
         list.push({
           id: `codex-${entry.id}`,
-          section: 'Codex',
+          section: 'Almanac',
           label: entry.name,
           hint: entry.aliases[0],
           icon: ENTRY_TYPE_ICON[entry.type],
-          run: () => navigate(`/codex/${entry.id}?project=${codexProjectId}`),
+          run: () => navigate(`/almanac/${entry.id}?project=${codexProjectId}`),
         })
       }
     }
@@ -227,7 +227,7 @@ export function CommandPalette() {
     const sections: PaletteEntry['section'][] = [
       'Actions',
       'Scenes',
-      'Codex',
+      'Almanac',
       'Projects',
       'Navigate',
     ]

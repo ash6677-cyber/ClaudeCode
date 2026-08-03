@@ -85,7 +85,7 @@ export function SyncStatus() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Your projects, chapters, scenes, Codex, characters, covers, and images sync across every
+        Your projects, chapters, scenes, Almanac, characters, covers, and images sync across every
         device you sign in on ({SYNCED_TABLES.length} record types). When two devices edit the
         same thing, the most recent edit wins.{' '}
         <strong className="font-medium text-foreground">

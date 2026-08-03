@@ -22,6 +22,7 @@ import {
 import { AppShell } from '@/app/layout/app-shell'
 import { RouteError } from '@/components/common/route-error'
 import { RouteLoading } from '@/components/common/route-loading'
+import { LegacyAlmanacRedirect } from '@/app/legacy-almanac-redirect'
 
 function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>
@@ -50,8 +51,12 @@ export const router = createHashRouter([
       screen('projects', <ProjectsHome />),
       screen('book-creator', <BookCreatorWizard />),
       screen('editor', <EditorHome />),
-      screen('codex', <CodexHome />),
-      screen('codex/:entryId', <CodexEntryDetail />),
+      screen('almanac', <CodexHome />),
+      screen('almanac/:entryId', <CodexEntryDetail />),
+      // The Almanac used to be called the Codex. Any link a writer bookmarked
+      // or pasted into their own notes under the old path still opens.
+      { path: 'codex', element: <Navigate to="/almanac" replace /> },
+      { path: 'codex/:entryId', element: <LegacyAlmanacRedirect /> },
       screen('cards', <CardsHome />),
       screen('cards/:cardId', <CardDetail />),
       screen('cards/:cardId/chat', <CardChat />),

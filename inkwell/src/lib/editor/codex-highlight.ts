@@ -3,41 +3,23 @@ import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
-export interface CodexIndexSource {
-  id: string
-  name: string
-  aliases: string[]
-}
+import {
+  buildMentionIndex,
+  EMPTY_MENTION_INDEX,
+  type MentionIndex,
+  type MentionSource,
+} from '@/features/almanac/lib/mentions'
 
-interface CodexIndex {
-  regex: RegExp | null
-  termToEntryId: Map<string, string>
-}
-
-const EMPTY_INDEX: CodexIndex = { regex: null, termToEntryId: new Map() }
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function buildIndex(entries: CodexIndexSource[]): CodexIndex {
-  const terms: { term: string; entryId: string }[] = []
-  for (const entry of entries) {
-    const name = entry.name.trim()
-    if (name) terms.push({ term: name, entryId: entry.id })
-    for (const alias of entry.aliases) {
-      const trimmed = alias.trim()
-      if (trimmed) terms.push({ term: trimmed, entryId: entry.id })
-    }
-  }
-  if (terms.length === 0) return EMPTY_INDEX
-
-  // Longest-first so "Mara Voss" is preferred over a shorter "Mara" alias at the same position.
-  terms.sort((a, b) => b.term.length - a.term.length)
-  const termToEntryId = new Map(terms.map((t) => [t.term.toLowerCase(), t.entryId]))
-  const pattern = `\\b(?:${terms.map((t) => escapeRegExp(t.term)).join('|')})\\b`
-  return { regex: new RegExp(pattern, 'gi'), termToEntryId }
-}
+/**
+ * The matching itself lives in the Almanac, because the same question — where
+ * is this name written? — is asked there over the whole manuscript. Sharing
+ * it means a word underlined in a scene and a scene listed under an entry's
+ * appearances can never disagree about what counts as a mention.
+ */
+export type CodexIndexSource = MentionSource
+type CodexIndex = MentionIndex
+const EMPTY_INDEX = EMPTY_MENTION_INDEX
+const buildIndex = buildMentionIndex
 
 function buildDecorations(doc: ProseMirrorNode, index: CodexIndex): DecorationSet {
   if (!index.regex) return DecorationSet.empty
