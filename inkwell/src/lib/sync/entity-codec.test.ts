@@ -22,6 +22,7 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     targetWordCount: 80000,
     coverId: null,
     seriesId: null,
+  seriesOrder: 0,
     status: 'planning',
     settings: {
       defaultAiPresetId: null,

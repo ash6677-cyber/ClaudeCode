@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch'
 import { EDITOR_FONTS } from '@/lib/editor/fonts'
 import { cn } from '@/lib/utils'
 import { usePreferencesStore } from '@/stores/preferences-store'
+import { ThemeSettings } from '@/features/theme/components/theme-settings'
 
 export function AppearanceSettings() {
   const editorFont = usePreferencesStore((s) => s.editorFont)
@@ -21,7 +22,7 @@ export function AppearanceSettings() {
           <Type className="size-3.5" /> Manuscript typeface
         </div>
         <p className="mb-3 text-xs text-muted-foreground">
-          Applies to the manuscript editor and Codex entries. Theme (light/dark/system) lives in
+          Applies to the manuscript editor and Almanac entries. Theme (light/dark/system) lives in
           the toggle at the bottom of the left rail.
         </p>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
@@ -86,6 +87,10 @@ export function AppearanceSettings() {
           />
         </div>
       </section>
+
+      <div className="border-t border-border/70 pt-6">
+        <ThemeSettings />
+      </div>
     </div>
   )
 }

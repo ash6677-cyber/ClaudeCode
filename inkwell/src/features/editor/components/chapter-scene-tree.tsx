@@ -58,6 +58,7 @@ export function ChapterSceneTree({ structureMode = 'scenes' }: ChapterSceneTreeP
   const setActiveScene = useEditorStore((s) => s.setActiveScene)
   const createChapter = useEditorStore((s) => s.createChapter)
   const renameChapter = useEditorStore((s) => s.renameChapter)
+  const setChapterKind = useEditorStore((s) => s.setChapterKind)
   const deleteChapter = useEditorStore((s) => s.deleteChapter)
   const reorderChapters = useEditorStore((s) => s.reorderChapters)
   const createScene = useEditorStore((s) => s.createScene)
@@ -246,6 +247,7 @@ export function ChapterSceneTree({ structureMode = 'scenes' }: ChapterSceneTreeP
                         else setActiveScene((await createScene(chapter.id)).id)
                       }}
                       onRename={(title) => renameChapter(chapter.id, title)}
+                      onSetKind={(kind) => setChapterKind(chapter.id, kind)}
                       onDelete={() =>
                         setPendingDelete({ kind: 'chapter', id: chapter.id, title: chapter.title })
                       }
@@ -261,6 +263,7 @@ export function ChapterSceneTree({ structureMode = 'scenes' }: ChapterSceneTreeP
                     expanded={!collapsed.has(chapter.id)}
                     onToggleExpand={() => toggleExpand(chapter.id)}
                     onRename={(title) => renameChapter(chapter.id, title)}
+                    onSetKind={(kind) => setChapterKind(chapter.id, kind)}
                     onDelete={() =>
                       setPendingDelete({ kind: 'chapter', id: chapter.id, title: chapter.title })
                     }

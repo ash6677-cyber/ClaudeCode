@@ -21,14 +21,47 @@ export interface Project extends BaseEntity {
   synopsis: string
   genre: string
   targetWordCount: number
+  /**
+   * The last cover PNG this project exported, as an `imageAssets` id.
+   *
+   * Not the cover design and not a `covers` row — the design is found the
+   * other way round, by `Cover.projectId`. The name reads like a link to one,
+   * which is exactly the mistake the box set used to make: it looked this id
+   * up in the `covers` table, found nothing, and drew blank jackets for books
+   * that had art. Nothing displays from this field. To draw a cover anywhere,
+   * use `resolveCoverArt`.
+   */
   coverId: string | null
   seriesId: string | null
+  /**
+   * Position in its series — book one, book two, and so on.
+   *
+   * Reading order is authorial, not chronological: a prequel written last
+   * still belongs at the front of the shelf. Nothing about the record's dates
+   * can express that, so the writer sets it and the box set is built from it.
+   * Meaningless while `seriesId` is null.
+   */
+  seriesOrder: number
   status: ProjectStatus
   settings: ProjectSettings
+}
+
+/** Surface finish of the slipcase board, which decides how it takes light. */
+export type BoxSetFinish = 'matte' | 'satin' | 'gloss'
+
+export interface SeriesBoxSet {
+  /** Board colour of the slipcase. */
+  caseColor: string
+  /** Colour the series name is stamped in. */
+  foilColor: string
+  /** How far the books stand proud of the case, 0 (flush) to 1 (half out). */
+  reveal: number
+  finish: BoxSetFinish
 }
 
 export interface Series extends BaseEntity {
   name: string
   description: string
   sharedCodex: boolean
+  boxSet: SeriesBoxSet
 }

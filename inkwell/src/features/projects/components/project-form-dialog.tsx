@@ -20,6 +20,8 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { STRUCTURE_OPTIONS } from '@/features/projects/lib/structure-options'
+import { TemplatePicker } from '@/features/templates/components/template-picker'
+import { DEFAULT_TEMPLATE_ID } from '@/features/templates/lib/templates'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth-store'
 import type { ProjectFormInput } from '@/stores/project-store'
@@ -42,6 +44,7 @@ const EMPTY_FORM: ProjectFormInput = {
   pov: 'third-limited',
   tense: 'past',
   structureMode: 'scenes',
+  templateId: DEFAULT_TEMPLATE_ID,
 }
 
 function formFromProject(project: Project): ProjectFormInput {
@@ -194,6 +197,18 @@ export function ProjectFormDialog({
                 </p>
               )}
             </div>
+
+            {/* Only when starting a book. Applying a format to a manuscript
+                that already has chapters would add a second prologue rather
+                than reshape anything. */}
+            {!project && (
+              <TemplatePicker
+                value={form.templateId ?? DEFAULT_TEMPLATE_ID}
+                onChange={(templateId) => setForm({ ...form, templateId })}
+                structureMode={form.structureMode}
+                onStructureMode={(structureMode) => setForm((f) => ({ ...f, structureMode }))}
+              />
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-1.5">

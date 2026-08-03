@@ -10,6 +10,8 @@ import type {
   Goal,
   ImageAsset,
   Lorebook,
+  ManuscriptTemplate,
+  Theme,
   Persona,
   Project,
   Scene,
@@ -49,6 +51,8 @@ const aiProviders = new Map<string, AiProviderConfig>()
 const imageAssets = new Map<string, ImageAsset>()
 const goals = new Map<string, Goal>()
 const sessionLogs = new Map<string, SessionLog>()
+const manuscriptTemplates = new Map<string, ManuscriptTemplate>()
+const themes = new Map<string, Theme>()
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let readyPromise: Promise<void> | null = null
@@ -93,6 +97,8 @@ async function serialize(): Promise<LibraryDocument> {
     imageAssets: storedImageAssets,
     goals: Array.from(goals.values()),
     sessionLogs: Array.from(sessionLogs.values()),
+    manuscriptTemplates: Array.from(manuscriptTemplates.values()),
+    themes: Array.from(themes.values()),
   }
 }
 
@@ -117,6 +123,8 @@ async function hydrate(doc: LibraryDocument) {
   fillMap(aiProviders, doc.aiProviders)
   fillMap(goals, doc.goals)
   fillMap(sessionLogs, doc.sessionLogs)
+  fillMap(manuscriptTemplates, doc.manuscriptTemplates)
+  fillMap(themes, doc.themes)
 
   imageAssets.clear()
   for (const stored of doc.imageAssets) {
@@ -209,4 +217,6 @@ export const tauriTables = {
   imageAssets: new MemoryTable(imageAssets, scheduleSave),
   goals: new MemoryTable(goals, scheduleSave),
   sessionLogs: new MemoryTable(sessionLogs, scheduleSave),
+  manuscriptTemplates: new MemoryTable(manuscriptTemplates, scheduleSave),
+  themes: new MemoryTable(themes, scheduleSave),
 }

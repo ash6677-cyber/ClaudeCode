@@ -1,16 +1,6 @@
 import { CheckCircle2, ChevronDown, ChevronUp, History, ListPlus, Plus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -25,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatRelativeTime, formatWordCount } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { useEditorStore } from '@/stores/editor-store'
+import { SnapshotDiffDialog } from '@/features/editor/components/snapshot-diff-dialog'
 import type { Scene, SceneBeat, SceneStatus, Snapshot } from '@/types'
 
 const STATUS_OPTIONS: { value: SceneStatus; label: string }[] = [
@@ -114,9 +105,8 @@ export function SceneMetadataDrawer({
     updateSceneMeta(scene.id, { beats: reordered })
   }
 
-  async function handleRestore() {
-    if (!pendingRestore) return
-    await restoreSnapshot(pendingRestore)
+  async function handleRestore(snapshot: Snapshot) {
+    await restoreSnapshot(snapshot)
     setPendingRestore(null)
     onContentRestored()
   }
@@ -313,7 +303,7 @@ export function SceneMetadataDrawer({
                       className="h-6 px-2 text-xs"
                       onClick={() => setPendingRestore(snap)}
                     >
-                      Restore
+                      Compare
                     </Button>
                     <Button
                       variant="ghost"
@@ -335,24 +325,15 @@ export function SceneMetadataDrawer({
         </div>
       </div>
 
-      <AlertDialog
-        open={pendingRestore !== null}
+      {/* Restoring is confirmed by showing the change itself rather than by
+          describing it. A sentence saying the text will be replaced tells you
+          nothing about what you are giving up; the diff does. */}
+      <SnapshotDiffDialog
+        snapshot={pendingRestore}
+        currentText={scene.plainText}
         onOpenChange={(open) => !open && setPendingRestore(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Restore this snapshot?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {pendingRestore &&
-                `This replaces the scene's current text (${formatWordCount(scene.wordCount)} words) with the version from ${formatRelativeTime(pendingRestore.createdAt)}. The current version is not saved first.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRestore}>Restore</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onRestore={handleRestore}
+      />
     </div>
   )
 }

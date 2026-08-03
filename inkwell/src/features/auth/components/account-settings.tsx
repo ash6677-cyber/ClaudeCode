@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/auth-store'
 export function AccountSettings() {
   const user = useAuthStore((s) => s.user)
   const status = useAuthStore((s) => s.status)
+  const error = useAuthStore((s) => s.error)
   const signOut = useAuthStore((s) => s.signOut)
   const updateAuthorName = useAuthStore((s) => s.updateAuthorName)
   const { toast } = useToast()
@@ -63,6 +64,11 @@ export function AccountSettings() {
           <Button className="mt-4" onClick={() => setDialogOpen(true)}>
             Sign in
           </Button>
+          {/* A redirect sign-in that fails comes back to this page with the
+              dialog long since closed, so the error has nowhere else to go.
+              Without this the writer returns to a screen that simply says
+              they aren't signed in, with no hint as to why. */}
+          {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
         </div>
         <AuthDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       </div>

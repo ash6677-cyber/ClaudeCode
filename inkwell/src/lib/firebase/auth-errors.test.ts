@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { displayNameFromProfile, isDismissedByUser, readableAuthError } from './auth-errors'
+import {
+  describeAuthError,
+  displayNameFromProfile,
+  isDismissedByUser,
+  readableAuthError,
+  shouldFallBackToRedirect,
+} from './auth-errors'
 
 const err = (code: string, customData?: Record<string, unknown>) => ({ code, customData })
 
@@ -105,5 +111,117 @@ describe('displayNameFromProfile', () => {
     expect(displayNameFromProfile({ name: '   ' })).toBeNull()
     expect(displayNameFromProfile({ name: { firstName: '  ', lastName: '' } })).toBeNull()
     expect(displayNameFromProfile({ name: { firstName: 42 } })).toBeNull()
+  })
+})
+
+describe('isDismissedByUser — redirect flow', () => {
+  it('counts backing out of the provider’s own consent screen', () => {
+    // The redirect flow's equivalents of closing a popup. Missing these
+    // meant a cancelled redirect surfaced as a red error on return.
+    expect(isDismissedByUser(err('auth/user-cancelled'))).toBe(true)
+    expect(isDismissedByUser(err('auth/redirect-cancelled-by-user'))).toBe(true)
+  })
+
+  it('still treats a genuine failure as a failure', () => {
+    expect(isDismissedByUser(err('auth/popup-blocked'))).toBe(false)
+    expect(isDismissedByUser(err('auth/unauthorized-domain'))).toBe(false)
+  })
+})
+
+describe('shouldFallBackToRedirect', () => {
+  it('retries as a redirect when the window never opened', () => {
+    expect(shouldFallBackToRedirect(err('auth/popup-blocked'))).toBe(true)
+    expect(shouldFallBackToRedirect(err('auth/operation-not-supported-in-this-environment'))).toBe(
+      true,
+    )
+  })
+
+  it('retries when the popup machinery itself could not load', () => {
+    // A network that blocks apis.google.com fails the SDK's iframe bootstrap
+    // and reports it as a bare internal error. Redirect needs neither.
+    expect(shouldFallBackToRedirect(err('auth/internal-error'))).toBe(true)
+  })
+
+  it('does not navigate away for failures a redirect cannot fix', () => {
+    // Redirect throws away the page's state, so it must not be attempted for
+    // an error that would simply recur — an unauthorised domain or a
+    // provider left disabled fails identically either way.
+    for (const code of [
+      'auth/unauthorized-domain',
+      'auth/operation-not-allowed',
+      'auth/network-request-failed',
+      'auth/popup-closed-by-user',
+      'auth/account-exists-with-different-credential',
+    ]) {
+      expect(shouldFallBackToRedirect(err(code))).toBe(false)
+    }
+  })
+
+  it('does not fire on a non-Firebase error', () => {
+    expect(shouldFallBackToRedirect(new Error('boom'))).toBe(false)
+    expect(shouldFallBackToRedirect(undefined)).toBe(false)
+  })
+})
+
+describe('readableAuthError — the codes a real deployment adds', () => {
+  it('names a build whose Firebase settings point nowhere real', () => {
+    for (const code of ['auth/configuration-not-found', 'auth/invalid-api-key']) {
+      expect(readableAuthError(err(code))).toContain('VITE_FIREBASE_')
+    }
+  })
+
+  it('explains the Safari redirect that loses its own state', () => {
+    // `auth/missing-initial-state` is what a third-party-storage blocker
+    // returns on the way back from a redirect. "Something went wrong" here
+    // is the difference between a fixable problem and an unusable app.
+    const message = readableAuthError(err('auth/missing-initial-state'))
+    expect(message).toContain('blocking storage')
+    expect(message).toContain('email')
+  })
+
+  it('explains storage being switched off entirely', () => {
+    expect(readableAuthError(err('auth/web-storage-unsupported'))).toContain('cookies')
+  })
+
+  it('treats a blocked window and an unsupported one the same way', () => {
+    expect(readableAuthError(err('auth/operation-not-supported-in-this-environment'))).toBe(
+      readableAuthError(err('auth/popup-blocked')),
+    )
+  })
+
+  it('does not blame the writer for cancelling a redirect', () => {
+    expect(readableAuthError(err('auth/user-cancelled'))).toBe(
+      readableAuthError(err('auth/popup-closed-by-user')),
+    )
+  })
+})
+
+describe('describeAuthError', () => {
+  it('says nothing for a code it cannot name', () => {
+    // The return leg of a redirect nobody completed: Firebase reports an
+    // abandoned handshake as a bare timeout or internal error, and a false
+    // alarm about a page the writer chose to leave is worse than silence.
+    expect(describeAuthError(err('auth/timeout'))).toBeNull()
+    expect(describeAuthError(err('auth/internal-error'))).toBeNull()
+    expect(describeAuthError(err('auth/some-future-code'))).toBeNull()
+    expect(describeAuthError(undefined)).toBeNull()
+  })
+
+  it('still names everything actionable', () => {
+    for (const code of [
+      'auth/account-exists-with-different-credential',
+      'auth/unauthorized-domain',
+      'auth/operation-not-allowed',
+      'auth/missing-initial-state',
+      'auth/user-disabled',
+    ]) {
+      expect(describeAuthError(err(code))).toBe(readableAuthError(err(code)))
+    }
+  })
+
+  it('is what readableAuthError falls back from', () => {
+    expect(readableAuthError(err('auth/timeout'))).toBe(
+      'Something went wrong signing in. Please try again.',
+    )
   })
 })

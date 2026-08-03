@@ -22,9 +22,19 @@ development.
 | Sign in with Apple | **$99/year** — requires the Apple Developer Program |
 | Email/password sign-in | **Free** |
 
-Apple is the only hard cost. If you skip it, delete the "Continue with
-Apple" button from `src/features/auth/components/auth-dialog.tsx` — leaving
-a button that always errors is worse than not offering it.
+Apple is the only hard cost. If you skip it, set
+
+```
+VITE_AUTH_PROVIDERS=google,facebook
+```
+
+and the Apple button disappears — no code change needed. Leaving a button
+that can only ever fail with `auth/operation-not-allowed` is worse than not
+offering it, because the writer reads it as the app being broken rather than
+as a provider you never set up. The variable accepts any comma-separated
+subset of `google`, `apple`, `facebook`; unset means all three (which is
+what local emulator development wants, since the emulator stubs every
+provider), and `none` leaves email/password only.
 
 Firebase's free Spark plan limits worth knowing: 1 GiB stored, 50,000
 document reads/day, 20,000 writes/day. For a single writer that is a lot of
@@ -151,6 +161,54 @@ sign in. The app now names the problem instead of shrugging: the error reads
 
 ---
 
+## Popup or redirect: which flow runs, and when
+
+Social sign-in has two shapes and INKWELL picks between them at runtime.
+
+**In a browser tab** it uses `signInWithPopup`. The page stays put, the
+provider opens in a child window, and the result is handed back to the
+opener.
+
+**In an installed app** — anything running in standalone display mode, which
+includes every iOS Home Screen install — it goes straight to
+`signInWithRedirect`. This is not a preference. A standalone iOS web app has
+no child-window relationship to hand a result back through: `window.open`
+passes the URL to Safari as a separate app, nothing ever posts back, and the
+popup promise never settles. The spinner spins until the writer gives up.
+Since INKWELL actively asks people to install it (a Home Screen app is
+exempt from Safari's seven-day storage eviction, so installing is a
+data-safety measure), that path has to work.
+
+**A blocked popup also falls back to redirect.** `auth/popup-blocked` and
+`auth/operation-not-supported-in-this-environment` both mean the window
+never opened, which redirect doesn't need. Every other error is reported as
+itself — a redirect would throw away the page's state and then fail in
+exactly the same way.
+
+### The one caveat worth knowing
+
+The redirect flow round-trips through `<your-project>.firebaseapp.com` and
+comes back. Browsers that block third-party storage — Safari with ITP,
+Firefox with strict protection, Brave — can drop the state it left behind on
+the way, and the return trip fails with `auth/missing-initial-state`. The
+app explains that in plain language and points at email sign-in, but the
+real fix is to serve Firebase's auth handler from your own origin:
+
+- Set `VITE_FIREBASE_AUTH_DOMAIN` to a domain you control that also serves
+  `/__/auth/*` (Firebase Hosting does this automatically for its own
+  domains), **or**
+- reverse-proxy `/__/auth/` from your host to
+  `<your-project>.firebaseapp.com`.
+
+Neither is possible on GitHub Pages, which serves static files only and
+can't proxy. So on a `github.io` deployment, expect installed-app social
+sign-in to work on Chrome and Android and to be unreliable on iOS Safari;
+email/password sign-in works everywhere and is unaffected. Moving the web
+build to Firebase Hosting (also free on the Spark plan) removes the caveat
+entirely, since the auth domain and the app would then share an origin.
+
+---
+
 ## Desktop app (Tauri): read this before shipping social sign-in
 
 The desktop build loads from an internal origin (`tauri://localhost` on
@@ -177,8 +235,9 @@ shipping an installer with three buttons that fail.
 
 If you want desktop social sign-in, say so and I'll wire up the
 localhost-listener flow. If desktop users signing in by email is
-acceptable, nothing needs to change — hide the three social buttons when
-`isTauriRuntime()` is true so they don't appear where they can't work.
+acceptable, nothing needs to change: the three social buttons are already
+hidden when `isTauriRuntime()` is true, so they never appear where they
+can't work.
 
 Note also that the CSP in `src-tauri/tauri.conf.json` currently allows the
 Firebase API hosts and the local emulator. Production social sign-in would

@@ -17,6 +17,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
+import { AppearancesList } from '@/features/almanac/components/appearances-list'
 import { AttributeList } from '@/features/codex/components/attribute-list'
 import { CodexBodyEditor } from '@/features/codex/components/codex-body-editor'
 import { ImageUploadField } from '@/features/codex/components/image-upload-field'
@@ -94,7 +95,7 @@ export function CodexEntryDetail() {
         <EmptyState
           icon={Library}
           title="No project selected"
-          description="Open a project from the Projects page to view its Codex."
+          description="Open a project from the Projects page to view its Almanac."
           action={
             <Button asChild>
               <Link to="/projects">Go to Projects</Link>
@@ -123,7 +124,7 @@ export function CodexEntryDetail() {
           description="This entry may have been deleted."
           action={
             <Button asChild>
-              <Link to={`/codex?project=${projectId}`}>Back to Codex</Link>
+              <Link to={`/almanac?project=${projectId}`}>Back to Almanac</Link>
             </Button>
           }
         />
@@ -137,8 +138,8 @@ export function CodexEntryDetail() {
     <div className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <Button variant="ghost" size="sm" asChild className="gap-1.5">
-          <Link to={`/codex?project=${projectId}`}>
-            <ArrowLeft className="size-4" /> Codex
+          <Link to={`/almanac?project=${projectId}`}>
+            <ArrowLeft className="size-4" /> Almanac
           </Link>
         </Button>
         <Button
@@ -255,6 +256,12 @@ export function CodexEntryDetail() {
             />
           </div>
 
+          {/* Its own section. Relationships are what the writer said about
+              this entry; appearances are what the manuscript says about it.
+              Putting one inside the other read as though the scenes listed
+              were somehow relationships. */}
+          <AppearancesList entry={entry} projectId={projectId} />
+
           <div className="grid gap-1.5">
             <Label>Relationships</Label>
             <RelationshipList
@@ -262,7 +269,7 @@ export function CodexEntryDetail() {
               otherEntries={otherEntries}
               onAdd={(targetId, label) => addRelationship(entry.id, targetId, label)}
               onRemove={(id) => removeRelationship(entry.id, id)}
-              onNavigate={(id) => navigate(`/codex/${id}?project=${projectId}`)}
+              onNavigate={(id) => navigate(`/almanac/${id}?project=${projectId}`)}
             />
           </div>
 
@@ -296,11 +303,11 @@ export function CodexEntryDetail() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={`Delete "${entry.name}"?`}
-        description="This permanently deletes the entry from your Codex. This can't be undone."
+        description="This permanently deletes the entry from your Almanac. This can't be undone."
         onConfirm={async () => {
           await deleteEntry(entry.id)
           toast({ title: `"${entry.name}" deleted` })
-          navigate(`/codex?project=${projectId}`)
+          navigate(`/almanac?project=${projectId}`)
         }}
       />
     </div>

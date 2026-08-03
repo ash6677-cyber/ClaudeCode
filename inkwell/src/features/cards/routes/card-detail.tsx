@@ -184,7 +184,7 @@ export function CardDetail() {
           </div>
 
           <div className="grid gap-1.5">
-            <Label>Linked Codex entry</Label>
+            <Label>Linked Almanac entry</Label>
             <Select
               value={card.codexEntryId ?? 'none'}
               onValueChange={(v) => updateCard(card.id, { codexEntryId: v === 'none' ? null : v })}
@@ -202,7 +202,7 @@ export function CardDetail() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Ties this card to a Codex entry so worldbuilding stays in sync.
+              Ties this card to an Almanac entry so worldbuilding stays in sync.
             </p>
           </div>
         </div>

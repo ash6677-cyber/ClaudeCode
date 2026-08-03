@@ -41,6 +41,12 @@ export const PlanningHome = lazy(() =>
 export const CoversHome = lazy(() =>
   import('@/features/covers/routes/covers-home').then((m) => ({ default: m.CoversHome })),
 )
+export const SeriesHome = lazy(() =>
+  import('@/features/series/routes/series-home').then((m) => ({ default: m.SeriesHome })),
+)
+export const SeriesDetail = lazy(() =>
+  import('@/features/series/routes/series-detail').then((m) => ({ default: m.SeriesDetail })),
+)
 export const StatsHome = lazy(() =>
   import('@/features/stats/routes/stats-home').then((m) => ({ default: m.StatsHome })),
 )

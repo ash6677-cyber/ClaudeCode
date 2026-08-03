@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 
+import { pickCoverFor } from '@/features/covers/lib/resolve-cover'
 import { coverRepo, projectRepo } from '@/lib/db/repositories'
 import type { Cover, CoverAspectPreset, CoverTypographyLayer } from '@/types'
 
@@ -32,8 +33,9 @@ interface CoverStoreState {
 }
 
 async function ensureCover(projectId: string): Promise<Cover> {
-  const all = await coverRepo.list()
-  const existing = all.find((c) => c.projectId === projectId)
+  // The same pick the shelf and the box set make, so the studio never edits a
+  // different row from the one the rest of the app is drawing.
+  const existing = pickCoverFor(await coverRepo.list(), projectId)
   if (existing) return existing
   return coverRepo.create({
     projectId,

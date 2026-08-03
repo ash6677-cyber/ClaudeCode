@@ -112,7 +112,7 @@ export function ProjectsHome() {
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {status === 'loading' || status === 'idle' ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))]">
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-52 rounded-xl" />
             ))}
@@ -150,7 +150,7 @@ export function ProjectsHome() {
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))]">
             {projects.map((project) => (
               <ProjectCard
                 key={project.id}

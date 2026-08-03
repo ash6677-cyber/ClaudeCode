@@ -10,11 +10,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { imageAssetRepo } from '@/lib/db/repositories'
+import { resolveCoverThumbnail } from '@/features/covers/lib/resolve-cover'
+import { clothColorFor, readableInk, shade } from '@/features/series/lib/palette'
 import { formatRelativeTime, formatWordCount } from '@/lib/format'
 import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import { cn } from '@/lib/utils'
 import type { Project, ProjectStatus } from '@/types'
+
+/** The thumbnail is drawn at 40px; this keeps it sharp on a 3× display. */
+const THUMBNAIL_WIDTH = 160
 
 const STATUS_LABEL: Record<ProjectStatus, string> = {
   planning: 'Planning',
@@ -53,11 +57,18 @@ export function ProjectCard({
       ? Math.min(100, Math.round((currentWordCount / project.targetWordCount) * 100))
       : 0
 
-  const coverImage = useLiveQuery(
-    () => (project.coverId ? imageAssetRepo.get(project.coverId) : Promise.resolve(undefined)),
-    [project.coverId],
+  // The design itself, not the last PNG the writer happened to export. A cover
+  // composed in the studio belongs on the shelf straight away, and one edited
+  // afterwards belongs there as it is now — neither should wait on a button
+  // whose real job is downloading a file.
+  const coverBlob = useLiveQuery(
+    () => resolveCoverThumbnail(project.id, THUMBNAIL_WIDTH),
+    [project.id],
   )
-  const coverUrl = useObjectUrl(coverImage?.blob)
+  const coverUrl = useObjectUrl(coverBlob)
+  // The same cloth colours the box set binds books in, seeded the same way, so
+  // a book keeps its colour wherever it is shown.
+  const spine = clothColorFor(project.id)
 
   return (
     <Card
@@ -74,12 +85,28 @@ export function ProjectCard({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 gap-3">
-          {coverUrl && (
+          {coverUrl ? (
             <img
               src={coverUrl}
               alt=""
-              className="h-14 w-10 shrink-0 rounded-sm border border-border object-cover shadow-sm"
+              className="h-16 w-11 shrink-0 rounded-sm border border-border object-cover shadow-sm"
             />
+          ) : (
+            // A book with no cover was a flat block of grey text, which is a
+            // poor thing to hand someone looking at their own shelf. This is
+            // a spine rather than a placeholder: a colour drawn from the
+            // title, so a book looks like itself from the first minute and
+            // two books never look the same.
+            <span
+              aria-hidden="true"
+              className="flex h-16 w-11 shrink-0 items-center justify-center rounded-sm border border-border/60 font-serif text-lg font-semibold shadow-sm"
+              style={{
+                background: `linear-gradient(150deg, ${spine} 0%, ${shade(spine, -0.22)} 100%)`,
+                color: readableInk(spine),
+              }}
+            >
+              {(project.title.trim()[0] ?? '?').toUpperCase()}
+            </span>
           )}
           <div className="min-w-0">
             <h3 className="truncate font-serif text-base font-semibold leading-snug">

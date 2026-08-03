@@ -9,6 +9,8 @@ import { useLorebookStore } from '@/stores/lorebook-store'
 import { usePersonaStore } from '@/stores/persona-store'
 import { useProjectStore } from '@/stores/project-store'
 import { useStatsStore } from '@/stores/stats-store'
+import { useTemplateStore } from '@/stores/template-store'
+import { useThemeStore } from '@/stores/theme-store'
 
 /**
  * Reloads whichever stores own the tables a remote sync just touched.
@@ -61,6 +63,13 @@ const REFRESHERS: Record<SyncedTableName, () => void> = {
   // history at once, so there's no open-project check to make.
   goals: refreshStats,
   sessionLogs: refreshStats,
+
+  // A format defined on another device should appear in the picker here
+  // without a reload — it is a short list held in one store.
+  manuscriptTemplates: () => void useTemplateStore.getState().load(),
+
+  // A look built on another device should arrive without a reload.
+  themes: () => void useThemeStore.getState().load(),
 }
 
 function refreshStats() {
