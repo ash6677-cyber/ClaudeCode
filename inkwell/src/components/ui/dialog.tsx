@@ -33,7 +33,22 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
+        // Bounded and scrolling by default. A dialog is centred on the
+        // viewport, so one taller than the screen hangs off *both* ends at
+        // once — and with nothing scrollable, its buttons are not merely
+        // below the fold, they are unreachable. On a phone that is most of
+        // the long dialogs in this app: the New project form was 1044px on
+        // an 844px screen with Close 108px above the top and "Create
+        // project" 100px below the bottom.
+        //
+        // `dvh` rather than `vh` because a phone's viewport shrinks when the
+        // browser chrome or the keyboard appears, and `vh` keeps promising
+        // the taller number.
+        //
+        // A dialog wanting a pinned header and footer still says so itself,
+        // with `flex max-h-[…] flex-col` and its own inner scroller — this is
+        // the floor, not the ceiling.
+        'fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
         className,
       )}
       {...props}

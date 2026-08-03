@@ -85,7 +85,7 @@ export function EntryFormDialog({
       <DialogContent className="max-w-lg">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>New Codex entry</DialogTitle>
+            <DialogTitle>New Almanac entry</DialogTitle>
             <DialogDescription>
               Start with the basics — you can add attributes, relationships, and an image after.
             </DialogDescription>
