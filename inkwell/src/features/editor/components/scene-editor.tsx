@@ -147,12 +147,28 @@ export function SceneEditor({
   const hoveredEntry = hover ? codexEntries.find((e) => e.id === hover.entryId) : undefined
 
   return (
+    // A page to write on, rather than prose floating on the app's background.
+    // A writing surface is the one thing this app exists to show, and it had
+    // less presence than a settings panel: the measure was right but there
+    // was no edge to it, so nothing said where the page stopped and the
+    // furniture began.
+    //
+    // In focus mode the sheet stays — it is the writing surface, not
+    // decoration — but its border and shadow go, because those are chrome and
+    // focus mode is for removing chrome.
     <div
       className={cn(
-        'mx-auto w-full px-6 py-10 transition-[max-width] duration-200',
-        focusMode ? 'py-16' : 'py-10',
+        'mx-auto w-full transition-[max-width,box-shadow,border-color,background-color] duration-200',
+        'px-7 sm:px-10',
+        focusMode
+          ? 'my-0 min-h-full bg-transparent py-16'
+          : // Tall enough to reach the bottom of the view even when the scene
+            // is two paragraphs long. A sheet that stopped at the last line
+            // read as a card containing prose rather than a page being
+            // written on, and left nothing to click into below the text.
+            'my-6 min-h-[calc(100%-3rem)] rounded-xl border border-border/70 bg-card py-10 shadow-[var(--elevation-sm)] sm:my-8 sm:min-h-[calc(100%-4rem)]',
       )}
-      style={{ maxWidth: `${measureWidthCh}ch` }}
+      style={{ maxWidth: `calc(${measureWidthCh}ch + 5rem)` }}
     >
       <EditorContent editor={editor} />
       {hover && hoveredEntry && (

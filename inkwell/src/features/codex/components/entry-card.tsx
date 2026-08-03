@@ -35,13 +35,20 @@ export function EntryCard({ entry, projectId }: EntryCardProps) {
       }}
       className="flex cursor-pointer flex-col gap-3 overflow-hidden p-0 transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <div className="flex aspect-[4/3] items-center justify-center bg-muted">
-        {imageUrl ? (
+      {/* An entry with a picture gets room for it. One without used to get the
+          same room anyway — a third of the card given over to a grey box with
+          a small icon in the middle of it, on every entry, forever. A short
+          tinted band says which kind of thing it is without taking the space
+          the writing needs. */}
+      {imageUrl ? (
+        <div className="flex aspect-[4/3] items-center justify-center bg-muted">
           <img src={imageUrl} alt="" className="size-full object-cover" />
-        ) : (
-          <Icon className="size-8 text-muted-foreground/40" strokeWidth={1.5} />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="flex h-16 items-center justify-center bg-gradient-to-br from-muted to-muted/40">
+          <Icon className="size-6 text-muted-foreground/35" strokeWidth={1.5} />
+        </div>
+      )}
       <div className="flex flex-col gap-2 px-4 pb-4">
         <div className="flex items-start justify-between gap-2">
           <h3 className="truncate font-serif text-base font-semibold leading-snug">{entry.name}</h3>

@@ -163,7 +163,16 @@ export function CorkboardView({ projectId, structureMode }: CorkboardViewProps) 
         setOverChapterId(null)
       }}
     >
-      <div className="flex h-full gap-4 overflow-x-auto p-4">
+      {/* The right-hand column was being cut off flush against the edge, which
+          reads as a rendering fault rather than as more board to scroll to. A
+          fade over the edge says the board continues; the padding means the
+          last column can actually reach the middle of the screen. */}
+      <div className="relative h-full">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-background to-transparent"
+        />
+        <div className="flex h-full gap-4 overflow-x-auto p-4 pr-16">
         <SortableContext
           items={chaptersSorted.map((c) => c.id)}
           strategy={horizontalListSortingStrategy}
@@ -193,7 +202,8 @@ export function CorkboardView({ projectId, structureMode }: CorkboardViewProps) 
               />
             )
           })}
-        </SortableContext>
+          </SortableContext>
+        </div>
       </div>
 
       <DragOverlay>

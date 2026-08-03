@@ -221,7 +221,7 @@ export function EditorHome() {
   if (project === undefined || (status === 'loading' && chapters.length === 0)) {
     return (
       <div className="flex h-full">
-        <div className="hidden w-64 shrink-0 space-y-2 border-r border-border p-3 lg:block">
+        <div className="hidden w-72 shrink-0 space-y-2 border-r border-border p-3 lg:block">
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-full" />
           <Skeleton className="h-6 w-5/6" />
@@ -253,7 +253,7 @@ export function EditorHome() {
   return (
     <div className="flex h-full">
       {!focusMode && (
-        <aside className="hidden w-64 shrink-0 overflow-y-auto border-r border-border py-2 lg:block">
+        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-border py-2 lg:block">
           <ChapterSceneTree structureMode={structureMode} />
         </aside>
       )}
@@ -279,7 +279,10 @@ export function EditorHome() {
       <div className="flex min-w-0 flex-1 flex-col">
         {focusMode ? (
           <div className="group pointer-events-none fixed right-5 top-4 z-10 flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-1.5 opacity-25 shadow-sm backdrop-blur transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100">
-            <span className="pointer-events-none text-xs tabular-nums text-muted-foreground">
+            <span
+              className="pointer-events-none text-xs tabular-nums text-muted-foreground"
+              title="Every word in this book"
+            >
               {formatWordCount(bookWordCount)} words
             </span>
             <DropdownMenu>
@@ -358,8 +361,11 @@ export function EditorHome() {
             </div>
 
             <div className="flex items-center gap-1">
-              <span className="mr-2 hidden text-xs text-muted-foreground sm:inline">
-                {formatWordCount(bookWordCount)} words
+              <span
+                className="mr-2 hidden text-xs text-muted-foreground sm:inline"
+                title="Every word in this book"
+              >
+                {formatWordCount(bookWordCount)} words in this book
               </span>
               {activeScene && (
                 <span

@@ -160,7 +160,7 @@ export function ChapterRow({
           </button>
         )}
 
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground opacity-0 group-hover:opacity-100">
+        <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground group-hover:inline">
           {wordCount.toLocaleString()}w
         </span>
 
@@ -299,7 +299,7 @@ export function ChapterOnlyRow({
           </button>
         )}
 
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground opacity-0 group-hover:opacity-100">
+        <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground group-hover:inline">
           {wordCount.toLocaleString()}w
         </span>
 
@@ -413,7 +413,7 @@ export function SceneRow({
           </button>
         )}
 
-        <span className="shrink-0 text-xs tabular-nums text-muted-foreground opacity-0 group-hover:opacity-100">
+        <span className="hidden shrink-0 text-xs tabular-nums text-muted-foreground group-hover:inline">
           {scene.wordCount.toLocaleString()}w
         </span>
 
