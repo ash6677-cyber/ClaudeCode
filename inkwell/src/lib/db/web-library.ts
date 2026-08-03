@@ -41,6 +41,7 @@ const TABLES = [
   'goals',
   'sessionLogs',
   'manuscriptTemplates',
+  'themes',
 ] as const
 
 export async function buildLibraryDocument(): Promise<LibraryDocument> {

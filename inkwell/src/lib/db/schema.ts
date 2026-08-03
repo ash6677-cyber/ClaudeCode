@@ -18,6 +18,7 @@ import type {
   Series,
   SessionLog,
   Snapshot,
+  Theme,
 } from '@/types'
 
 import { syncEngine } from '@/lib/sync/sync-engine'
@@ -46,6 +47,7 @@ export class InkwellDB extends Dexie {
   goals!: EntityTable<Goal, 'id'>
   sessionLogs!: EntityTable<SessionLog, 'id'>
   manuscriptTemplates!: EntityTable<ManuscriptTemplate, 'id'>
+  themes!: EntityTable<Theme, 'id'>
 
   constructor() {
     super('inkwell')
@@ -75,6 +77,11 @@ export class InkwellDB extends Dexie {
     this.version(2).stores({
       manuscriptTemplates: 'id, updatedAt',
     })
+
+    // The looks a writer builds for themselves.
+    this.version(3).stores({
+      themes: 'id, updatedAt',
+    })
   }
 }
 
@@ -96,6 +103,7 @@ interface DbTables {
   goals: TrashableTable<Goal>
   sessionLogs: TrashableTable<SessionLog>
   manuscriptTemplates: TrashableTable<ManuscriptTemplate>
+  themes: TrashableTable<Theme>
 }
 
 /** The raw tables, before soft-delete or sync wrapping. */

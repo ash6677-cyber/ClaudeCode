@@ -15,6 +15,7 @@ import type {
   Series,
   SessionLog,
   Snapshot,
+  Theme,
 } from '@/types'
 
 export const CURRENT_SCHEMA_VERSION = 2
@@ -51,6 +52,7 @@ export interface LibraryDocument {
   goals: Goal[]
   sessionLogs: SessionLog[]
   manuscriptTemplates: ManuscriptTemplate[]
+  themes: Theme[]
 }
 
 const ARRAY_KEYS = [
@@ -71,6 +73,7 @@ const ARRAY_KEYS = [
   'goals',
   'sessionLogs',
   'manuscriptTemplates',
+  'themes',
 ] as const
 
 export function emptyLibrary(): LibraryDocument {

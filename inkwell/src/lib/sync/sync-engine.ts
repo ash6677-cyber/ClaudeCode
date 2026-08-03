@@ -39,6 +39,7 @@ export const SYNCED_TABLES = [
   'goals',
   'sessionLogs',
   'manuscriptTemplates',
+  'themes',
 ] as const
 
 export type SyncedTableName = (typeof SYNCED_TABLES)[number]

@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch'
 import { EDITOR_FONTS } from '@/lib/editor/fonts'
 import { cn } from '@/lib/utils'
 import { usePreferencesStore } from '@/stores/preferences-store'
+import { ThemeSettings } from '@/features/theme/components/theme-settings'
 
 export function AppearanceSettings() {
   const editorFont = usePreferencesStore((s) => s.editorFont)
@@ -86,6 +87,10 @@ export function AppearanceSettings() {
           />
         </div>
       </section>
+
+      <div className="border-t border-border/70 pt-6">
+        <ThemeSettings />
+      </div>
     </div>
   )
 }

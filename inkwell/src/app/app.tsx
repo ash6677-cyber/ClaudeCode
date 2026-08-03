@@ -7,6 +7,7 @@ import { DesktopMenuBridge } from '@/app/desktop-menu-bridge'
 import { GlobalShortcuts } from '@/app/global-shortcuts'
 import { ThemeProvider } from '@/app/providers/theme-provider'
 import { router } from '@/app/router'
+import { ThemeBridge } from '@/app/theme-bridge'
 import { BackupNudge } from '@/components/common/backup-nudge'
 import { ImportConfirmDialog } from '@/components/common/import-confirm-dialog'
 import { Toaster } from '@/components/ui/toaster'
@@ -26,6 +27,7 @@ export function App() {
 
   return (
     <ThemeProvider>
+      <ThemeBridge />
       <TooltipProvider delayDuration={200}>
         <DesktopBootGate>
           <RouterProvider router={router} />
