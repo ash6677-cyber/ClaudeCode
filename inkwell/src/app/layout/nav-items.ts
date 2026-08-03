@@ -2,6 +2,7 @@ import {
   BarChart3,
   BookMarked,
   BookOpen,
+  Boxes,
   Feather,
   Image,
   LayoutList,
@@ -17,5 +18,6 @@ export const NAV_ITEMS = [
   { to: '/cards', label: 'Cards', icon: Users, projectScoped: true },
   { to: '/planning', label: 'Planning', icon: LayoutList, projectScoped: true },
   { to: '/covers', label: 'Covers', icon: Image, projectScoped: true },
+  { to: '/series', label: 'Series', icon: Boxes, projectScoped: false },
   { to: '/stats', label: 'Stats', icon: BarChart3, projectScoped: false },
 ] as const

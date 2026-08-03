@@ -155,6 +155,7 @@ export function BookCreatorWizard() {
         targetWordCount: concept.targetWordCount,
         coverId: null,
         seriesId: null,
+        seriesOrder: 0,
         status: 'planning',
         settings: {
           defaultAiPresetId: null,

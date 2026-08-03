@@ -29,6 +29,12 @@ export default defineConfig({
           if (/[\\/]@dnd-kit[\\/]/.test(id)) return 'vendor-dnd'
           if (/[\\/]dexie[\\/]/.test(id)) return 'vendor-dexie'
           if (/[\\/]firebase[\\/]|[\\/]@firebase[\\/]/.test(id)) return 'vendor-firebase'
+          // three.js is only ever reached from the series screen, and it is
+          // the single largest dependency in the app. Left in the catch-all
+          // `vendor` chunk it would be downloaded by every visitor on first
+          // paint; in its own chunk it is fetched the first time someone
+          // opens a box set and never otherwise.
+          if (/[\\/]three[\\/]/.test(id)) return 'vendor-three'
           return 'vendor'
         },
       },

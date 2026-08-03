@@ -59,6 +59,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       targetWordCount: input.targetWordCount,
       coverId: null,
       seriesId: null,
+      seriesOrder: 0,
       status: input.status,
       settings: {
         defaultAiPresetId: null,

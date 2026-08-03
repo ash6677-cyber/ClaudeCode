@@ -14,6 +14,8 @@ import {
   PlanningHome,
   ReaderHome,
   ProjectsHome,
+  SeriesDetail,
+  SeriesHome,
   SettingsHome,
   StatsHome,
 } from '@/app/lazy-routes'
@@ -57,6 +59,8 @@ export const router = createHashRouter([
       screen('planning', <PlanningHome />),
       screen('read', <ReaderHome />),
       screen('covers', <CoversHome />),
+      screen('series', <SeriesHome />),
+      screen('series/:seriesId', <SeriesDetail />),
       screen('stats', <StatsHome />),
       screen('settings', <SettingsHome />),
       { path: '*', element: <Navigate to="/projects" replace /> },

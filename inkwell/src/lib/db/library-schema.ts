@@ -16,7 +16,7 @@ import type {
   Snapshot,
 } from '@/types'
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 /** Disk-safe stand-in for ImageAsset: JSON can't hold a Blob, so the binary is
  * base64-encoded for storage and converted back to a Blob on load. */
@@ -87,6 +87,7 @@ export function migrateLibrary(raw: unknown): LibraryDocument {
   let doc = normalizeShape(raw)
   const version = typeof doc.schemaVersion === 'number' ? doc.schemaVersion : 0
   if (version < 1) doc = migrateV0ToV1(doc)
+  if (version < 2) doc = migrateV1ToV2(doc)
   return doc as unknown as LibraryDocument
 }
 
@@ -121,5 +122,46 @@ function migrateV0ToV1(doc: Record<string, unknown>): Record<string, unknown> {
     }
   })
   next.schemaVersion = 1
+  return next
+}
+
+/**
+ * v2 adds the box set: series gained presentation settings for their
+ * slipcase, and projects gained a position in their series' reading order.
+ *
+ * Reading order is seeded from creation date, which is the closest thing an
+ * older library has to an intended sequence — the book started first is
+ * usually book one. It is only a starting point; the writer can reorder it,
+ * and doing so overwrites these numbers.
+ */
+function migrateV1ToV2(doc: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...doc }
+
+  next.series = (next.series as Array<Record<string, unknown>>).map((series) => ({
+    ...series,
+    boxSet: {
+      caseColor: '#2a2f3a',
+      foilColor: '#d8c69a',
+      reveal: 0.32,
+      finish: 'satin',
+      ...((series.boxSet as Record<string, unknown>) ?? {}),
+    },
+  }))
+
+  const projects = next.projects as Array<Record<string, unknown>>
+  const positions = new Map<string, number>()
+  const seeded = [...projects].sort(
+    (a, b) => Number(a.createdAt ?? 0) - Number(b.createdAt ?? 0),
+  )
+  for (const project of seeded) {
+    const seriesId = typeof project.seriesId === 'string' ? project.seriesId : null
+    if (!seriesId) continue
+    const nextPosition = (positions.get(seriesId) ?? 0) + 1
+    positions.set(seriesId, nextPosition)
+    project.seriesOrder = project.seriesOrder ?? nextPosition
+  }
+  next.projects = projects.map((project) => ({ ...project, seriesOrder: project.seriesOrder ?? 0 }))
+
+  next.schemaVersion = 2
   return next
 }
