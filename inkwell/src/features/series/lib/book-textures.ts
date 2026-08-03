@@ -23,7 +23,9 @@ import { boardEdgeColor, PRINT_BLACK, readableInk, shade } from './palette'
 const FRONT_PX_PER_CM = 80
 const BACK_PX_PER_CM = 40
 const SPINE_PX_PER_CM = 80
-const CASE_PX_PER_CM = 56
+// Raised now that the case carries artwork rather than a flat colour: at 56
+// the panels were the softest surface in a 4K render.
+const CASE_PX_PER_CM = 72
 
 const SERIF = "'Literata', Georgia, 'Times New Roman', serif"
 
@@ -38,12 +40,26 @@ export interface BookPrintInput {
   color: string
 }
 
+export interface PanelArt {
+  source: CanvasImageSource
+  width: number
+  height: number
+}
+
 export interface CasePrintInput {
   seriesName: string
   author: string
   bookCount: number
   caseColor: string
   foilColor: string
+  /**
+   * The covers of the books inside, in reading order.
+   *
+   * The case is printed from these rather than from artwork of its own: a
+   * box set's slipcase carries the series' key art, and the series' key art
+   * is what is already on its volumes. Empty prints plain stamped board.
+   */
+  covers: PanelArt[]
 }
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
@@ -290,15 +306,19 @@ export function paintBackCover(input: BookPrintInput): HTMLCanvasElement {
 /**
  * A printed slipcase panel.
  *
+ * Always printed upright. Every face of a slipcase is read with the case
+ * standing the right way up, so there is no panel whose design should run
+ * vertically — an earlier version rotated the narrow ones and left their
+ * artwork in texture space, which laid a sideways title straight across a
+ * horizontal row of covers.
+ *
  * @param widthCm  Physical width of the panel.
  * @param heightCm Physical height of the panel.
- * @param rotated  True for the narrow side panels, whose type runs vertically.
  */
 export function paintCasePanel(
   input: CasePrintInput,
   widthCm: number,
   heightCm: number,
-  rotated: boolean,
 ): HTMLCanvasElement {
   const width = Math.round(widthCm * CASE_PX_PER_CM)
   const height = Math.round(heightCm * CASE_PX_PER_CM)
@@ -308,47 +328,191 @@ export function paintCasePanel(
   ctx.fillStyle = input.caseColor
   ctx.fillRect(0, 0, width, height)
 
+  const panelW = width
+  const panelH = height
+
+  const printed = drawCoverMontage(ctx, input.covers, panelW, panelH)
+
+  if (printed) {
+    // A scrim under the type. Stamped foil over full-bleed art is unreadable
+    // wherever the art happens to be bright, and a series name you can only
+    // read on half the panels is worse than no art at all.
+    const scrim = ctx.createLinearGradient(0, 0, 0, panelH)
+    scrim.addColorStop(0, 'rgba(0, 0, 0, 0.66)')
+    scrim.addColorStop(0.3, 'rgba(0, 0, 0, 0.24)')
+    scrim.addColorStop(0.62, 'rgba(0, 0, 0, 0.28)')
+    scrim.addColorStop(1, 'rgba(0, 0, 0, 0.74)')
+    ctx.fillStyle = scrim
+    ctx.fillRect(0, 0, panelW, panelH)
+  }
+
   // Board is laminated, and laminate is never perfectly even — a broad,
   // very low-contrast sweep keeps the panel from reading as flat vector fill.
-  const sweep = ctx.createLinearGradient(0, 0, width, height)
+  const sweep = ctx.createLinearGradient(0, 0, panelW, panelH)
   sweep.addColorStop(0, 'rgba(255, 255, 255, 0.06)')
   sweep.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
   sweep.addColorStop(1, 'rgba(0, 0, 0, 0.1)')
   ctx.fillStyle = sweep
-  ctx.fillRect(0, 0, width, height)
-
-  ctx.save()
-  if (rotated) {
-    ctx.translate(width / 2, height / 2)
-    ctx.rotate(-Math.PI / 2)
-    ctx.translate(-height / 2, -width / 2)
-  }
-  const panelW = rotated ? height : width
-  const panelH = rotated ? width : height
+  ctx.fillRect(0, 0, panelW, panelH)
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = input.foilColor
 
-  const nameSize = fitText(ctx, input.seriesName, panelW * 0.76, panelH * 0.13, 600)
+  if (printed) {
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)'
+    ctx.shadowBlur = panelH * 0.02
+  }
+
+  // With the volumes reproduced across the middle of the panel, the type
+  // moves to the head and foot and clears them. On a plain board there is
+  // nothing to clear, so it sits centred as a stamped case does.
+  const titleY = printed ? 0.16 : 0.44
+  const authorY = printed ? 0.26 : 0.28
+  const countY = printed ? 0.87 : 0.68
+
+  const nameSize = fitText(ctx, input.seriesName, panelW * 0.76, panelH * (printed ? 0.1 : 0.13), 600)
   ctx.font = `600 ${nameSize}px ${SERIF}`
   const lines = wrapLines(ctx, input.seriesName, panelW * 0.76)
   const lineHeight = nameSize * 1.14
-  const start = panelH * 0.44 - ((lines.length - 1) * lineHeight) / 2
+  const start = panelH * titleY - ((lines.length - 1) * lineHeight) / 2
   lines.forEach((line, i) => ctx.fillText(line, panelW / 2, start + i * lineHeight))
 
   const smallSize = Math.max(8, nameSize * 0.3)
   ctx.font = `400 ${smallSize}px ${SERIF}`
   ctx.globalAlpha = 0.9
-  if (input.author.trim()) ctx.fillText(input.author.toUpperCase(), panelW / 2, panelH * 0.28)
+  if (input.author.trim()) {
+    ctx.fillText(input.author.toUpperCase(), panelW / 2, panelH * authorY + lineHeight * (lines.length - 1))
+  }
   if (input.bookCount > 0) {
     const label = input.bookCount === 1 ? 'THE COMPLETE EDITION' : `${input.bookCount} VOLUMES`
-    ctx.fillText(label, panelW / 2, panelH * 0.68)
+    ctx.fillText(label, panelW / 2, panelH * countY)
   }
   ctx.globalAlpha = 1
-  ctx.restore()
 
   return canvas
+}
+
+/**
+ * Prints the volumes across a case panel.
+ *
+ * Two layers, and the reason for both is the same: a finished cover is art
+ * *plus type*. Cross-fading ten of them into one continuous band — which is
+ * what a wraparound illustration would want — collides ten titles and ten
+ * imprints into illegible mush. So the covers appear twice, in two roles.
+ *
+ * Behind: the same covers blurred past the point where any lettering is
+ * recognisable, which leaves an atmospheric wash in exactly the series'
+ * colours and nothing to read.
+ *
+ * In front: each volume reproduced whole and small, in reading order — which
+ * is how the back of a real box set shows you what is inside, and the only
+ * arrangement where ten covers can share a panel and all stay legible.
+ *
+ * @returns whether anything was printed.
+ */
+function drawCoverMontage(
+  ctx: CanvasRenderingContext2D,
+  covers: PanelArt[],
+  width: number,
+  height: number,
+): boolean {
+  if (covers.length === 0) return false
+
+  drawBlurredWash(ctx, covers, width, height)
+  drawCoverGrid(ctx, covers, width, height)
+  return true
+}
+
+/** The covers as an out-of-focus backdrop: colour without content. */
+function drawBlurredWash(
+  ctx: CanvasRenderingContext2D,
+  covers: PanelArt[],
+  width: number,
+  height: number,
+) {
+  const slice = width / covers.length
+  ctx.save()
+  // Blurred at the destination rather than per strip, so the joins between
+  // covers dissolve along with their lettering.
+  ctx.filter = `blur(${Math.max(8, width * 0.045)}px)`
+  covers.forEach((art, index) => {
+    // Drawn overscanned: a blur samples beyond each edge, and without the
+    // bleed the panel would come back with soft board-coloured gutters.
+    const bleed = slice * 0.6
+    const left = index * slice - bleed
+    const panelWidth = slice + bleed * 2
+    const scale = Math.max(panelWidth / art.width, (height * 1.3) / art.height)
+    const drawW = art.width * scale
+    const drawH = art.height * scale
+    ctx.drawImage(art.source, left + (panelWidth - drawW) / 2, (height - drawH) / 2, drawW, drawH)
+  })
+  ctx.restore()
+}
+
+/**
+ * Every volume reproduced small, in reading order.
+ *
+ * Laid out in as few rows as will fit: one row reads best, but ten covers
+ * across a narrow side panel would be slivers, so the grid grows a row at a
+ * time until each reproduction is a recognisable cover rather than a stripe.
+ */
+function drawCoverGrid(
+  ctx: CanvasRenderingContext2D,
+  covers: PanelArt[],
+  width: number,
+  height: number,
+) {
+  const areaX = width * 0.08
+  const areaW = width * 0.84
+  const areaY = height * 0.34
+  const areaH = height * 0.42
+  const gap = width * 0.012
+  const aspect = 0.625 // 5:8, the shape a cover is printed at
+
+  // Whichever arrangement makes the reproductions largest, not the first one
+  // that happens to fit. Ten covers in a single row across a panel do fit —
+  // as slivers a centimetre wide — while two rows of five are twice the size
+  // and are what you could actually recognise a book from.
+  let best = { rows: 1, cols: covers.length, w: 0, h: 0 }
+  for (let rows = 1; rows <= covers.length; rows++) {
+    const cols = Math.ceil(covers.length / rows)
+    const byWidth = (areaW - gap * (cols - 1)) / cols
+    const byHeight = ((areaH - gap * (rows - 1)) / rows) * aspect
+    const w = Math.min(byWidth, byHeight)
+    if (w > best.w) best = { rows, cols, w, h: w / aspect }
+  }
+
+  const totalH = best.rows * best.h + gap * (best.rows - 1)
+  const startY = areaY + (areaH - totalH) / 2
+
+  covers.forEach((art, index) => {
+    const row = Math.floor(index / best.cols)
+    const col = index % best.cols
+    const inRow = Math.min(best.cols, covers.length - row * best.cols)
+    const rowW = inRow * best.w + gap * (inRow - 1)
+    const x = areaX + (areaW - rowW) / 2 + col * (best.w + gap)
+    const y = startY + row * (best.h + gap)
+
+    ctx.save()
+    // A printed reproduction sits on the board, so it gets a contact shadow.
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.55)'
+    ctx.shadowBlur = best.w * 0.12
+    ctx.shadowOffsetY = best.w * 0.04
+    ctx.fillStyle = '#000'
+    ctx.fillRect(x, y, best.w, best.h)
+    ctx.restore()
+
+    const scale = Math.max(best.w / art.width, best.h / art.height)
+    const drawW = art.width * scale
+    const drawH = art.height * scale
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(x, y, best.w, best.h)
+    ctx.clip()
+    ctx.drawImage(art.source, x + (best.w - drawW) / 2, y + (best.h - drawH) / 2, drawW, drawH)
+    ctx.restore()
+  })
 }
 
 /** Flat fill used for the cut edges of the board at the mouth of the case. */

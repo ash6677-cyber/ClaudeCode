@@ -82,11 +82,23 @@ export interface BoxSetSceneInput {
   boxSet: SeriesBoxSet
 }
 
-/** Surface response of the laminate, by finish. */
-const FINISH: Record<BoxSetFinish, { roughness: number; clearcoat: number }> = {
-  matte: { roughness: 0.82, clearcoat: 0.08 },
-  satin: { roughness: 0.46, clearcoat: 0.35 },
-  gloss: { roughness: 0.16, clearcoat: 0.9 },
+/**
+ * Surface response of the laminate, by finish.
+ *
+ * The base stays rough at every setting and only the clearcoat changes,
+ * because that is how a printed case is actually made: ink on board is matte,
+ * and the gloss belongs to the film laid over it. Dropping the base roughness
+ * to make something look glossy instead turns the board itself into a mirror
+ * — a whole panel reflecting the environment as flat white, with the artwork
+ * printed on it nowhere to be seen.
+ */
+const FINISH: Record<
+  BoxSetFinish,
+  { roughness: number; clearcoat: number; clearcoatRoughness: number }
+> = {
+  matte: { roughness: 0.86, clearcoat: 0.06, clearcoatRoughness: 0.6 },
+  satin: { roughness: 0.7, clearcoat: 0.5, clearcoatRoughness: 0.3 },
+  gloss: { roughness: 0.6, clearcoat: 1, clearcoatRoughness: 0.07 },
 }
 
 /** How far a pulled book travels clear of the case mouth, in cm. */
@@ -198,6 +210,12 @@ export function createBoxSetScene(input: BoxSetSceneInput): BoxSetScene {
   const pmrem = new PMREMGenerator(renderer)
   const environment = pmrem.fromScene(new RoomEnvironment(), 0.04)
   scene.environment = environment.texture
+  // Dialled back from full strength. The generated room has bright emissive
+  // panels in it, and a gloss clearcoat reflecting them at anything near a
+  // grazing angle returns a whole panel of flat white — the artwork printed
+  // underneath vanishes behind its own reflection. At this strength the
+  // laminate still catches a soft highlight and the print stays readable.
+  scene.environmentIntensity = 0.55
 
   const layout = layoutBoxSet(
     books.map((book) => ({ projectId: book.projectId, wordCount: book.wordCount })),
@@ -215,7 +233,7 @@ export function createBoxSetScene(input: BoxSetSceneInput): BoxSetScene {
 
   buildLighting(scene, layout)
   const bookNodes = buildBooks(root, books, layout, anisotropy, track)
-  buildCase(root, layout, { seriesName, author, boxSet, bookCount: books.length }, anisotropy, track)
+  buildCase(root, layout, { seriesName, author, boxSet, books }, anisotropy, track)
   buildGroundShadow(scene, layout, track)
 
   const raycaster = new Raycaster()
@@ -463,7 +481,7 @@ function applyPull(node: BookNode) {
 function buildCase(
   root: Group,
   layout: BoxSetLayout,
-  print: { seriesName: string; author: string; boxSet: SeriesBoxSet; bookCount: number },
+  print: { seriesName: string; author: string; boxSet: SeriesBoxSet; books: BoxSetBook[] },
   anisotropy: number,
   track: <T extends { dispose(): void }>(value: T) => T,
 ) {
@@ -473,9 +491,13 @@ function buildCase(
   const printInput = {
     seriesName: print.seriesName || 'Untitled series',
     author: print.author,
-    bookCount: print.bookCount,
+    bookCount: print.books.length,
     caseColor: print.boxSet.caseColor,
     foilColor: print.boxSet.foilColor,
+    // The case is printed from the covers of the books inside it, so it
+    // always matches whatever art those books currently carry — change a
+    // cover in the studio and the slipcase changes with it.
+    covers: print.books.flatMap((book) => (book.cover ? [book.cover] : [])),
   }
 
   const board = (canvasTexture: HTMLCanvasElement) =>
@@ -485,7 +507,7 @@ function buildCase(
         roughness: finish.roughness,
         metalness: 0,
         clearcoat: finish.clearcoat,
-        clearcoatRoughness: 0.3,
+        clearcoatRoughness: finish.clearcoatRoughness,
       }),
     )
 
@@ -518,9 +540,9 @@ function buildCase(
   }
 
   const w = CASE_WALL_CM
-  const backPrint = board(paintCasePanel(printInput, caseWidth, caseHeight, false))
-  const sidePrint = () => board(paintCasePanel(printInput, caseDepth, caseHeight, true))
-  const topPrint = board(paintCasePanel(printInput, caseWidth, caseDepth, false))
+  const backPrint = board(paintCasePanel(printInput, caseWidth, caseHeight))
+  const sidePrint = () => board(paintCasePanel(printInput, caseDepth, caseHeight))
+  const topPrint = board(paintCasePanel(printInput, caseWidth, caseDepth))
 
   // Back panel: printed outside (−Z), lined inside (+Z).
   panel(
