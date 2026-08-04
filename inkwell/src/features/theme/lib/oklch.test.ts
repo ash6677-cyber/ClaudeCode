@@ -122,10 +122,10 @@ describe("the app's own default palette", () => {
   // unreadable fails here rather than shipping. Every pair is a colour and
   // the thing written on top of it.
   const pairs: [string, string, string][] = [
-    ['light button', 'oklch(46% 0.11 74)', 'oklch(98% 0.012 80)'],
-    ['dark button', 'oklch(78% 0.12 78)', 'oklch(18% 0.03 74)'],
-    ['light hovered row', 'oklch(93% 0.03 74)', 'oklch(32% 0.07 74)'],
-    ['dark hovered row', 'oklch(30% 0.045 74)', 'oklch(90% 0.05 78)'],
+    ['light button', 'oklch(47% 0.17 271)', 'oklch(98.5% 0.008 271)'],
+    ['dark button', 'oklch(76% 0.14 271)', 'oklch(15% 0.03 271)'],
+    ['light hovered row', 'oklch(93% 0.035 271)', 'oklch(30% 0.11 271)'],
+    ['dark hovered row', 'oklch(31% 0.052 271)', 'oklch(89% 0.055 271)'],
   ]
 
   it.each(pairs)('keeps %s readable', (_name, background, foreground) => {
