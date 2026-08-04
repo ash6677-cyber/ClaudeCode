@@ -24,8 +24,16 @@ import type { ImageAsset } from '@/types'
  * backup only in name.
  */
 
-/** Ordered so the JSON diffs readably and matches the desktop writer. */
-const TABLES = [
+/**
+ * Ordered so the JSON diffs readably and matches the desktop writer.
+ *
+ * Exported so a test can hold it against the database's own table list. This
+ * is the one part of a backup that fails silently: add a table, forget to add
+ * it here, and every export from that day on is quietly missing something
+ * nobody notices until they need it. Two tables have already been added to
+ * this list by hand.
+ */
+export const BACKED_UP_TABLES = [
   'projects',
   'series',
   'chapters',
@@ -44,12 +52,22 @@ const TABLES = [
   'themes',
 ] as const
 
+/**
+ * Tables the loop above does not carry, each for a stated reason.
+ *
+ * `imageAssets` holds Blobs, which JSON cannot express, so it is converted to
+ * base64 separately below. `aiProviders` holds credentials and is emptied on
+ * purpose. Anything else missing from both lists is an oversight, and the
+ * test that pairs these with the schema is what says so.
+ */
+export const HANDLED_SEPARATELY = ['imageAssets', 'aiProviders'] as const
+
 export async function buildLibraryDocument(): Promise<LibraryDocument> {
   const doc = emptyLibrary()
   doc.schemaVersion = CURRENT_SCHEMA_VERSION
 
   await Promise.all(
-    TABLES.map(async (name) => {
+    BACKED_UP_TABLES.map(async (name) => {
       const rows = await db[name].toArray()
       ;(doc as unknown as Record<string, unknown>)[name] = rows
     }),
@@ -115,7 +133,7 @@ export async function importLibraryDocument(raw: string): Promise<void> {
     for (const row of rows) await table.add(row)
   }
 
-  for (const name of TABLES) {
+  for (const name of BACKED_UP_TABLES) {
     const rows = ((doc as unknown as Record<string, unknown[]>)[name] ?? []) as { id: string }[]
     await replace(db[name] as never, rows)
   }
