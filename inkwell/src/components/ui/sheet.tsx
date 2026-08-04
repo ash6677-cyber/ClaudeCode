@@ -38,12 +38,16 @@ SheetOverlay.displayName = DialogPrimitive.Overlay.displayName
 const sheetVariants = cva('fixed z-50 flex flex-col gap-4 overflow-y-auto bg-card shadow-lg', {
   variants: {
     side: {
-      left: 'inset-y-0 left-0 h-full w-full max-w-xs border-r border-border data-[state=open]:animate-sheet-in-left',
+      // Heights come from `--vvh` — the screen minus the keyboard — for the
+      // same reason the dialog's do. A side sheet pinned `inset-y-0` runs the
+      // full layout viewport, so with a keyboard up its lower third is
+      // underneath one.
+      left: 'left-0 top-[var(--vvtop,0px)] h-[var(--vvh,100dvh)] w-full max-w-xs border-r border-border data-[state=open]:animate-sheet-in-left',
       right:
-        'inset-y-0 right-0 h-full w-full max-w-xs border-l border-border data-[state=open]:animate-sheet-in-right',
-      top: 'inset-x-0 top-0 max-h-[85dvh] border-b border-border data-[state=open]:animate-sheet-in-top',
+        'right-0 top-[var(--vvtop,0px)] h-[var(--vvh,100dvh)] w-full max-w-xs border-l border-border data-[state=open]:animate-sheet-in-right',
+      top: 'inset-x-0 top-[var(--vvtop,0px)] max-h-[calc(var(--vvh,100dvh)*0.85)] border-b border-border data-[state=open]:animate-sheet-in-top',
       bottom:
-        'inset-x-0 bottom-0 max-h-[85dvh] rounded-t-xl border-t border-border data-[state=open]:animate-sheet-in-bottom',
+        'inset-x-0 bottom-0 max-h-[calc(var(--vvh,100dvh)*0.85)] rounded-t-xl border-t border-border data-[state=open]:animate-sheet-in-bottom',
     },
   },
   defaultVariants: {

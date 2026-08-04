@@ -8,8 +8,18 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <!-- viewport-fit=cover so the app reaches under the iPhone's rounded
-         corners once installed; the shell already pads for safe areas. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+         corners once installed; the shell already pads for safe areas.
+
+         interactive-widget=resizes-content makes Android Chrome shrink the
+         *layout* viewport when the keyboard opens, so `dvh` and fixed
+         positioning both account for it. Its default, resizes-visual, leaves
+         the layout viewport at full height and hides the bottom of every
+         dialog behind the keyboard. iOS ignores this entirely, which is what
+         `--vvh` in lib/viewport.ts is for. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="color-scheme" content="light dark" />
     <!-- The colours the app actually paints, read off `body` rather than
          guessed: warm paper and blue-black, not white and grey. These tint the

@@ -14,7 +14,10 @@ export function AppShell() {
   useProjectTheme()
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden lg:flex-row">
+    // Sized to the region a person can actually see. `h-dvh` measures the
+    // screen including whatever the keyboard is covering, which pushed the
+    // wizard's Back and Next buttons underneath it.
+    <div className="flex h-[var(--vvh,100dvh)] flex-col overflow-hidden lg:flex-row">
       {!focusMode && <NavRail />}
       {!focusMode && <MobileTopBar />}
       <main className="flex-1 overflow-y-auto">

@@ -102,7 +102,7 @@ export function ProjectFormDialog({
           time, and on a laptop the last one to arrive pushed "Create project"
           off the bottom of the screen with nothing to scroll — the dialog was
           sized by its content and its content had outgrown the viewport. */}
-      <DialogContent className="flex max-h-[88vh] max-w-lg flex-col">
+      <DialogContent className="flex max-w-lg flex-col">
         <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
           <DialogHeader>
             <DialogTitle>{project ? 'Project settings' : 'New project'}</DialogTitle>

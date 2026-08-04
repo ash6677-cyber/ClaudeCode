@@ -33,22 +33,27 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        // Bounded and scrolling by default. A dialog is centred on the
-        // viewport, so one taller than the screen hangs off *both* ends at
-        // once — and with nothing scrollable, its buttons are not merely
-        // below the fold, they are unreachable. On a phone that is most of
-        // the long dialogs in this app: the New project form was 1044px on
-        // an 844px screen with Close 108px above the top and "Create
-        // project" 100px below the bottom.
+        // Bounded, scrolling, and centred on the part of the screen a person
+        // can actually see.
         //
-        // `dvh` rather than `vh` because a phone's viewport shrinks when the
-        // browser chrome or the keyboard appears, and `vh` keeps promising
-        // the taller number.
+        // Two separate failures, both of which put a dialog's buttons out of
+        // reach. A dialog is centred, so one taller than the screen hangs off
+        // *both* ends at once with nothing to scroll — the New project form
+        // was 1044px on an 844px screen, Close 108px above the top and
+        // "Create project" 100px below the bottom. And a dialog sized to the
+        // full screen ignores the keyboard entirely, which put that same
+        // footer underneath it the moment anyone tapped the title field.
+        //
+        // `--vvh` and `--vvtop` come from `visualViewport` and describe the
+        // region left over once the keyboard is up; they fall back to `100dvh`
+        // and `0px`, so nothing changes where there is no keyboard. `dvh`
+        // alone is not enough — it tracks the browser's collapsing toolbars,
+        // never the keyboard.
         //
         // A dialog wanting a pinned header and footer still says so itself,
         // with `flex max-h-[…] flex-col` and its own inner scroller — this is
         // the floor, not the ceiling.
-        'fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
+        'fixed left-1/2 top-[calc(var(--vvtop,0px)+var(--vvh,100dvh)/2)] z-50 grid max-h-[calc(var(--vvh,100dvh)-2rem)] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
         className,
       )}
       {...props}

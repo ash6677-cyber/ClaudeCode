@@ -148,7 +148,7 @@ export function ThemeEditorDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] max-w-3xl flex-col">
+      <DialogContent className="flex max-w-3xl flex-col">
         <DialogHeader>
           <DialogTitle>{editingId ? 'Edit theme' : 'New theme'}</DialogTitle>
           <DialogDescription>
