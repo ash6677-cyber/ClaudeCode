@@ -27,6 +27,7 @@ import {
 } from '@/stores/stats-store'
 import { ProseReportPanel } from '@/features/stats/components/prose-report-panel'
 import { cn } from '@/lib/utils'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const CHART_DAYS = 30
 
@@ -111,6 +112,7 @@ function DayChart({ totals, target }: { totals: DayTotal[]; target: number }) {
 }
 
 export function StatsHome() {
+  useDocumentTitle('Stats')
   const { sessions, status, loadAll, setDailyTarget, goalFor } = useStatsStore()
   const { projects, wordCounts, fetchProjects } = useProjectStore()
   const { toast } = useToast()

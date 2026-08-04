@@ -17,8 +17,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { SpineStrip } from '@/features/series/components/spine-strip'
 import { sortByReadingOrder, useSeriesStore } from '@/stores/series-store'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function SeriesHome() {
+  useDocumentTitle('Series')
   const series = useSeriesStore((s) => s.series)
   const projects = useSeriesStore((s) => s.projects)
   const wordCounts = useSeriesStore((s) => s.wordCounts)

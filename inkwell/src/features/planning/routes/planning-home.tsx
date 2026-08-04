@@ -11,8 +11,10 @@ import { StatusBoardView } from '@/features/planning/components/status-board-vie
 import { projectRepo } from '@/lib/db/repositories'
 import { useEditorStore } from '@/stores/editor-store'
 import type { Project } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function PlanningHome() {
+  useDocumentTitle('Planning')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 

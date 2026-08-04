@@ -45,6 +45,7 @@ import { useChatStore } from '@/stores/chat-store'
 import { useLorebookStore } from '@/stores/lorebook-store'
 import { usePersonaStore } from '@/stores/persona-store'
 import type { ChatMessage, ChatMode } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function CardChat() {
   const { cardId } = useParams<{ cardId: string }>()
@@ -56,6 +57,7 @@ export function CardChat() {
   const cardStatus = useCardStore((s) => s.status)
   const loadCardsProject = useCardStore((s) => s.loadProject)
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId])
+  useDocumentTitle(card?.displayName, 'Chat')
 
   const chats = useChatStore((s) => s.chats)
   const activeChatId = useChatStore((s) => s.activeChatId)

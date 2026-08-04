@@ -28,6 +28,7 @@ import { storeImageFile } from '@/lib/image-upload'
 import { useCoverStore } from '@/stores/cover-store'
 import { useProjectStore } from '@/stores/project-store'
 import type { CoverAspectPreset, CoverTypographyLayer } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 function newLayer(kind: CoverTypographyLayer['kind'], text: string): Omit<CoverTypographyLayer, 'id'> {
   const isTitle = kind === 'title'
@@ -47,6 +48,7 @@ function newLayer(kind: CoverTypographyLayer['kind'], text: string): Omit<CoverT
 }
 
 export function CoversHome() {
+  useDocumentTitle('Cover Studio')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
   const { toast } = useToast()

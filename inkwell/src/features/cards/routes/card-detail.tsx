@@ -25,6 +25,7 @@ import { PortraitUploadField } from '@/features/cards/components/portrait-upload
 import { useCardStore } from '@/stores/card-store'
 import { useCodexStore } from '@/stores/codex-store'
 import type { CropSettings } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function CardDetail() {
   const { cardId } = useParams<{ cardId: string }>()
@@ -46,6 +47,7 @@ export function CardDetail() {
   }, [projectId, loadCodexProject])
 
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId])
+  useDocumentTitle(card?.displayName, 'Cards')
 
   const [nameDraft, setNameDraft] = useState(card?.displayName ?? '')
   const [tagsDraft, setTagsDraft] = useState(card?.tags.join(', ') ?? '')

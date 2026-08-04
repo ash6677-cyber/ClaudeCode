@@ -13,6 +13,7 @@ import { useEditorStore } from '@/stores/editor-store'
 import type { Project } from '@/types'
 
 import '@/features/reader/reader.css'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 /** Roughly a trade paperback: height / width. */
 const PAGE_ASPECT = 1.52
@@ -35,6 +36,7 @@ function computeMetrics(width: number, height: number, columns: 1 | 2): PageMetr
 }
 
 export function ReaderHome() {
+  useDocumentTitle('Read')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 

@@ -37,6 +37,7 @@ import {
 import { cardRepo, chapterRepo, codexRepo, projectRepo, sceneRepo } from '@/lib/db/repositories'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const STEPS = [
   { id: 'concept', label: 'Concept' },
@@ -71,6 +72,7 @@ function newCastItem(name = '', role = '', personality = ''): CastItem {
 }
 
 export function BookCreatorWizard() {
+  useDocumentTitle('Book Creator')
   const navigate = useNavigate()
   const { toast } = useToast()
 

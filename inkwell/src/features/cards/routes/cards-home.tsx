@@ -12,8 +12,10 @@ import { CardFormDialog } from '@/features/cards/components/card-form-dialog'
 import { CharacterCardTile } from '@/features/cards/components/character-card-tile'
 import { useCardStore } from '@/stores/card-store'
 import type { CharacterCard } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function CardsHome() {
+  useDocumentTitle('Cards')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 

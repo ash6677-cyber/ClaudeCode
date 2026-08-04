@@ -12,8 +12,10 @@ import { LorebookEntryRow } from '@/features/cards/components/lorebook-entry-row
 import { cn } from '@/lib/utils'
 import { useLorebookStore } from '@/stores/lorebook-store'
 import type { LorebookEntry } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function LorebooksHome() {
+  useDocumentTitle('Lorebooks')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 

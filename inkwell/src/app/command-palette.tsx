@@ -1,23 +1,18 @@
 import {
-  BarChart3,
-  BookOpen,
   Feather,
   FileSearch,
   FilePlus,
-  Image,
   Keyboard,
-  LayoutList,
   Library,
   Maximize2,
   Search,
-  Settings,
   SunMoon,
-  Users,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
+import { DESTINATIONS } from '@/app/layout/nav-items'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { VisuallyHidden } from '@/components/common/visually-hidden'
@@ -36,17 +31,6 @@ interface PaletteEntry {
   icon: React.ComponentType<{ className?: string }>
   run: () => void
 }
-
-const NAV_ENTRIES = [
-  { to: '/projects', label: 'Projects', icon: Library },
-  { to: '/editor', label: 'Editor', icon: Feather },
-  { to: '/almanac', label: 'Almanac', icon: BookOpen },
-  { to: '/cards', label: 'Cards', icon: Users },
-  { to: '/planning', label: 'Planning', icon: LayoutList },
-  { to: '/covers', label: 'Covers', icon: Image },
-  { to: '/stats', label: 'Stats', icon: BarChart3 },
-  { to: '/settings', label: 'Settings', icon: Settings },
-]
 
 export function CommandPalette() {
   const open = useUiStore((s) => s.commandPaletteOpen)
@@ -186,13 +170,17 @@ export function CommandPalette() {
       })
     }
 
-    for (const nav of NAV_ENTRIES) {
+    for (const nav of DESTINATIONS) {
+      // The rail carries the open book from screen to screen; jumping by ⌘K
+      // should not be the one route that quietly drops it and lands the
+      // writer on an empty Almanac.
+      const to = nav.projectScoped && editorProjectId ? `${nav.to}?project=${editorProjectId}` : nav.to
       list.push({
         id: `nav-${nav.to}`,
         section: 'Navigate',
         label: nav.label,
         icon: nav.icon,
-        run: () => navigate(nav.to),
+        run: () => navigate(to),
       })
     }
 

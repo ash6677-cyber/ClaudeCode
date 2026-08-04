@@ -60,9 +60,11 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (2, 6), rest inherited from §3.
 
 **Acceptance criteria.**
-- [ ] ⌘K lists every rail destination including Read, Series, Book Creator; the private list in command-palette.tsx is gone.
-- [ ] Browser tab title names the screen and project.
-- [ ] Rail shows Playground and Cover Studio labels; no route 404s from old bookmarks.
+- [x] ⌘K lists every rail destination including Read, Series, Book Creator; the private list in command-palette.tsx is gone. *(Verified live: `scripts/nav-check.mjs`, 19/19.)*
+- [x] Browser tab title names the screen and project. *(Most specific part first — "Elenya — Almanac — Mira Vale — Inkwell" — rather than the project first as sketched here, because tab labels truncate from the right and the project-first form makes every tab of one book identical.)*
+- [x] Rail shows Cover Studio; palette jumps carry `?project=`. **Playground label pending §3** — the label moves with the route, not before it, so there is no half-migrated state.
+
+**Shipped (§2.2, §2.3, §2.5, §2.6).** `DESTINATIONS` in `nav-items.ts` is the single list; `NAV_ITEMS` is its `inRail` filter and the palette reads the whole thing. Book Creator and Settings are palette-only. Palette jumps now carry the open book, which the private list never did. `useDocumentTitle` in `lib/hooks/`, applied to all 16 routes, guarded by `app/navigation.test.ts` — which reads the routes directory rather than a hand-kept list, and was shown to fail by deleting one call.
 
 ---
 

@@ -42,6 +42,7 @@ import { useEditorStore } from '@/stores/editor-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project, RichContent } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved'
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000
@@ -128,6 +129,7 @@ export function EditorHome() {
     () => (activeScene ? chapters.find((c) => c.id === activeScene.chapterId) : null),
     [chapters, activeScene],
   )
+  useDocumentTitle(activeScene?.title, 'Editor')
 
   const bookWordCount = useMemo(() => scenes.reduce((sum, s) => sum + s.wordCount, 0), [scenes])
   const structureMode = project?.settings.structureMode ?? 'scenes'

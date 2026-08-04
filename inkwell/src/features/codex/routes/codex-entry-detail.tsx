@@ -26,6 +26,7 @@ import { ENTRY_TYPES, ENTRY_TYPE_LABEL } from '@/features/codex/lib/entry-type'
 import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
 import { useCodexStore } from '@/stores/codex-store'
 import type { AiContextInclusion, CodexEntryType, RichContent } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const AI_CONTEXT_OPTIONS: { value: AiContextInclusion; label: string; hint: string }[] = [
   { value: 'always', label: 'Always include', hint: 'Sent on every AI request for this project' },
@@ -63,6 +64,7 @@ export function CodexEntryDetail() {
   }, [projectId, loadProject])
 
   const entry = useMemo(() => entries.find((e) => e.id === entryId), [entries, entryId])
+  useDocumentTitle(entry?.name, 'Almanac')
 
   const [nameDraft, setNameDraft] = useState(entry?.name ?? '')
   const [aliasesDraft, setAliasesDraft] = useState(entry?.aliases.join(', ') ?? '')

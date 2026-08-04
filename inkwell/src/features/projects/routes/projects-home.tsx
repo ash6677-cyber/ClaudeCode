@@ -14,8 +14,10 @@ import { ProjectFormDialog } from '@/features/projects/components/project-form-d
 import { useProjectStore } from '@/stores/project-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function ProjectsHome() {
+  useDocumentTitle('Projects')
   const {
     projects,
     wordCounts,

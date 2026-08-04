@@ -18,6 +18,7 @@ import type { BoxSetBook } from '@/features/series/lib/box-set-scene'
 import { loadBoxSetBooks } from '@/features/series/lib/load-book-art'
 import { sortByReadingOrder, useSeriesStore } from '@/stores/series-store'
 import type { BoxSetFinish } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const CASE_COLORS = ['#2a2f3a', '#1c1c1e', '#5c2b2b', '#243b2f', '#3a2c52', '#6b5426', '#e8e2d5']
 const FOIL_COLORS = ['#d8c69a', '#e8e2d5', '#c8a15a', '#b0b6c0', '#1a1a1d']
@@ -46,6 +47,7 @@ export function SeriesDetail() {
   }, [fetchAll])
 
   const entry = series.find((s) => s.id === seriesId)
+  useDocumentTitle(entry?.name, 'Series')
 
   const members = useMemo(
     () => sortByReadingOrder(projects.filter((project) => project.seriesId === seriesId)),

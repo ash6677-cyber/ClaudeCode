@@ -36,6 +36,7 @@ import { ShortcutsSettings } from '@/features/settings/components/shortcuts-sett
 import { maskApiKey } from '@/features/settings/lib/mask-key'
 import { useAiStore, type PresetInput, type ProviderInput } from '@/stores/ai-store'
 import type { AiPreset, AiProviderConfig } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const PROVIDER_KIND_LABEL: Record<AiProviderConfig['kind'], string> = {
   openai: 'OpenAI',
@@ -47,6 +48,7 @@ const PROVIDER_KIND_LABEL: Record<AiProviderConfig['kind'], string> = {
 const TABS = ['ai', 'appearance', 'shortcuts', 'data', 'account'] as const
 
 export function SettingsHome() {
+  useDocumentTitle('Settings')
   const { providers, presets, loadAll, createProvider, updateProvider, deleteProvider, validateProvider, createPreset, updatePreset, deletePreset } =
     useAiStore()
   const { toast } = useToast()

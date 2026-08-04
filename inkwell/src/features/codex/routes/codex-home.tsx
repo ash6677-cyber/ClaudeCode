@@ -13,8 +13,10 @@ import { EntryFormDialog } from '@/features/codex/components/entry-form-dialog'
 import { AlmanacSurvey } from '@/features/almanac/components/almanac-survey'
 import { useCodexStore } from '@/stores/codex-store'
 import type { CodexEntryType } from '@/types'
+import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function CodexHome() {
+  useDocumentTitle('Almanac')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 
