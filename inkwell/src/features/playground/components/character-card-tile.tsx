@@ -8,7 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { CardFace } from '@/features/cards/components/card-face'
+import { CardFace } from '@/features/playground/components/card-face'
+import { playgroundPath } from '@/features/playground/lib/playground-nav'
 import { imageAssetRepo } from '@/lib/db/repositories'
 import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import type { CharacterCard } from '@/types'
@@ -33,7 +34,7 @@ export function CharacterCardTile({ card, projectId, onDelete }: CharacterCardTi
     [card.avatarImageId],
   )
   const imageUrl = useObjectUrl(image?.blob)
-  const open = () => navigate(`/cards/${card.id}?project=${projectId}`)
+  const open = () => navigate(playgroundPath('cards', projectId, `/${card.id}`))
 
   return (
     <div

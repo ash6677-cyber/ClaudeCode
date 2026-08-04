@@ -19,17 +19,33 @@ export const CodexEntryDetail = lazy(() =>
     default: m.CodexEntryDetail,
   })),
 )
+export const PlaygroundShell = lazy(() =>
+  import('@/features/playground/components/playground-shell').then((m) => ({
+    default: m.PlaygroundShell,
+  })),
+)
 export const CardsHome = lazy(() =>
-  import('@/features/cards/routes/cards-home').then((m) => ({ default: m.CardsHome })),
+  import('@/features/playground/routes/cards-home').then((m) => ({ default: m.CardsHome })),
 )
 export const CardDetail = lazy(() =>
-  import('@/features/cards/routes/card-detail').then((m) => ({ default: m.CardDetail })),
+  import('@/features/playground/routes/card-detail').then((m) => ({ default: m.CardDetail })),
+)
+export const ChatsHome = lazy(() =>
+  import('@/features/playground/routes/chats-home').then((m) => ({ default: m.ChatsHome })),
 )
 export const CardChat = lazy(() =>
-  import('@/features/cards/routes/card-chat').then((m) => ({ default: m.CardChat })),
+  import('@/features/playground/routes/card-chat').then((m) => ({ default: m.CardChat })),
+)
+export const PersonasHome = lazy(() =>
+  import('@/features/playground/routes/personas-home').then((m) => ({ default: m.PersonasHome })),
 )
 export const LorebooksHome = lazy(() =>
-  import('@/features/cards/routes/lorebooks-home').then((m) => ({ default: m.LorebooksHome })),
+  import('@/features/playground/routes/lorebooks-home').then((m) => ({ default: m.LorebooksHome })),
+)
+export const LegacyChatRedirect = lazy(() =>
+  import('@/features/playground/routes/legacy-chat-redirect').then((m) => ({
+    default: m.LegacyChatRedirect,
+  })),
 )
 export const ReaderHome = lazy(() =>
   import('@/features/reader/routes/reader-home').then((m) => ({ default: m.ReaderHome })),

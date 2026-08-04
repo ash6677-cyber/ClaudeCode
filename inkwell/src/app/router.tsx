@@ -6,12 +6,16 @@ import {
   CardChat,
   CardDetail,
   CardsHome,
+  ChatsHome,
   CodexEntryDetail,
   CodexHome,
   CoversHome,
   EditorHome,
+  LegacyChatRedirect,
   LorebooksHome,
+  PersonasHome,
   PlanningHome,
+  PlaygroundShell,
   ReaderHome,
   ProjectsHome,
   SeriesDetail,
@@ -23,6 +27,7 @@ import { AppShell } from '@/app/layout/app-shell'
 import { RouteError } from '@/components/common/route-error'
 import { RouteLoading } from '@/components/common/route-loading'
 import { LegacyAlmanacRedirect } from '@/app/legacy-almanac-redirect'
+import { LegacyPlaygroundRedirect } from '@/app/legacy-playground-redirect'
 
 function withSuspense(element: React.ReactNode) {
   return <Suspense fallback={<RouteLoading />}>{element}</Suspense>
@@ -57,10 +62,33 @@ export const router = createHashRouter([
       // or pasted into their own notes under the old path still opens.
       { path: 'codex', element: <Navigate to="/almanac" replace /> },
       { path: 'codex/:entryId', element: <LegacyAlmanacRedirect /> },
-      screen('cards', <CardsHome />),
-      screen('cards/:cardId', <CardDetail />),
-      screen('cards/:cardId/chat', <CardChat />),
-      screen('lorebooks', <LorebooksHome />),
+
+      // The Playground. One destination with four rooms, where there used to
+      // be a gallery called "Cards" that quietly also contained a chat, a set
+      // of personas and the lorebooks those chats draw on.
+      {
+        path: 'playground',
+        element: withSuspense(<PlaygroundShell />),
+        errorElement: <RouteError />,
+        children: [
+          { index: true, element: <LegacyPlaygroundRedirect to="cards" /> },
+          screen('cards', <CardsHome />),
+          screen('cards/:cardId', <CardDetail />),
+          screen('chats', <ChatsHome />),
+          screen('chats/:chatId', <CardChat />),
+          screen('personas', <PersonasHome />),
+          screen('lorebooks', <LorebooksHome />),
+        ],
+      },
+
+      // The addresses those four rooms had before they were one place. Every
+      // one of them keeps `?project=`, so a bookmark opens the same book it
+      // was saved from.
+      { path: 'cards', element: <LegacyPlaygroundRedirect to="cards" /> },
+      { path: 'cards/:cardId', element: <LegacyPlaygroundRedirect to="cards" param="cardId" /> },
+      { path: 'cards/:cardId/chat', element: withSuspense(<LegacyChatRedirect />) },
+      { path: 'lorebooks', element: <LegacyPlaygroundRedirect to="lorebooks" /> },
+
       screen('planning', <PlanningHome />),
       screen('read', <ReaderHome />),
       screen('covers', <CoversHome />),

@@ -42,7 +42,7 @@ export const DESTINATIONS: readonly Destination[] = [
   { to: '/editor', label: 'Editor', icon: Feather, projectScoped: true, inRail: true },
   { to: '/read', label: 'Read', icon: BookMarked, projectScoped: true, inRail: true },
   { to: '/almanac', label: 'Almanac', icon: BookOpen, projectScoped: true, inRail: true },
-  { to: '/cards', label: 'Cards', icon: Users, projectScoped: true, inRail: true },
+  { to: '/playground', label: 'Playground', icon: Users, projectScoped: true, inRail: true },
   { to: '/planning', label: 'Planning', icon: LayoutList, projectScoped: true, inRail: true },
   { to: '/covers', label: 'Cover Studio', icon: Image, projectScoped: true, inRail: true },
   { to: '/series', label: 'Series', icon: Boxes, projectScoped: false, inRail: true },

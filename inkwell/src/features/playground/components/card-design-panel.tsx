@@ -11,7 +11,7 @@ import {
   FRAME_LABEL,
   generatedAccent,
   normalizeDesign,
-} from '@/features/cards/lib/card-design'
+} from '@/features/playground/lib/card-design'
 import { formatOklch, parseOklch } from '@/features/theme/lib/oklch'
 import { cn } from '@/lib/utils'
 import type { CardDesign } from '@/types'

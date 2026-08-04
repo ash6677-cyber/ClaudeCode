@@ -10,7 +10,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
@@ -34,8 +34,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
-import { ChatMessageBubble } from '@/features/cards/components/chat-message-bubble'
-import { PersonaManagerDialog } from '@/features/cards/components/persona-manager-dialog'
+import { ChatMessageBubble } from '@/features/playground/components/chat-message-bubble'
+import { PersonaManagerDialog } from '@/features/playground/components/persona-manager-dialog'
+import { nextChatTitle } from '@/features/playground/lib/open-chat'
+import { playgroundPath } from '@/features/playground/lib/playground-nav'
 import { buildChatPrompt } from '@/lib/ai/chat-prompt-builder'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { cn } from '@/lib/utils'
@@ -48,21 +50,36 @@ import type { ChatMessage, ChatMode } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function CardChat() {
-  const { cardId } = useParams<{ cardId: string }>()
+  // A conversation is addressed by its own id now. It used to be reached
+  // through the card it belonged to, which is why past chats had no home of
+  // their own and could not be listed together.
+  const { chatId } = useParams<{ chatId: string }>()
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
+  const navigate = useNavigate()
   const { toast } = useToast()
+
+  const allChats = useChatStore((s) => s.chats)
+  const chatStatus = useChatStore((s) => s.status)
+  const loadChats = useChatStore((s) => s.loadProject)
+  const activeChat = useMemo(
+    () => allChats.find((c) => c.id === chatId) ?? null,
+    [allChats, chatId],
+  )
 
   const cards = useCardStore((s) => s.cards)
   const cardStatus = useCardStore((s) => s.status)
   const loadCardsProject = useCardStore((s) => s.loadProject)
+  const cardId = activeChat?.cardId
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId])
-  useDocumentTitle(card?.displayName, 'Chat')
+  useDocumentTitle(card?.displayName, 'Chat', 'Playground')
 
-  const chats = useChatStore((s) => s.chats)
-  const activeChatId = useChatStore((s) => s.activeChatId)
-  const setActiveChat = useChatStore((s) => s.setActiveChat)
-  const loadCard = useChatStore((s) => s.loadCard)
+  // The sidebar is still this character's conversations; it filters the
+  // book-wide list rather than fetching a second one.
+  const chats = useMemo(
+    () => (cardId ? allChats.filter((c) => c.cardId === cardId) : []),
+    [allChats, cardId],
+  )
   const createChat = useChatStore((s) => s.createChat)
   const renameChat = useChatStore((s) => s.renameChat)
   const deleteChat = useChatStore((s) => s.deleteChat)
@@ -90,8 +107,8 @@ export function CardChat() {
     if (projectId) loadCardsProject(projectId)
   }, [projectId, loadCardsProject])
   useEffect(() => {
-    if (cardId) loadCard(cardId)
-  }, [cardId, loadCard])
+    if (projectId) loadChats(projectId)
+  }, [projectId, loadChats])
   useEffect(() => {
     loadPersonas()
   }, [loadPersonas])
@@ -112,7 +129,6 @@ export function CardChat() {
 
   const { output, streaming, error, generate, reset } = useAiGeneration()
 
-  const activeChat = chats.find((c) => c.id === activeChatId) ?? null
   const persona = personas.find((p) => p.id === activeChat?.personaId) ?? null
   const preset =
     presets.find((p) => p.id === activeChat?.aiPresetId) ??
@@ -127,11 +143,12 @@ export function CardChat() {
 
   async function handleNewChat() {
     if (!projectId || !cardId || !card) return
-    await createChat(projectId, cardId, {
-      title: `Chat ${chats.length + 1}`,
+    const created = await createChat(projectId, cardId, {
+      title: nextChatTitle(chats.length),
       firstMessage: card.firstMessage,
     })
     setMobileListOpen(false)
+    navigate(playgroundPath('chats', projectId, `/${created.id}`))
   }
 
   async function runGeneration(chatId: string, history: ChatMessage[], messageId: string) {
@@ -171,16 +188,16 @@ export function CardChat() {
     await runGeneration(activeChat.id, freshChat.messages, placeholder.id)
   }
 
-  if (!projectId || !cardId) {
+  if (!projectId) {
     return (
       <div className="flex h-full items-center justify-center p-6">
         <EmptyState
           icon={ArrowLeft}
-          title="No character selected"
-          description="Open a character card to start a chat."
+          title="No project selected"
+          description="Open a project from the Projects page to see its conversations."
           action={
             <Button asChild>
-              <Link to="/cards">Go to Cards</Link>
+              <Link to="/projects">Go to Projects</Link>
             </Button>
           }
         />
@@ -188,11 +205,34 @@ export function CardChat() {
     )
   }
 
-  if (cardStatus === 'loading' && cards.length === 0) {
+  // Both stores have to answer before "not found" can be true: the chat says
+  // which card this is, and the card list says who they are.
+  const stillLoading =
+    chatStatus === 'idle' ||
+    chatStatus === 'loading' ||
+    (cardStatus !== 'ready' && cards.length === 0)
+  if (stillLoading) {
     return (
       <div className="p-6">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="mt-4 h-96 w-full" />
+      </div>
+    )
+  }
+
+  if (!activeChat) {
+    return (
+      <div className="flex h-full items-center justify-center p-6">
+        <EmptyState
+          icon={ArrowLeft}
+          title="Conversation not found"
+          description="It may have been deleted."
+          action={
+            <Button asChild>
+              <Link to={playgroundPath('chats', projectId)}>Back to Chats</Link>
+            </Button>
+          }
+        />
       </div>
     )
   }
@@ -202,11 +242,11 @@ export function CardChat() {
       <div className="flex h-full items-center justify-center p-6">
         <EmptyState
           icon={ArrowLeft}
-          title="Card not found"
-          description="This character card may have been deleted."
+          title="Character not found"
+          description="The character this conversation belongs to may have been deleted."
           action={
             <Button asChild>
-              <Link to={`/cards?project=${projectId}`}>Back to Cards</Link>
+              <Link to={playgroundPath('chats', projectId)}>Back to Chats</Link>
             </Button>
           }
         />
@@ -231,7 +271,7 @@ export function CardChat() {
               key={chat.id}
               className={cn(
                 'group flex items-center gap-1 rounded-md px-2 py-2 text-sm',
-                chat.id === activeChatId
+                chat.id === chatId
                   ? 'bg-accent font-medium text-accent-foreground'
                   : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
               )}
@@ -240,8 +280,8 @@ export function CardChat() {
                 type="button"
                 className="min-w-0 flex-1 truncate text-left"
                 onClick={() => {
-                  setActiveChat(chat.id)
                   setMobileListOpen(false)
+                  navigate(playgroundPath('chats', projectId, `/${chat.id}`))
                 }}
               >
                 {chat.title}
@@ -294,7 +334,7 @@ export function CardChat() {
             <PanelLeft className="size-4" />
           </Button>
           <Button variant="ghost" size="icon" className="hidden shrink-0 lg:inline-flex" asChild>
-            <Link to={`/cards/${cardId}?project=${projectId}`} aria-label="Back to card">
+            <Link to={playgroundPath('cards', projectId, `/${cardId}`)} aria-label="Back to card">
               <ArrowLeft className="size-4" />
             </Link>
           </Button>
@@ -358,7 +398,7 @@ export function CardChat() {
               <Settings2 className="size-4" />
             </Button>
             <Button variant="ghost" size="icon" asChild aria-label="Manage lorebooks">
-              <Link to={`/lorebooks?project=${projectId}`}>
+              <Link to={playgroundPath('lorebooks', projectId)}>
                 <BookMarked className="size-4" />
               </Link>
             </Button>
@@ -573,8 +613,21 @@ export function CardChat() {
         description="This permanently deletes the conversation. This can't be undone."
         onConfirm={async () => {
           if (!deletingChatId) return
+          const wasOpen = deletingChatId === chatId
           await deleteChat(deletingChatId)
           setDeletingChatId(null)
+          // Deleting the conversation you are reading leaves the URL pointing
+          // at nothing; move to a sibling, or out to the list if that was the
+          // last one.
+          if (wasOpen) {
+            const sibling = useChatStore.getState().chats.find((c) => c.cardId === cardId)
+            navigate(
+              sibling
+                ? playgroundPath('chats', projectId, `/${sibling.id}`)
+                : playgroundPath('chats', projectId),
+              { replace: true },
+            )
+          }
         }}
       />
     </div>

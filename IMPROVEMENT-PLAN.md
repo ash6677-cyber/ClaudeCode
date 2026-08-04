@@ -62,7 +62,7 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Acceptance criteria.**
 - [x] ⌘K lists every rail destination including Read, Series, Book Creator; the private list in command-palette.tsx is gone. *(Verified live: `scripts/nav-check.mjs`, 19/19.)*
 - [x] Browser tab title names the screen and project. *(Most specific part first — "Elenya — Almanac — Mira Vale — Inkwell" — rather than the project first as sketched here, because tab labels truncate from the right and the project-first form makes every tab of one book identical.)*
-- [x] Rail shows Cover Studio; palette jumps carry `?project=`. **Playground label pending §3** — the label moves with the route, not before it, so there is no half-migrated state.
+- [x] Rail shows Playground and Cover Studio; palette jumps carry `?project=`; no route 404s from old bookmarks (`/cards`, `/cards/:id`, `/cards/:id/chat`, `/lorebooks` all verified live).
 
 **Shipped (§2.2, §2.3, §2.5, §2.6).** `DESTINATIONS` in `nav-items.ts` is the single list; `NAV_ITEMS` is its `inRail` filter and the palette reads the whole thing. Book Creator and Settings are palette-only. Palette jumps now carry the open book, which the private list never did. `useDocumentTitle` in `lib/hooks/`, applied to all 16 routes, guarded by `app/navigation.test.ts` — which reads the routes directory rather than a hand-kept list, and was shown to fail by deleting one call.
 
@@ -93,10 +93,14 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (explicit requirement).
 
 **Acceptance criteria.**
-- [ ] Old URLs (`/cards`, `/cards/:id`, `/cards/:id/chat`, `/lorebooks`) land on the right Playground screen, project param intact.
-- [ ] All four subsections reachable in two taps from anywhere on mobile; back exits the subsection in one press.
-- [ ] A card's Chat button opens a conversation; that conversation then appears in Chats.
-- [ ] No user-visible "Cards" as a top-level destination anywhere (rail, palette, titles, empty states).
+- [x] Old URLs (`/cards`, `/cards/:id`, `/cards/:id/chat`, `/lorebooks`) land on the right Playground screen, project param intact.
+- [x] All four subsections reachable in **one** tap from anywhere in the Playground on mobile — the tab row is always on screen — and back exits the subsection in one press, because the subsections are siblings rather than a third level.
+- [x] A card's Chat button opens a conversation; pressing it again resumes that same one rather than making a second; the conversation appears in Chats.
+- [x] No user-visible "Cards" as a top-level destination anywhere. ("Cards" survives as the *subsection* name and in "character cards", which is the thing itself, not the container.)
+
+**Shipped (§3.1–3.4, §3.6).** `features/cards/` → `features/playground/` (git mv, component names kept). Route family `/playground/{cards,chats,personas,lorebooks}` under a `PlaygroundShell` with a tab sub-nav; detail screens opt out of the chrome and draw their own header. Conversations are addressed by their own id (`/playground/chats/:chatId`) instead of through a card, which is what let them be listed together at all — `chat-store` now loads per book rather than per card, and the card's sidebar filters that list. New `Chats` index with `CardFacePreview` thumbnails and last-line previews; new `Personas` screen sharing a `PersonaList` with the in-chat dialog. `LegacyPlaygroundRedirect` for the three static old paths, `LegacyChatRedirect` for `/cards/:id/chat`, which has to resolve a card to a conversation before it can go anywhere.
+
+**Deferred.** §3.5 (chat → "Save to Almanac entry" / "Copy as scene note") stays with §5 in Phase 4, where its spec lives.
 
 ---
 
@@ -747,7 +751,7 @@ Ordered phases; each ends with the standing gates (typecheck 0 · lint 0 · test
 |---|---|---|---|---|
 | **0 — done** | SW war fix (`917643c`) | S | low | shipped; repro suites green |
 | **1 — done** | §7.1–7.4 wizard history/draft/matrix | M | low | shipped; §7 boxes ticked, 32/32 matrix |
-| **2 — IA + Playground shell** | §2.2/2.5/2.6, §3 all | M+M | med (redirects) | §3 boxes; old URLs live-tested |
+| **2 — done** | §2.2/2.5/2.6, §2.3, §3.1–3.4/3.6 | M+M | med (redirects) | shipped; §2 + §3 boxes ticked, 22/22 + 21/21 live. §3.5 deferred to Phase 4 with §5 |
 | **3 — Character import** | §6 all, §4.1/4.3 | L | med (undo correctness) | §6 boxes incl. undo byte-check |
 | **4 — Chat depth + AI trust** | §13.1–3, §14.1–2, §5.2–3 | L | med | context preview live across features |
 | **5 — Mobile overhaul** | §8.1–8.5 (reader first) | L | med (reader CSS) | device-matrix suite green |

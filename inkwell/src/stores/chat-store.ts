@@ -21,13 +21,12 @@ function activeContent(message: ChatMessage): string {
 }
 
 interface ChatStoreState {
-  cardId: string | null
+  projectId: string | null
+  /** Every conversation in the open book, newest first. */
   chats: CardChat[]
-  activeChatId: string | null
   status: LoadStatus
 
-  loadCard: (cardId: string) => Promise<void>
-  setActiveChat: (id: string | null) => void
+  loadProject: (projectId: string) => Promise<void>
   createChat: (
     projectId: string,
     cardId: string,
@@ -57,31 +56,29 @@ function updateChatLocal(
 }
 
 export const useChatStore = create<ChatStoreState>((set, get) => ({
-  cardId: null,
+  projectId: null,
   chats: [],
-  activeChatId: null,
   status: 'idle',
 
-  loadCard: async (cardId) => {
-    set({ status: 'loading', cardId })
+  /**
+   * Loaded per book rather than per card, because conversations now have a
+   * home of their own: the Chats screen lists every one of them across the
+   * whole cast, and a single conversation is reached by its own id rather
+   * than through the card it belongs to. A card's sidebar filters this list
+   * instead of fetching a second one.
+   */
+  loadProject: async (projectId) => {
+    set({ status: 'loading', projectId })
     try {
       const all = await cardChatRepo.list()
       const chats = all
-        .filter((c) => c.cardId === cardId)
+        .filter((c) => c.projectId === projectId)
         .sort((a, b) => b.updatedAt - a.updatedAt)
-      set({
-        chats,
-        status: 'ready',
-        activeChatId: get().activeChatId && chats.some((c) => c.id === get().activeChatId)
-          ? get().activeChatId
-          : (chats[0]?.id ?? null),
-      })
+      set({ chats, status: 'ready' })
     } catch {
       set({ status: 'error' })
     }
   },
-
-  setActiveChat: (id) => set({ activeChatId: id }),
 
   createChat: async (projectId, cardId, { title, firstMessage }) => {
     const messages = firstMessage.trim() ? [nowMessage('assistant', firstMessage.trim())] : []
@@ -94,7 +91,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       aiPresetId: null,
       messages,
     })
-    set({ chats: [chat, ...get().chats], activeChatId: chat.id })
+    set({ chats: [chat, ...get().chats] })
     return chat
   },
 
@@ -105,11 +102,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
 
   deleteChat: async (id) => {
     await cardChatRepo.remove(id)
-    const chats = get().chats.filter((c) => c.id !== id)
-    set({
-      chats,
-      activeChatId: get().activeChatId === id ? (chats[0]?.id ?? null) : get().activeChatId,
-    })
+    set({ chats: get().chats.filter((c) => c.id !== id) })
   },
 
   setMode: async (id, mode) => {

@@ -4,18 +4,17 @@ import { Link, useSearchParams } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
-import { PageHeader } from '@/components/common/page-header'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { LorebookEntryRow } from '@/features/cards/components/lorebook-entry-row'
+import { LorebookEntryRow } from '@/features/playground/components/lorebook-entry-row'
 import { cn } from '@/lib/utils'
 import { useLorebookStore } from '@/stores/lorebook-store'
 import type { LorebookEntry } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function LorebooksHome() {
-  useDocumentTitle('Lorebooks')
+  useDocumentTitle('Lorebooks', 'Playground')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 
@@ -73,15 +72,14 @@ export function LorebooksHome() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader
-        title="Lorebooks"
-        description="World info your characters can draw on while chatting."
-        actions={
-          <Button size="sm" onClick={handleCreate}>
-            <Plus /> New lorebook
-          </Button>
-        }
-      />
+      <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 sm:px-6">
+        <p className="text-sm text-muted-foreground">
+          World info your characters can draw on while chatting.
+        </p>
+        <Button size="sm" className="shrink-0" onClick={handleCreate}>
+          <Plus /> New lorebook
+        </Button>
+      </div>
 
       {status === 'loading' && lorebooks.length === 0 ? (
         <div className="p-6">

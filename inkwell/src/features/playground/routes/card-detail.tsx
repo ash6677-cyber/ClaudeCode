@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageCircle, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, MessageCircle, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -18,11 +18,14 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
-import { ExampleDialogueList } from '@/features/cards/components/example-dialogue-list'
-import { CardDesignPanel } from '@/features/cards/components/card-design-panel'
-import { CardFacePreview } from '@/features/cards/components/card-face'
-import { PortraitUploadField } from '@/features/cards/components/portrait-upload-field'
+import { ExampleDialogueList } from '@/features/playground/components/example-dialogue-list'
+import { CardDesignPanel } from '@/features/playground/components/card-design-panel'
+import { CardFacePreview } from '@/features/playground/components/card-face'
+import { PortraitUploadField } from '@/features/playground/components/portrait-upload-field'
+import { chatToOpenFor } from '@/features/playground/lib/open-chat'
+import { playgroundPath } from '@/features/playground/lib/playground-nav'
 import { useCardStore } from '@/stores/card-store'
+import { useChatStore } from '@/stores/chat-store'
 import { useCodexStore } from '@/stores/codex-store'
 import type { CropSettings } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
@@ -38,6 +41,7 @@ export function CardDetail() {
     useCardStore()
   const codexEntries = useCodexStore((s) => s.entries)
   const loadCodexProject = useCodexStore((s) => s.loadProject)
+  const loadChats = useChatStore((s) => s.loadProject)
 
   useEffect(() => {
     if (projectId) loadProject(projectId)
@@ -45,9 +49,12 @@ export function CardDetail() {
   useEffect(() => {
     if (projectId) loadCodexProject(projectId)
   }, [projectId, loadCodexProject])
+  useEffect(() => {
+    if (projectId) loadChats(projectId)
+  }, [projectId, loadChats])
 
   const card = useMemo(() => cards.find((c) => c.id === cardId), [cards, cardId])
-  useDocumentTitle(card?.displayName, 'Cards')
+  useDocumentTitle(card?.displayName, 'Cards', 'Playground')
 
   const [nameDraft, setNameDraft] = useState(card?.displayName ?? '')
   const [tagsDraft, setTagsDraft] = useState(card?.tags.join(', ') ?? '')
@@ -58,6 +65,7 @@ export function CardDetail() {
   const [voiceNotesDraft, setVoiceNotesDraft] = useState(card?.voiceNotes ?? '')
   const [systemPromptDraft, setSystemPromptDraft] = useState(card?.systemPromptOverride ?? '')
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [openingChat, setOpeningChat] = useState(false)
 
   // Starts undefined (not `cardId`) so that when this card's data arrives asynchronously
   // after mount — e.g. a direct page load/refresh, where the store is still empty at mount
@@ -110,7 +118,7 @@ export function CardDetail() {
           description="This character card may have been deleted."
           action={
             <Button asChild>
-              <Link to={`/cards?project=${projectId}`}>Back to Cards</Link>
+              <Link to={playgroundPath('cards', projectId)}>Back to Cards</Link>
             </Button>
           }
         />
@@ -122,15 +130,33 @@ export function CardDetail() {
     <div className="flex h-full flex-col">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <Button variant="ghost" size="sm" asChild className="gap-1.5">
-          <Link to={`/cards?project=${projectId}`}>
+          <Link to={playgroundPath('cards', projectId)}>
             <ArrowLeft className="size-4" /> Cards
           </Link>
         </Button>
         <div className="flex items-center gap-1.5">
-          <Button size="sm" asChild className="gap-1.5">
-            <Link to={`/cards/${card.id}/chat?project=${projectId}`}>
-              <MessageCircle className="size-4" /> Chat
-            </Link>
+          <Button
+            size="sm"
+            className="gap-1.5"
+            disabled={openingChat}
+            onClick={async () => {
+              // One intent, not two: carry on if there is something to carry
+              // on with, begin if there isn't.
+              setOpeningChat(true)
+              try {
+                const id = await chatToOpenFor(projectId, card)
+                navigate(playgroundPath('chats', projectId, `/${id}`))
+              } finally {
+                setOpeningChat(false)
+              }
+            }}
+          >
+            {openingChat ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <MessageCircle className="size-4" />
+            )}
+            Chat
           </Button>
           <Button
             variant="ghost"
@@ -320,7 +346,7 @@ export function CardDetail() {
         onConfirm={async () => {
           await deleteCard(card.id)
           toast({ title: `"${card.displayName}" deleted` })
-          navigate(`/cards?project=${projectId}`)
+          navigate(playgroundPath('cards', projectId))
         }}
       />
     </div>

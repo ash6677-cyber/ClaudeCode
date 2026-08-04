@@ -1,21 +1,20 @@
-import { BookMarked, Library, Plus, Users } from 'lucide-react'
+import { Library, Plus, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { ConfirmDeleteDialog } from '@/components/common/confirm-delete-dialog'
 import { EmptyState } from '@/components/common/empty-state'
-import { PageHeader } from '@/components/common/page-header'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
-import { CardFormDialog } from '@/features/cards/components/card-form-dialog'
-import { CharacterCardTile } from '@/features/cards/components/character-card-tile'
+import { CardFormDialog } from '@/features/playground/components/card-form-dialog'
+import { CharacterCardTile } from '@/features/playground/components/character-card-tile'
 import { useCardStore } from '@/stores/card-store'
 import type { CharacterCard } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 export function CardsHome() {
-  useDocumentTitle('Cards')
+  useDocumentTitle('Cards', 'Playground')
   const [searchParams] = useSearchParams()
   const projectId = searchParams.get('project')
 
@@ -68,29 +67,16 @@ export function CardsHome() {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader
-        title="Cards"
-        description={
-          status === 'ready' && cards.length > 0
-            ? `${cards.length} ${cards.length === 1 ? 'character' : 'characters'}`
-            : undefined
-        }
-        actions={
-          status === 'ready' &&
-          cards.length > 0 && (
-            <>
-              <Button size="sm" variant="outline" asChild>
-                <Link to={`/lorebooks?project=${projectId}`}>
-                  <BookMarked /> Lorebooks
-                </Link>
-              </Button>
-              <Button size="sm" onClick={() => setFormOpen(true)}>
-                <Plus /> New card
-              </Button>
-            </>
-          )
-        }
-      />
+      {status === 'ready' && cards.length > 0 && (
+        <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 sm:px-6">
+          <p className="text-sm text-muted-foreground">
+            {cards.length} {cards.length === 1 ? 'character' : 'characters'}
+          </p>
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Plus /> New card
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         {status === 'loading' || status === 'idle' ? (

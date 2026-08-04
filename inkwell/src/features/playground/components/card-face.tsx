@@ -6,19 +6,19 @@ import {
   accentFor,
   designClasses,
   designStyle,
-} from '@/features/cards/lib/card-design'
+} from '@/features/playground/lib/card-design'
 import {
   frameVars,
   motionAllowed,
   REST_FRAME,
   tiltFrame,
-} from '@/features/cards/lib/card-tilt'
+} from '@/features/playground/lib/card-tilt'
 import { imageAssetRepo } from '@/lib/db/repositories'
 import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import { cn } from '@/lib/utils'
 import type { CardDesign, CharacterCard, CropSettings } from '@/types'
 
-import '@/features/cards/cards.css'
+import '@/features/playground/playground.css'
 
 interface CardFaceProps {
   name: string

@@ -20,7 +20,10 @@ function routeFiles(): string[] {
       continue
     }
     for (const name of names) {
-      if (name.endsWith('.tsx')) found.push(join(routes, name))
+      // A redirect is not a place to be; it exists to leave, and renders
+      // nothing a tab title could describe before it navigates away. The
+      // suffix is the whole exemption, so nothing else can claim it.
+      if (name.endsWith('.tsx') && !name.endsWith('-redirect.tsx')) found.push(join(routes, name))
     }
   }
   return found

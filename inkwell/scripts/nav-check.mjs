@@ -50,6 +50,8 @@ check('tab title in the Editor', true, (await page.title()).includes('Mira Vale'
 const railLabels = await page.locator('aside nav a').allInnerTexts()
 check('rail shows Cover Studio', true, railLabels.some((l) => l.includes('Cover Studio')))
 check('rail has no bare "Covers"', false, railLabels.some((l) => l.trim() === 'Covers'))
+check('rail shows Playground', true, railLabels.some((l) => l.includes('Playground')))
+check('rail has no bare "Cards"', false, railLabels.some((l) => l.trim() === 'Cards'))
 
 // ⌘K lists everything, including what the rail leaves out.
 await page.keyboard.press('Control+k')
@@ -57,7 +59,7 @@ await page.waitForTimeout(400)
 await page.getByPlaceholder(/Search|Type a command|Jump/i).first().fill('')
 await page.waitForTimeout(200)
 const navSection = await page.locator('[role="dialog"]').innerText()
-for (const label of ['Projects', 'Editor', 'Read', 'Almanac', 'Planning', 'Cover Studio', 'Series', 'Stats', 'Book Creator', 'Settings']) {
+for (const label of ['Projects', 'Editor', 'Read', 'Almanac', 'Playground', 'Planning', 'Cover Studio', 'Series', 'Stats', 'Book Creator', 'Settings']) {
   check(`palette lists ${label}`, true, navSection.includes(label))
 }
 

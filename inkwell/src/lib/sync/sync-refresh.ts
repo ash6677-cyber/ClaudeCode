@@ -40,8 +40,8 @@ const REFRESHERS: Record<SyncedTableName, () => void> = {
     if (projectId) void loadProject(projectId)
   },
   cardChats: () => {
-    const { cardId, loadCard } = useChatStore.getState()
-    if (cardId) void loadCard(cardId)
+    const { projectId, loadProject } = useChatStore.getState()
+    if (projectId) void loadProject(projectId)
   },
   lorebooks: () => {
     const { projectId, loadProject } = useLorebookStore.getState()
