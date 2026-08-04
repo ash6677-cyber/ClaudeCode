@@ -81,11 +81,11 @@ export function registerServiceWorker(): void {
       .register(`${base}${SW_PATH}`, { scope: base })
       .then((registration) => {
         // An explicit update check on every load, because this scope has a
-        // history: FC Career Tracker's worker owned it before INKWELL did,
-        // and a phone from that era serves the tracker's dead menu until
-        // the registration updates to this app's worker. register() alone
-        // leaves that to the browser's own schedule; this makes the first
-        // visit the one that heals.
+        // history: another app's worker owned it before INKWELL did, and a
+        // phone from that era serves that app's dead menu until the
+        // registration updates to this one's worker. register() alone leaves
+        // that to the browser's own schedule; this makes the first visit the
+        // one that heals.
         registration.update().catch(() => {})
       })
       .catch(() => {

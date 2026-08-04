@@ -12,11 +12,11 @@ Effort scale: **S** ≤ half a day · **M** 1–2 days · **L** 3+ days. Priorit
 
 ## 1. Executive summary & current-state assessment
 
-**Current state.** INKWELL is a local-first novel-writing studio: TipTap manuscript editor with focus mode and snapshots (`features/editor/`), a worldbuilding Almanac (`features/codex/` + `features/almanac/`), character cards with AI chat (`features/cards/`), an AI Book Creator wizard (`features/book-creator/`), Cover Studio (`features/covers/`), planning boards (`features/planning/`), a page-flip reader (`features/reader/`), series box sets, stats/goals, a deep theme system (`features/theme/`), Dexie persistence with soft-delete and whole-library backup (`lib/db/`), optional Firestore sync (`lib/sync/`), a PWA path and a Tauri Windows path (`src-tauri/`). It shares its repository and deployed origin with a second product, FC Career Tracker, at the repo root.
+**Current state.** INKWELL is a local-first novel-writing studio: TipTap manuscript editor with focus mode and snapshots (`features/editor/`), a worldbuilding Almanac (`features/codex/` + `features/almanac/`), character cards with AI chat (`features/cards/`), an AI Book Creator wizard (`features/book-creator/`), Cover Studio (`features/covers/`), planning boards (`features/planning/`), a page-flip reader (`features/reader/`), series box sets, stats/goals, a deep theme system (`features/theme/`), Dexie persistence with soft-delete and whole-library backup (`lib/db/`), optional Firestore sync (`lib/sync/`), a PWA path and a Tauri Windows path (`src-tauri/`). It owns its repository and its deployed origin outright.
 
 **What's strong.** Data safety (soft-delete bin, backup round-trip with a schema-completeness test in `lib/db/web-library.test.ts`, honest storage reporting in `storage-health.tsx`); the theme system (partial overrides, OKLCH with contrast guards, per-project looks); a real verification culture (445 unit tests, painted-pixel live suites); one shell for desktop and mobile rather than forked screens; the keyboard-aware viewport system (`lib/viewport.ts`).
 
-**What's weak.** Naming and information architecture ("Cards" hides chat, personas and lorebooks; Book Creator and Lorebooks aren't in the nav at all; the command palette keeps a second nav list that has already drifted); mobile depth beyond the recent dialog/keyboard fixes (the reader has never been audited on a phone); the AI layer's failure UX (a toast, no retry, no visibility into what is sent); two monolithic routes (`editor-home.tsx` ~550 lines, `card-chat.tsx` ~470); the Codex/Almanac feature split across two directories; wizard state that evaporates on any navigation; and the shared-origin tenancy with the tracker, which caused the P0.
+**What's weak.** Naming and information architecture ("Cards" hides chat, personas and lorebooks; Book Creator and Lorebooks aren't in the nav at all; the command palette keeps a second nav list that has already drifted); mobile depth beyond the recent dialog/keyboard fixes (the reader has never been audited on a phone); the AI layer's failure UX (a toast, no retry, no visibility into what is sent); two monolithic routes (`editor-home.tsx` ~550 lines, `card-chat.tsx` ~470); the Codex/Almanac feature split across two directories; and wizard state that evaporates on any navigation.
 
 **Five highest-impact changes.**
 1. Finish the P0 properly: wizard steps in history, escape routes, the mobile test matrix (§7).
@@ -198,14 +198,14 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 
 ## 7. P0 — mobile Book Creator back-navigation bug
 
-**Current state.** Root-caused and reproduced, not guessed. The "legacy menu" is **FC Career Tracker's cached menu**, served by its stale service worker (registered at scope `/` when the tracker owned the site root, cache-first `cached || network`, `'./'` precached — root `sw.js`). The deploy commit `8a7403a` (1 Aug) moved INKWELL to the root; the tracker SW's path-based INKWELL carve-out (`/inkwell/`) stopped matching, so on any phone from the tracker era, a document navigation to the root got the tracker's dead menu. Book Creator is where back bites because the wizard (`book-creator-wizard.tsx`) keeps steps in component state — verified live: from step 2, **one** browser-back exits the whole wizard, and the next crosses the document boundary the stale SW hijacks.
+**Current state.** Root-caused and reproduced, not guessed. The "legacy menu" was **a second app's cached menu**, served by its stale service worker (registered at scope `/` when that app owned the site root, cache-first `cached || network`, `'./'` precached). The deploy commit `8a7403a` (1 Aug) moved INKWELL to the root; that worker's path-based INKWELL carve-out (`/inkwell/`) stopped matching, so on any phone from before the move, a document navigation to the root got the old app's dead menu. Book Creator is where back bites because the wizard (`book-creator-wizard.tsx`) keeps steps in component state — verified live: from step 2, **one** browser-back exits the whole wizard, and the next crosses the document boundary the stale SW hijacks.
 
-**Fix shipped** (`917643c`, approved out-of-band): `registration.update()` on every load (`durability.ts`); both SWs delete only own-prefix caches (ends their mutual cache destruction — tracker's 10 precache entries verified surviving an INKWELL SW update); INKWELL's SW surgically evicts tracker-era poison entries for its own scope (verified: `poisonedRootEntries: []` post-heal, tracker cache intact). One hijacked load on an already-stale phone remains physically unavoidable; heal is now first-visit.
+**Fix shipped** (`917643c`, approved out-of-band): `registration.update()` on every load (`durability.ts`); each SW deletes only own-prefix caches (ends the mutual cache destruction — the neighbour's 10 precache entries verified surviving an INKWELL SW update); INKWELL's SW surgically evicts the older app's poison entries for its own scope (verified: `poisonedRootEntries: []` post-heal). One hijacked load on an already-stale phone remains physically unavoidable; heal is now first-visit. The second app has since been removed from the repository entirely, so no new poisoning is possible; the eviction stays because browsers that already hold it will not clean themselves.
 
 **Problems remaining.**
 - Wizard steps push no history entries: back discards up to four steps of typed work silently, on every platform.
 - No draft persistence: any exit loses everything.
-- There was never a legacy in-app menu to retire (verified: no file ever deleted under `features/book-creator/`) — the retirement decision transfers to the *tracker tenancy* question (Open Questions).
+- There was never a legacy in-app menu to retire (verified: no file ever deleted under `features/book-creator/`); the menu came from outside the app, and the app it came from is now gone from the repository.
 
 **Proposed changes.**
 1. Represent the step in the URL (`/book-creator?step=cast`): stepper and Next/Back drive `setSearchParams`, back/forward/swipe map to steps. Entry push, exit at step 0 goes to Projects.
@@ -226,7 +226,7 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Acceptance criteria.**
 - [ ] On mobile emulation: advance to Cast, press back twice → Outline, Concept, with all fields intact; third back → Projects.
 - [ ] Kill the tab mid-wizard, reopen → Resume restores every field.
-- [ ] The stale-SW repro heals on first visit and the tracker cache survives.
+- [ ] The stale-SW repro heals on first visit and a neighbouring site's cache survives untouched.
 - [ ] Matrix executed and attached to the PR.
 
 ---
@@ -759,7 +759,7 @@ Dependencies flow downward only. Windows path (`src-tauri/`, installer workflow)
 
 ## Open questions
 
-1. **FC Career Tracker tenancy.** It now works correctly at `/tracker/` with the SW truce. But co-tenancy permanently constrains INKWELL's origin (SW scope discipline, cache prefixes, deploy assembly). Move it to its own repository/Pages site, or keep as tenant? Plan assumes **tenant stays** (no tracker changes beyond the shipped fix); say the word and a migration step joins Phase 2.
+1. ~~**Second-app tenancy.**~~ **Resolved.** The co-tenant has been deleted from the repository; INKWELL owns the root and the deploy publishes it alone. Cache-prefix discipline stays in `public/sw.js` regardless, because a `github.io` origin is shared by all of an owner's project sites.
 2. **Playground substructure** is proposed as Cards · Chats · Personas · Lorebooks (§3). Bless or amend before Phase 2 — it's the one rename users will feel.
 3. **Linked-vs-snapshot default** for character import: plan recommends Linked with per-import toggle (§6.6). Confirm.
 4. **"Editor" → "Write"** and any other label changes beyond the required ones (§2 naming audit): approve individually — cheap to do, personal taste, not assumed.

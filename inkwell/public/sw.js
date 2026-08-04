@@ -26,22 +26,21 @@ self.addEventListener('install', () => {
 /**
  * Cache cleanup, scoped to what is actually ours.
  *
- * Cache storage is origin-global, and this origin is shared with FC Career
- * Tracker at /tracker/. The first version of this handler deleted every
- * cache it did not own — which meant the two workers deleted each other's
- * caches on every update, quietly breaking offline support for whichever
- * app updated second. Own prefix only, now.
+ * Cache storage is origin-global, and a github.io origin is shared by every
+ * project site its owner publishes. An earlier version of this handler
+ * deleted every cache it did not own, which meant any two workers on the
+ * origin deleted each other's caches on every update — quietly breaking
+ * offline support for whichever app updated second. Own prefix only, now.
  *
- * The second loop is the cure for a specific poisoning. The tracker owned
- * this scope before INKWELL did, and its worker cached the tracker's pages
- * under *this scope's* URLs — which is exactly what served writers the
- * tracker's dead menu instead of INKWELL. Those entries are keyed by URL
- * inside the tracker's cache, so they are removed individually; the cache
- * itself is the live tracker's property and stays.
+ * The second loop is the cure for a specific poisoning. Another app owned
+ * this site root before INKWELL did, and its worker cached its own pages
+ * under *this scope's* URLs — which is exactly what served writers a dead
+ * menu instead of INKWELL. Those entries are keyed by URL inside a cache
+ * that is not ours, so they are removed individually and the cache itself
+ * is left alone.
  */
 self.addEventListener('activate', (event) => {
   const scope = self.registration.scope
-  const trackerPrefix = new URL('tracker/', scope).toString()
   event.waitUntil(
     caches
       .keys()
@@ -52,14 +51,14 @@ self.addEventListener('activate', (event) => {
               if (key !== SHELL && key !== ASSETS) await caches.delete(key)
               return
             }
-            // A foreign cache. Leave it alive, but evict anything it holds
-            // for URLs inside our scope (the tracker's own /tracker/ URLs
-            // are inside our scope too, and are not ours to touch).
+            // A foreign cache. Leave it alive — it belongs to another site on
+            // this origin — but evict anything it holds for URLs inside our
+            // scope, because those are ours to serve and nobody else's.
             const cache = await caches.open(key)
             const entries = await cache.keys()
             await Promise.all(
               entries
-                .filter((req) => req.url.startsWith(scope) && !req.url.startsWith(trackerPrefix))
+                .filter((req) => req.url.startsWith(scope))
                 .map((req) => cache.delete(req)),
             )
           }),
@@ -80,9 +79,6 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url)
   if (url.origin !== self.location.origin) return
-
-  // FC Career Tracker lives beside this app and brings its own worker.
-  if (url.pathname.toLowerCase().includes('/tracker/')) return
 
   // Navigations: always prefer the network so a deploy is picked up at once,
   // but fall back to the cached shell so the app still opens offline. Hash

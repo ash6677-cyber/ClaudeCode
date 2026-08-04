@@ -1,25 +1,15 @@
-name: Deploy GitHub Pages (FC Career Tracker + INKWELL)
+name: Deploy GitHub Pages (INKWELL)
 
-# A repository gets exactly one Pages site, and this one was already serving
-# FC Career Tracker from the repository root before INKWELL existed. Publishing
-# only inkwell/dist would replace the whole site and take the tracker offline —
-# which matters because it stores its data in the browser, so its users would
-# lose the page they need in order to export a backup.
-#
-# So this assembles both: the tracker keeps the root, INKWELL is published
-# underneath it at /inkwell/.
+# INKWELL is the whole site. It shared the root with a second app for a while,
+# which is why the assembly step below is explicit about what it copies rather
+# than publishing inkwell/dist directly — the 404 page lives outside the Vite
+# build and still has to reach the artifact.
 
 on:
   push:
     branches: [main, master]
     paths:
-      # INKWELL
       - 'inkwell/**'
-      # FC Career Tracker's published files, so edits to it redeploy too
-      - 'index.html'
-      - 'manifest.webmanifest'
-      - 'sw.js'
-      - 'assets/**'
       - '404.html'
       - '.github/workflows/deploy-pages.yml'
   workflow_dispatch:
@@ -61,8 +51,8 @@ jobs:
 
       - name: Build INKWELL
         working-directory: inkwell
-        # INKWELL sits at /<repo>/inkwell/, so its asset prefix has to include
-        # both segments or every script 404s.
+        # A project site is served from /<repo>/, so the asset prefix has to
+        # carry that segment or every script 404s.
         #
         # The Firebase values come from repository *variables*, not secrets:
         # every VITE_ value is compiled into the public JavaScript bundle, so
@@ -83,26 +73,19 @@ jobs:
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
         run: npm run build
 
-      - name: Assemble both sites
+      - name: Assemble the site
         # Copied explicitly rather than by excluding things, so that adding a
         # directory to the repository never silently publishes it.
         run: |
-          mkdir -p _site/tracker
-          # INKWELL owns the root: the repository is named for it, and a site
-          # people visit daily should not carry an extra path segment that a
-          # phone keyboard can capitalise into a 404.
+          mkdir -p _site
           cp -r inkwell/dist/. _site/
+          # 404.html sits outside the Vite build because GitHub Pages, not the
+          # app, is what serves it.
           cp 404.html _site/
-          # FC Career Tracker moves down a level rather than being deleted. It
-          # uses relative URLs throughout, so it works unchanged from any depth,
-          # and its service worker's scope narrows to /tracker/ along with it —
-          # which keeps it away from INKWELL entirely.
-          cp index.html manifest.webmanifest sw.js _site/tracker/
-          cp -r assets _site/tracker/assets
           echo "Assembled tree:"
-          find _site -maxdepth 2 -not -path '_site/assets/*' -not -path '_site/tracker/assets/*' | sort
+          find _site -maxdepth 2 -not -path '_site/assets/*' | sort
 
-      - name: Verify both sites are intact
+      - name: Verify the site is intact
         # Each of these has a specific failure it prevents, and every one of
         # them is silent otherwise — a blank page or a missing site.
         env:
@@ -110,9 +93,8 @@ jobs:
         run: |
           fail() { echo "::error::$1"; exit 1; }
 
-          # INKWELL owns the root.
           grep -q "Inkwell" _site/index.html \
-            || fail "The root site is not INKWELL."
+            || fail "The published site is not INKWELL."
           [ -d _site/assets ] || fail "INKWELL's built assets are missing."
           [ -f _site/404.html ] || fail "404.html is missing; mis-cased URLs would not self-correct."
 
@@ -124,13 +106,7 @@ jobs:
           grep -q "$EXPECTED" _site/index.html \
             || fail "INKWELL does not reference $EXPECTED — is the repository name what you expect?"
 
-          # The tracker must survive the move, intact.
-          grep -q "FC Career Tracker" _site/tracker/index.html \
-            || fail "FC Career Tracker is missing from /tracker/."
-          [ -f _site/tracker/assets/app.js ] || fail "Tracker assets are missing."
-          [ -f _site/tracker/sw.js ] || fail "The tracker service worker is missing."
-
-          echo "Both sites verified."
+          echo "Site verified."
           echo "INKWELL asset references:"
           grep -oE '(src|href)="[^"]*"' _site/index.html | head -5
 

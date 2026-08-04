@@ -36,17 +36,11 @@
   }
 </style>
 <script>
-  // GitHub Pages paths are case-sensitive, and phone keyboards love to
-  // capitalise the first letter of a word typed into the address bar —
-  // turning /inkwell/ into /Inkwell/, which 404s. Repair that silently.
-  //
-  // Only a difference of *case* is corrected. A path that is already spelled
-  // correctly is a genuinely missing file, and redirecting it would hide the
+  // INKWELL owns the whole site, so every 404 here is either a stale
+  // bookmark of an address the app used to live at, or a genuinely missing
+  // file. Only the first is repaired; redirecting the second would hide the
   // problem rather than solve it.
   (function () {
-    // INKWELL is at the root now, so the only sub-app left to repair is the
-    // tracker. /Tracker/ and /TRACKER/ should still land somewhere useful.
-    var APPS = ['tracker'];
     var parts = location.pathname.split('/').filter(Boolean);
     if (!parts.length) return;
 
@@ -56,19 +50,11 @@
     var seg = parts[1];
     if (!seg) return;
 
-    var lower = seg.toLowerCase();
-
-    // A stale bookmark of the old /inkwell/ address belongs at the root now.
-    if (lower === 'inkwell') {
+    // The app was published at /inkwell/ before it moved to the root, and
+    // GitHub Pages paths are case-sensitive, so a phone keyboard's capital
+    // I lands here too. Both belong at the root now.
+    if (seg.toLowerCase() === 'inkwell') {
       location.replace(base + location.search + location.hash);
-      return;
-    }
-
-    if (APPS.indexOf(lower) !== -1 && seg !== lower) {
-      var target = base + lower + '/';
-      if (location.pathname !== target) {
-        location.replace(target + location.search + location.hash);
-      }
     }
   })();
 </script>
@@ -76,10 +62,9 @@
 <body>
 <main>
   <h1>Page not found</h1>
-  <p>Nothing lives at that address. These do:</p>
+  <p>Nothing lives at that address. This does:</p>
 
   <a class="app" href="./">INKWELL<span>A local-first novel-writing studio</span></a>
-  <a class="app" href="./tracker/">FC Career Tracker<span>Season-by-season career mode stats</span></a>
 
   <p class="note">
     Addresses here are case-sensitive. If you typed one on a phone, the

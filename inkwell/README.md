@@ -31,25 +31,23 @@ Before the first deploy, enable it once in the repository: **Settings → Pages 
 Build and deployment → Source: GitHub Actions**. On a private repository, Pages
 requires a paid GitHub plan.
 
-**This repository's Pages site is shared.** FC Career Tracker occupies the root and
-was there first, and a repository only gets one Pages site — publishing just
-`inkwell/dist` would replace it and take it offline, which matters because it keeps
-its data in the browser and its users would lose the page they need to export a
-backup. The workflow therefore assembles both: the tracker keeps the root, INKWELL
-is published beneath it.
+INKWELL lands at **`https://<owner>.github.io/<repo>/`**. That means the build sets
+`INKWELL_BASE_PATH=/<repo>/` so Vite prefixes every asset URL to match; the workflow
+fails the build if a stray `/assets/` URL survives, since that would 404 and leave a
+blank page. No SPA rewrite rules are needed — the app uses hash routing
+(`#/projects`) precisely so it works on static hosting that can't rewrite paths.
 
-INKWELL lands at **`https://<owner>.github.io/<repo>/inkwell/`**. That means the
-build sets `INKWELL_BASE_PATH=/<repo>/inkwell/` so Vite prefixes every asset URL to
-match; the workflow fails the build if a stray `/assets/` URL survives, since that
-would 404 and leave a blank page. No SPA rewrite rules are needed — the app uses
-hash routing (`#/projects`) precisely so it works on static hosting that can't
-rewrite paths.
+One subtlety worth keeping in mind if you touch `public/sw.js`: a `github.io` origin
+is shared by every project site its owner publishes, and Cache Storage is
+origin-global. The worker therefore deletes only caches under its own `inkwell-`
+prefix. Widen that and it starts destroying a neighbouring site's offline support on
+every update — a failure that is completely silent from inside this app.
 
-One subtlety worth keeping in mind if you touch either app: the tracker registers a
-service worker at the repository root, so its scope is `/<repo>/` and it sits in
-front of INKWELL's requests too. `sw.js` therefore skips any path containing
-`/inkwell/`. Remove that guard and INKWELL's `index.html` gets cached and
-stale-served, pinning it one deploy behind indefinitely.
+The site root also has a history. Another app was published here before INKWELL, and
+its service worker cached its own pages under these URLs; a browser from that era
+serves them until the registration updates. `durability.ts` calls
+`registration.update()` on every load and the worker evicts those stale entries on
+activate, so the first visit is the one that heals.
 
 To deploy anywhere else, build with the base path set to wherever it will be served
 (`INKWELL_BASE_PATH=/ npm run build` for a domain root) and upload `dist/`.
