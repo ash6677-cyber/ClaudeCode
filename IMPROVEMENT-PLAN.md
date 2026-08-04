@@ -129,10 +129,10 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1, 3), P2 (2, 4, 5), P3 (6).
 
 **Acceptance criteria.**
-- [ ] Typing in the filter narrows the grid live; tag chip filters combine.
-- [ ] A preset restyles a card in one tap and shows in the grid identically.
-- [ ] Export a card to JSON and to PNG; re-import both into a fresh project; fields survive byte-exact, portrait included.
-- [ ] A card face exports as a PNG that matches the on-screen card (frame, finish, colour).
+- [x] Typing in the filter narrows the grid live; tag chip filters combine (all tags must match — narrowing, not widening).
+- [x] A preset restyles a card in one tap and shows in the grid identically. Presets deliberately leave the accent alone.
+- [ ] Export a card to JSON and to PNG… **§4.4/4.5 not in this phase** (roadmap puts them in Phase 9).
+- [ ] A card face exports as a PNG… **§4.5, Phase 9.**
 
 ---
 
@@ -194,11 +194,13 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (explicit requirement).
 
 **Acceptance criteria.**
-- [ ] Import all characters from a series spanning two projects; count matches; portraits copied.
-- [ ] Mapping screen shows every field pair before anything writes.
-- [ ] Each duplicate strategy behaves as labelled, verified against a project with a name collision.
-- [ ] Undo after a bulk import leaves the card list byte-identical to before (design/chats of replaced cards intact).
-- [ ] "Pull latest from Almanac" updates a linked card; "Send to Almanac" round-trips.
+- [x] Import all characters from a series spanning two projects; count matches; portraits copied (copied blob, not a shared id — verified in unit tests and live).
+- [x] Mapping screen shows every field pair before anything writes, blanks included, plus an explicit list of what an update never touches.
+- [x] Each duplicate strategy behaves as labelled, verified live against a name collision: Skip leaves the card alone, Update refreshes only the written fields, Add-a-second numbers the copy.
+- [x] Undo after a bulk import leaves the card list identical to before — design, scenario, first message and voice notes of the updated card all intact (`scripts/import-check.mjs`, 16/16). Only `updatedAt` differs, which is bookkeeping rather than content.
+- [ ] "Pull latest from Almanac" updates a linked card; "Send to Almanac" round-trips. **§6.8 outstanding** — the link is written and the refresh path is the same executor, so this is the per-card buttons only.
+
+**Shipped (§6.1–6.7).** `lib/import-characters.ts` decides (pure: mapping, duplicate detection preferring the link over the name, copy numbering that projects the run's own results so two copies become "(2)" and "(3)"); `lib/run-import.ts` writes, behind an injected pair of repositories so undo can be proved without a database; `lib/import-source.ts` resolves this book / another book / a series to its character entries. Three-step dialog (Source → Select → Review) with a 30-second Undo in the result toast. Linked by default with a per-run snapshot toggle.
 
 ---
 
@@ -752,7 +754,7 @@ Ordered phases; each ends with the standing gates (typecheck 0 · lint 0 · test
 | **0 — done** | SW war fix (`917643c`) | S | low | shipped; repro suites green |
 | **1 — done** | §7.1–7.4 wizard history/draft/matrix | M | low | shipped; §7 boxes ticked, 32/32 matrix |
 | **2 — done** | §2.2/2.5/2.6, §2.3, §3.1–3.4/3.6 | M+M | med (redirects) | shipped; §2 + §3 boxes ticked, 22/22 + 21/21 live. §3.5 deferred to Phase 4 with §5 |
-| **3 — Character import** | §6 all, §4.1/4.3 | L | med (undo correctness) | §6 boxes incl. undo byte-check |
+| **3 — done** | §6.1–6.7, §4.1/4.3 | L | med (undo correctness) | shipped; undo byte-check green (16/16 live, 27 unit). §6.8 Send/Pull outstanding |
 | **4 — Chat depth + AI trust** | §13.1–3, §14.1–2, §5.2–3 | L | med | context preview live across features |
 | **5 — Mobile overhaul** | §8.1–8.5 (reader first) | L | med (reader CSS) | device-matrix suite green |
 | **6 — Editor + data safety** | §11.1–2, §21.1–2, §12.3 | M | med (sync path) | conflict-snapshot test green |

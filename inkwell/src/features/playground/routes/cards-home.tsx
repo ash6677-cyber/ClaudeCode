@@ -1,4 +1,4 @@
-import { Library, Plus, SearchX, Users } from 'lucide-react'
+import { Download, Library, Plus, SearchX, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { CardFormDialog } from '@/features/playground/components/card-form-dialog'
 import { CardToolbar } from '@/features/playground/components/card-toolbar'
+import { ImportCharactersDialog } from '@/features/playground/components/import-characters-dialog'
 import { CharacterCardTile } from '@/features/playground/components/character-card-tile'
 import {
   EMPTY_FILTER,
@@ -33,6 +34,7 @@ export function CardsHome() {
   // Local to the screen on purpose: a filter is a way of looking at the cast
   // right now, not a setting to be remembered and wondered about later.
   const [filter, setFilter] = useState(EMPTY_FILTER)
+  const [importOpen, setImportOpen] = useState(false)
 
   useEffect(() => {
     if (projectId) loadProject(projectId)
@@ -85,9 +87,14 @@ export function CardsHome() {
             filter={filter}
             onChange={setFilter}
             actions={
-              <Button size="sm" onClick={() => setFormOpen(true)}>
-                <Plus /> New card
-              </Button>
+              <>
+                <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                  <Download /> Import
+                </Button>
+                <Button size="sm" onClick={() => setFormOpen(true)}>
+                  <Plus /> New card
+                </Button>
+              </>
             }
           />
         </div>
@@ -118,9 +125,14 @@ export function CardsHome() {
               title="No character cards yet"
               description="Give your cast a face and a voice — portraits, personality, and speech patterns you can chat with."
               action={
-                <Button onClick={() => setFormOpen(true)}>
-                  <Plus /> New card
-                </Button>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button onClick={() => setImportOpen(true)}>
+                    <Download /> Import from the Almanac
+                  </Button>
+                  <Button variant="outline" onClick={() => setFormOpen(true)}>
+                    <Plus /> New card
+                  </Button>
+                </div>
               }
               className="max-w-md border-none bg-transparent"
             />
@@ -159,6 +171,12 @@ export function CardsHome() {
       </div>
 
       <CardFormDialog open={formOpen} onOpenChange={setFormOpen} onSubmit={handleCreate} />
+
+      <ImportCharactersDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        projectId={projectId}
+      />
 
       <ConfirmDeleteDialog
         open={deletingCard !== null}
