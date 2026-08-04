@@ -1,5 +1,6 @@
 import type { AiActionKind, AiPreset, CodexEntry, PointOfView, Tense } from '@/types'
 
+import { contextItem, excluded, makePlan, type ContextItem, type ContextPlan } from './context-plan'
 import { estimateTokens } from './token-estimate'
 import type { AiChatMessage } from './types'
 
@@ -14,16 +15,11 @@ export interface PromptBuilderInput {
   tense: Tense
 }
 
-export interface ContextPreviewSection {
-  label: string
-  content: string
-  tokens: number
-}
-
 export interface BuiltPrompt {
   messages: AiChatMessage[]
   estimatedTokens: number
-  sections: ContextPreviewSection[]
+  /** Everything considered, sent or not, with reasons. */
+  plan: ContextPlan
 }
 
 const POV_LABEL: Record<PointOfView, string> = {
@@ -34,34 +30,76 @@ const POV_LABEL: Record<PointOfView, string> = {
   multiple: 'multiple POV',
 }
 
-function buildCodexContext(
+function entryBlock(entry: CodexEntry): string {
+  const attrLines = entry.attributes.map((a) => `- ${a.key}: ${a.value}`).join('\n')
+  return `### ${entry.name} (${entry.type})\n${entry.summary}${attrLines ? `\n${attrLines}` : ''}`
+}
+
+/**
+ * Which Almanac entries reach the model, and why the rest do not.
+ *
+ * An entry can miss for three quite different reasons — the writer set it to
+ * never, it was not mentioned nearby, or the budget ran out before its turn —
+ * and those call for three different actions. Reporting only the survivors
+ * made every one of them look the same from outside.
+ */
+function planCodex(
   entries: CodexEntry[],
   relevanceText: string,
   tokenBudget: number,
-): string {
+): { text: string; items: ContextItem[] } {
   const haystack = relevanceText.toLowerCase()
-  const relevant = entries.filter((entry) => {
-    if (entry.aiContext === 'never') return false
-    if (entry.aiContext === 'always') return true
+  const items: ContextItem[] = []
+  const relevant: CodexEntry[] = []
+
+  for (const entry of entries) {
+    if (entry.aiContext === 'never') {
+      items.push(
+        excluded(entry.id, entry.name, entryBlock(entry), 'Set to never be sent to the AI.', 'Almanac'),
+      )
+      continue
+    }
+    if (entry.aiContext === 'always') {
+      relevant.push(entry)
+      continue
+    }
     const name = entry.name.toLowerCase()
-    return (
+    const mentioned =
       (name && haystack.includes(name)) ||
       entry.aliases.some((alias) => alias.trim() && haystack.includes(alias.toLowerCase()))
-    )
-  })
+    if (!mentioned) {
+      items.push(
+        excluded(
+          entry.id,
+          entry.name,
+          entryBlock(entry),
+          'Not mentioned in the text nearby, and set to be sent only when relevant.',
+          'Almanac',
+        ),
+      )
+      continue
+    }
+    relevant.push(entry)
+  }
 
   const budget = tokenBudget > 0 ? tokenBudget : Infinity
   let used = 0
   const blocks: string[] = []
   for (const entry of relevant) {
-    const attrLines = entry.attributes.map((a) => `- ${a.key}: ${a.value}`).join('\n')
-    const block = `### ${entry.name} (${entry.type})\n${entry.summary}${attrLines ? `\n${attrLines}` : ''}`
+    const block = entryBlock(entry)
     const blockTokens = estimateTokens(block)
-    if (used + blockTokens > budget) break
+    if (used + blockTokens > budget) {
+      items.push(
+        excluded(entry.id, entry.name, block, 'The Almanac budget was full before it got here.', 'Almanac'),
+      )
+      continue
+    }
     blocks.push(block)
     used += blockTokens
+    items.push(contextItem(entry.id, entry.name, block, { source: 'Almanac' }))
   }
-  return blocks.join('\n\n')
+
+  return { text: blocks.join('\n\n'), items }
 }
 
 function lastParagraphs(text: string, count: number): string {
@@ -100,30 +138,44 @@ export function buildPrompt(input: PromptBuilderInput): BuiltPrompt {
   const systemPrompt = systemLines.join('\n\n')
 
   const relevanceText = `${precedingText}\n${input.selectedText ?? ''}\n${input.instruction}`
-  const codexContext = preset.contextRules.includeCodex
-    ? buildCodexContext(codexEntries, relevanceText, preset.contextRules.codexTokenBudget)
-    : ''
+  const codexPlan = preset.contextRules.includeCodex
+    ? planCodex(codexEntries, relevanceText, preset.contextRules.codexTokenBudget)
+    : {
+        text: '',
+        items: codexEntries.map((entry) =>
+          excluded(
+            entry.id,
+            entry.name,
+            entryBlock(entry),
+            'Almanac context is switched off for this preset.',
+            'Almanac',
+          ),
+        ),
+      }
+  const codexContext = codexPlan.text
 
   const preceding =
     input.action === 'summarise'
       ? precedingText
       : lastParagraphs(precedingText, preset.contextRules.precedingParagraphs)
 
-  const sections: ContextPreviewSection[] = [
-    { label: 'System prompt', content: systemPrompt, tokens: estimateTokens(systemPrompt) },
-  ]
-  if (codexContext) {
-    sections.push({ label: 'Codex context', content: codexContext, tokens: estimateTokens(codexContext) })
-  }
-  if (preceding) {
-    sections.push({
-      label: input.action === 'summarise' ? 'Scene text' : 'Preceding prose',
-      content: preceding,
-      tokens: estimateTokens(preceding),
-    })
-  }
   const instructionText = actionInstruction(input)
-  sections.push({ label: 'Instruction', content: instructionText, tokens: estimateTokens(instructionText) })
+
+  const items: ContextItem[] = [
+    contextItem('system', 'How the AI is told to write', systemPrompt, { source: preset.name }),
+    ...codexPlan.items,
+  ]
+  if (preceding) {
+    items.push(
+      contextItem(
+        'preceding',
+        input.action === 'summarise' ? 'The scene itself' : 'What you have written just before',
+        preceding,
+        { source: 'Manuscript' },
+      ),
+    )
+  }
+  items.push(contextItem('instruction', 'What you asked for', instructionText, { source: 'This request' }))
 
   const userParts = [
     codexContext && `Relevant worldbuilding context:\n${codexContext}`,
@@ -136,7 +188,6 @@ export function buildPrompt(input: PromptBuilderInput): BuiltPrompt {
     { role: 'user', content: userParts.join('\n\n---\n\n') },
   ]
 
-  const estimatedTokens = sections.reduce((sum, s) => sum + s.tokens, 0)
-
-  return { messages, estimatedTokens, sections }
+  const plan = makePlan(items)
+  return { messages, estimatedTokens: plan.includedTokens, plan }
 }

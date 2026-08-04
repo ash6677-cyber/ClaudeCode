@@ -28,6 +28,7 @@ import {
   replaceOrAppend,
   type EditorRange,
 } from '@/features/editor/lib/ai-insert'
+import { ContextPreview } from '@/components/common/context-preview'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
@@ -262,18 +263,11 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               {showContext ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-              ≈ {built?.estimatedTokens.toLocaleString() ?? 0} tokens · Show context
+              ≈ {built?.estimatedTokens.toLocaleString() ?? 0} tokens · What the AI sees
             </button>
             {showContext && built && (
-              <div className="mt-2 space-y-2 rounded-md border border-border bg-muted/40 p-2.5">
-                {built.sections.map((section) => (
-                  <div key={section.label}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {section.label} · {section.tokens} tok
-                    </p>
-                    <p className="whitespace-pre-wrap text-xs text-muted-foreground">{section.content}</p>
-                  </div>
-                ))}
+              <div className="mt-2 rounded-md border border-border bg-muted/40 p-2.5">
+                <ContextPreview plan={built.plan} />
               </div>
             )}
           </div>

@@ -1,5 +1,6 @@
 import type { AiPreset, CardChat, CharacterCard, ChatMessage, Lorebook, Persona } from '@/types'
 
+import { contextItem, excluded, makePlan, trimToTokens, type ContextItem, type ContextPlan } from './context-plan'
 import { estimateTokens } from './token-estimate'
 import type { AiChatMessage } from './types'
 
@@ -12,49 +13,95 @@ export interface ChatPromptInput {
   history: ChatMessage[]
 }
 
-export interface ContextPreviewSection {
-  label: string
-  content: string
-  tokens: number
-}
-
 export interface BuiltChatPrompt {
   messages: AiChatMessage[]
   estimatedTokens: number
-  sections: ContextPreviewSection[]
+  /** Everything considered, sent or not, with reasons. */
+  plan: ContextPlan
 }
 
 function activeContent(message: ChatMessage): string {
   return message.role === 'assistant' ? (message.swipes[message.activeSwipe] ?? '') : message.content
 }
 
-function buildLorebookContext(lorebooks: Lorebook[], recentText: string, tokenBudget: number): string {
+/**
+ * Which world info reaches the model, and — the part that used to be
+ * invisible — which does not.
+ *
+ * A lorebook entry can miss for four different reasons, and a writer wondering
+ * why their character has never heard of the salt tax deserves to be told
+ * which one it was rather than left to guess at the machinery.
+ */
+function planLorebook(
+  lorebooks: Lorebook[],
+  recentText: string,
+  tokenBudget: number,
+): { text: string; items: ContextItem[] } {
   const haystack = recentText.toLowerCase()
-  const candidates = lorebooks
-    .flatMap((lb) => lb.entries)
-    .filter((entry) => {
-      if (!entry.enabled) return false
-      if (entry.constant) return true
-      return entry.keywords.some((kw) => kw.trim() && haystack.includes(kw.trim().toLowerCase()))
-    })
-    .sort((a, b) => b.priority - a.priority)
+  const items: ContextItem[] = []
+  const kept: string[] = []
+
+  const named = lorebooks.flatMap((lb) => lb.entries.map((entry) => ({ entry, book: lb.name })))
+  const label = (e: (typeof named)[number]) =>
+    e.entry.keywords.filter((k) => k.trim())[0]?.trim() || 'Untitled entry'
+
+  const candidates: typeof named = []
+  for (const item of named) {
+    const { entry } = item
+    if (!entry.enabled) {
+      items.push(excluded(entry.id, label(item), entry.content, 'Switched off in the lorebook.', item.book))
+      continue
+    }
+    if (entry.constant) {
+      candidates.push(item)
+      continue
+    }
+    const hit = entry.keywords.some((kw) => kw.trim() && haystack.includes(kw.trim().toLowerCase()))
+    if (!hit) {
+      items.push(
+        excluded(
+          entry.id,
+          label(item),
+          entry.content,
+          'None of its keywords appear in the recent conversation.',
+          item.book,
+        ),
+      )
+      continue
+    }
+    candidates.push(item)
+  }
+
+  candidates.sort((a, b) => b.entry.priority - a.entry.priority)
 
   const budget = tokenBudget > 0 ? tokenBudget : Infinity
   let used = 0
-  const blocks: string[] = []
-  for (const entry of candidates) {
-    const entryBudget = entry.tokenBudget > 0 ? Math.min(entry.tokenBudget, budget - used) : budget - used
-    let content = entry.content
-    if (estimateTokens(content) > entryBudget && entryBudget > 0) {
-      const approxChars = Math.max(0, Math.floor(entryBudget * 4))
-      content = content.slice(0, approxChars)
+  for (const item of candidates) {
+    const { entry } = item
+    const remaining = budget - used
+    if (remaining <= 0) {
+      items.push(excluded(entry.id, label(item), entry.content, 'The world-info budget was already full.', item.book))
+      continue
     }
-    const tokens = estimateTokens(content)
-    if (used + tokens > budget) break
-    blocks.push(content)
+    const entryBudget = entry.tokenBudget > 0 ? Math.min(entry.tokenBudget, remaining) : remaining
+    const { text, trimmed } = trimToTokens(entry.content, entryBudget)
+    const tokens = estimateTokens(text)
+    if (tokens === 0) {
+      items.push(excluded(entry.id, label(item), entry.content, 'No room left in the world-info budget.', item.book))
+      continue
+    }
+    kept.push(text)
     used += tokens
+    items.push(
+      contextItem(entry.id, label(item), text, {
+        outcome: trimmed ? 'trimmed' : 'included',
+        reason: trimmed ? 'Cut short to fit the world-info budget.' : undefined,
+        source: item.book,
+      }),
+    )
   }
-  return blocks.join('\n\n')
+
+  return { text: kept.join('\n\n'), items }
 }
 
 function buildCharacterSystemPrompt(card: CharacterCard, persona: Persona | null, mode: CardChat['mode']): string {
@@ -100,31 +147,62 @@ export function buildChatPrompt(input: ChatPromptInput): BuiltChatPrompt {
     .slice(-6)
     .map((m) => activeContent(m))
     .join('\n')
-  const lorebookContext = preset.contextRules.includeLorebook
-    ? buildLorebookContext(lorebooks, recentText, preset.contextRules.lorebookTokenBudget)
-    : ''
+  const lorebookPlan = preset.contextRules.includeLorebook
+    ? planLorebook(lorebooks, recentText, preset.contextRules.lorebookTokenBudget)
+    : {
+        text: '',
+        items: lorebooks
+          .flatMap((lb) => lb.entries.map((entry) => ({ entry, book: lb.name })))
+          .map(({ entry, book }) =>
+            excluded(
+              entry.id,
+              entry.keywords.filter((k) => k.trim())[0]?.trim() || 'Untitled entry',
+              entry.content,
+              'World info is switched off for this preset.',
+              book,
+            ),
+          ),
+      }
+  const lorebookContext = lorebookPlan.text
 
   const systemParts = [characterPrompt]
   if (lorebookContext) systemParts.push(`World info:\n${lorebookContext}`)
   if (preset.systemPrompt.trim()) systemParts.push(preset.systemPrompt.trim())
   const systemPrompt = systemParts.join('\n\n---\n\n')
 
-  const sections: ContextPreviewSection[] = [
-    { label: 'Character', content: characterPrompt, tokens: estimateTokens(characterPrompt) },
-  ]
-  if (lorebookContext) {
-    sections.push({ label: 'World info', content: lorebookContext, tokens: estimateTokens(lorebookContext) })
-  }
-
   const historyMessages: AiChatMessage[] = history
     .map((m) => ({ role: m.role, content: activeContent(m) }))
     .filter((m) => m.content.trim())
 
   const messages: AiChatMessage[] = [{ role: 'system', content: systemPrompt }, ...historyMessages]
-  const historyTokens = historyMessages.reduce((sum, m) => sum + estimateTokens(m.content), 0)
-  sections.push({ label: 'Conversation history', content: `${historyMessages.length} messages`, tokens: historyTokens })
 
-  const estimatedTokens = sections.reduce((sum, s) => sum + s.tokens, 0)
+  const items: ContextItem[] = [
+    contextItem('character', `Who ${card.displayName} is`, characterPrompt, { source: 'This card' }),
+  ]
+  if (persona) {
+    items.push(
+      contextItem('persona', `Who you are (${persona.name})`, persona.description || persona.name, {
+        source: 'Persona',
+      }),
+    )
+  }
+  items.push(...lorebookPlan.items)
+  if (preset.systemPrompt.trim()) {
+    items.push(
+      contextItem('preset-system', 'Your own instructions', preset.systemPrompt.trim(), {
+        source: preset.name,
+      }),
+    )
+  }
+  items.push(
+    contextItem(
+      'history',
+      `The conversation so far (${historyMessages.length} ${historyMessages.length === 1 ? 'message' : 'messages'})`,
+      historyMessages.map((m) => m.content).join('\n\n'),
+      { source: 'This chat' },
+    ),
+  )
 
-  return { messages, estimatedTokens, sections }
+  const plan = makePlan(items)
+  return { messages, estimatedTokens: plan.includedTokens, plan }
 }

@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   BookMarked,
+  Eye,
   MessageSquarePlus,
   MoreHorizontal,
   PanelLeft,
@@ -38,6 +39,7 @@ import { ChatMessageBubble } from '@/features/playground/components/chat-message
 import { PersonaManagerDialog } from '@/features/playground/components/persona-manager-dialog'
 import { nextChatTitle } from '@/features/playground/lib/open-chat'
 import { playgroundPath } from '@/features/playground/lib/playground-nav'
+import { ContextPreview } from '@/components/common/context-preview'
 import { buildChatPrompt } from '@/lib/ai/chat-prompt-builder'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { cn } from '@/lib/utils'
@@ -122,6 +124,7 @@ export function CardChat() {
   const [text, setText] = useState('')
   const [mobileListOpen, setMobileListOpen] = useState(false)
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
+  const [contextOpen, setContextOpen] = useState(false)
   const [personaManagerOpen, setPersonaManagerOpen] = useState(false)
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null)
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
@@ -405,6 +408,14 @@ export function CardChat() {
             <Button
               variant="ghost"
               size="icon"
+              onClick={() => setContextOpen(true)}
+              aria-label="What the model sees"
+            >
+              <Eye className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setPersonaManagerOpen(true)}
               aria-label="Manage personas"
             >
@@ -605,6 +616,39 @@ export function CardChat() {
       )}
 
       <PersonaManagerDialog open={personaManagerOpen} onOpenChange={setPersonaManagerOpen} />
+
+      {/*
+        Built only while the drawer is open. It is a read-only answer to a
+        question, not something every keystroke needs to recompute — and the
+        answer has to be for the *next* send, so it is assembled from the
+        conversation exactly as it stands.
+      */}
+      <Sheet open={contextOpen} onOpenChange={setContextOpen}>
+        <SheetContent side="right" className="w-full max-w-md space-y-4 sm:w-[28rem]">
+          <SheetHeader>
+            <SheetTitle>What {card.displayName} sees</SheetTitle>
+          </SheetHeader>
+          {contextOpen && preset && (
+            <ContextPreview
+              plan={
+                buildChatPrompt({
+                  card,
+                  chat: activeChat,
+                  persona,
+                  lorebooks,
+                  preset,
+                  history: activeChat.messages,
+                }).plan
+              }
+            />
+          )}
+          {!preset && (
+            <p className="text-sm text-muted-foreground">
+              Add an AI preset in Settings → AI and this will show exactly what gets sent.
+            </p>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDeleteDialog
         open={deletingChatId !== null}
