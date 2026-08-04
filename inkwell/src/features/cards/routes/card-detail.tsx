@@ -19,6 +19,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
 import { ExampleDialogueList } from '@/features/cards/components/example-dialogue-list'
+import { CardDesignPanel } from '@/features/cards/components/card-design-panel'
+import { CardFacePreview } from '@/features/cards/components/card-face'
 import { PortraitUploadField } from '@/features/cards/components/portrait-upload-field'
 import { useCardStore } from '@/stores/card-store'
 import { useCodexStore } from '@/stores/codex-store'
@@ -142,11 +144,24 @@ export function CardDetail() {
 
       <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
         <div className="w-full shrink-0 space-y-5 border-b border-border p-5 lg:w-80 lg:overflow-y-auto lg:border-b-0 lg:border-r xl:w-96">
+          {/* The real card, not a swatch, and sticky: the design controls sit
+              below a tall portrait uploader, so a preview that scrolled away
+              would be missing at exactly the moment it is wanted. */}
+          <div className="sticky top-0 z-10 -mx-5 -mt-5 bg-card/80 px-5 pb-3 pt-5 backdrop-blur-sm">
+            <CardFacePreview card={card} className="mx-auto max-w-[13rem] shadow-lg" />
+          </div>
+
           <PortraitUploadField
             imageId={card.avatarImageId}
             cropSettings={card.cropSettings}
             onImageChange={(imageId) => updateCard(card.id, { avatarImageId: imageId })}
             onCropChange={(crop: CropSettings) => updateCard(card.id, { cropSettings: crop })}
+          />
+
+          <CardDesignPanel
+            design={card.design}
+            name={card.displayName}
+            onChange={(design) => updateCard(card.id, { design })}
           />
 
           <div className="grid gap-1.5">

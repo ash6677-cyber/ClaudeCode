@@ -1,0 +1,230 @@
+/* ---- Character cards ----------------------------------------------------
+   A card is layers, not a styled div: portrait, vignette, frame, shine,
+   footer. Keeping them separate is what lets the next step tilt the card and
+   move each layer by a different amount without touching this file — the
+   shine already reads its position from `--card-shine-x/y`, which nothing
+   animates yet.
+
+   Everything a card varies per instance arrives as a custom property from
+   `card-design.ts`. The relationships are stated once, here.
+   ------------------------------------------------------------------------ */
+
+.card-face {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: var(--muted);
+  /* Its own stacking context, so a card's shine can never paint over the
+     card next to it in the grid. */
+  isolation: isolate;
+  /* Where the specular highlight sits. Static here; the next step drives
+     these from the pointer. */
+  --card-shine-x: 30%;
+  --card-shine-y: 18%;
+}
+
+.card-portrait {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Only transform animates, so a hover never costs layout. */
+  transition: transform calc(500ms * var(--motion-scale)) var(--ease-premium);
+}
+
+.card-face:hover .card-portrait {
+  transform: scale(calc(1 + 0.04 * var(--card-zoom, 1)));
+}
+
+/* The dark pull toward the foot of the card that the name sits on. Two
+   stops rather than one: a single gradient to black greys the portrait's
+   midtones, where a short scrim leaves the face alone entirely. */
+.card-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      to top,
+      oklch(0% 0 0 / calc(0.92 * var(--card-vignette, 0.55))) 0%,
+      oklch(0% 0 0 / calc(0.55 * var(--card-vignette, 0.55))) 22%,
+      transparent 52%
+    ),
+    radial-gradient(
+      120% 80% at 50% 12%,
+      transparent 40%,
+      oklch(0% 0 0 / calc(0.35 * var(--card-vignette, 0.55))) 100%
+    );
+}
+
+/* ---- frames ---- */
+
+.card-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.card-frame-plain .card-frame {
+  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.14);
+}
+
+/* A rule set in from the edge, the way a printed border sits inside the trim. */
+.card-frame-inlay .card-frame {
+  box-shadow:
+    inset 0 0 0 1px oklch(100% 0 0 / 0.1),
+    inset 0 0 0 9px transparent,
+    inset 0 0 0 10px var(--card-accent);
+}
+
+.card-frame-arch {
+  /* A real arch, not a big corner radius: the top is an ellipse, the foot
+     is square, which is what makes it read as a portrait rather than a
+     photograph with rounded corners. */
+  border-radius: 48% 48% var(--radius-lg) var(--radius-lg) / 26% 26% var(--radius-lg)
+    var(--radius-lg);
+}
+
+.card-frame-arch .card-frame {
+  box-shadow: inset 0 0 0 2px var(--card-accent);
+}
+
+.card-frame-plate {
+  border-radius: 2px;
+}
+
+.card-frame-plate .card-frame {
+  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.12);
+}
+
+/* The nameplate the foot of a plate card sits on. */
+.card-frame-plate .card-footer {
+  background: linear-gradient(to top, var(--card-accent), transparent);
+}
+
+.card-frame-shard {
+  border-radius: 0;
+  clip-path: polygon(
+    14px 0,
+    100% 0,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0 100%,
+    0 14px
+  );
+}
+
+.card-frame-shard .card-frame {
+  box-shadow: inset 0 0 0 2px var(--card-accent);
+  clip-path: inherit;
+}
+
+/* ---- finishes ----
+   One layer, four behaviours. `--card-gloss` scales all of them, so a writer
+   who wants foil but only a hint of it does not have to pick matte. */
+
+.card-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--card-gloss, 0.5);
+  mix-blend-mode: screen;
+  transition: opacity calc(300ms * var(--motion-scale)) var(--ease-out-soft);
+}
+
+.card-finish-matte .card-shine {
+  /* Paper, not plastic. Deliberately nothing at all. */
+  display: none;
+}
+
+.card-finish-satin .card-shine {
+  background: radial-gradient(
+    70% 55% at var(--card-shine-x) var(--card-shine-y),
+    oklch(100% 0 0 / 0.28),
+    transparent 70%
+  );
+}
+
+.card-finish-foil .card-shine {
+  /* One hard line rather than a soft pool — that narrow band is the whole
+     difference between metal and satin. */
+  background: linear-gradient(
+    105deg,
+    transparent 38%,
+    oklch(100% 0 0 / 0.5) 47%,
+    oklch(100% 0 0 / 0.62) 50%,
+    oklch(100% 0 0 / 0.5) 53%,
+    transparent 62%
+  );
+}
+
+.card-finish-holo .card-shine {
+  /* The same band, split. Low alpha per stop because six saturated hues
+     stacked over a portrait turns it to soup. */
+  background:
+    linear-gradient(
+      105deg,
+      transparent 30%,
+      oklch(72% 0.19 20 / 0.34) 40%,
+      oklch(80% 0.17 90 / 0.34) 46%,
+      oklch(78% 0.18 150 / 0.34) 52%,
+      oklch(72% 0.19 250 / 0.34) 58%,
+      oklch(70% 0.2 320 / 0.34) 64%,
+      transparent 74%
+    ),
+    radial-gradient(
+      60% 50% at var(--card-shine-x) var(--card-shine-y),
+      oklch(100% 0 0 / 0.22),
+      transparent 70%
+    );
+}
+
+/* ---- the foot ---- */
+
+.card-footer {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 1rem;
+}
+
+.card-name {
+  font-family: var(--display-font);
+  font-weight: 600;
+  line-height: 1.15;
+  color: oklch(99% 0 0);
+  /* A shadow rather than a heavier scrim: it keeps the name legible over a
+     pale portrait without darkening the whole lower third of the picture. */
+  text-shadow: 0 1px 3px oklch(0% 0 0 / 0.6);
+}
+
+/* The card's own colour, shown as a rule under the name — the one place the
+   accent appears on every frame, so a card always says which colour it is. */
+.card-rule {
+  height: 2px;
+  width: 2.25rem;
+  margin-top: 0.4rem;
+  border-radius: 2px;
+  background: var(--card-accent);
+}
+
+.card-tag {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--card-ink);
+  background: var(--card-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-portrait,
+  .card-shine {
+    transition: none;
+  }
+  .card-face:hover .card-portrait {
+    transform: none;
+  }
+}
