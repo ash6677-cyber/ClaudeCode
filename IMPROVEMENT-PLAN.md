@@ -224,10 +224,12 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P0.
 
 **Acceptance criteria.**
-- [ ] On mobile emulation: advance to Cast, press back twice → Outline, Concept, with all fields intact; third back → Projects.
-- [ ] Kill the tab mid-wizard, reopen → Resume restores every field.
-- [ ] The stale-SW repro heals on first visit and a neighbouring site's cache survives untouched.
-- [ ] Matrix executed and attached to the PR.
+- [x] On mobile emulation: advance to Cast, press back twice → Outline, Concept, with all fields intact; third back → Projects.
+- [x] Kill the tab mid-wizard, reopen → Resume restores every field.
+- [x] The stale-SW repro heals on first visit and a neighbouring site's cache survives untouched. *(The neighbour has since been deleted from the repository; the heal path is unchanged and still needed for browsers that already hold the stale entries.)*
+- [x] Matrix executed and written up: `inkwell/docs/BOOK_CREATOR_NAVIGATION.md`, harness `inkwell/scripts/wizard-nav-matrix.mjs`, 32/32 at iPhone 12 metrics — and shown to go red for the right reason by reverting only the wizard.
+
+**Shipped.** Step in the URL via `useSearchParams`; draft in `localStorage` behind `lib/wizard-draft.ts` (debounced 400 ms, flushed on `pagehide`); Cancel confirms with Leave / Discard draft / Keep writing; a dismissible "Picked up where you left off" notice with **Start fresh**. Two things went slightly beyond the letter of the section, both because this section is what exercises them: `AlertDialogContent` gained the `--vvh`/`--vvtop` viewport treatment `DialogContent` already had, so the Cancel confirmation cannot be pushed off-screen by a keyboard; and the stepper's buttons gained `aria-label`, since below `sm` their only accessible name was the step number.
 
 ---
 
@@ -742,7 +744,7 @@ Ordered phases; each ends with the standing gates (typecheck 0 · lint 0 · test
 | Phase | Contents | Effort | Risk | Definition of done |
 |---|---|---|---|---|
 | **0 — done** | SW war fix (`917643c`) | S | low | shipped; repro suites green |
-| **1 — P0 completion** | §7.1–7.4 wizard history/draft/matrix | M | low | §7 acceptance boxes |
+| **1 — done** | §7.1–7.4 wizard history/draft/matrix | M | low | shipped; §7 boxes ticked, 32/32 matrix |
 | **2 — IA + Playground shell** | §2.2/2.5/2.6, §3 all | M+M | med (redirects) | §3 boxes; old URLs live-tested |
 | **3 — Character import** | §6 all, §4.1/4.3 | L | med (undo correctness) | §6 boxes incl. undo byte-check |
 | **4 — Chat depth + AI trust** | §13.1–3, §14.1–2, §5.2–3 | L | med | context preview live across features |

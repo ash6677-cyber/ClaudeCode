@@ -32,7 +32,12 @@ const AlertDialogContent = React.forwardRef<
     <AlertDialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
+        // Centred on the *visual* viewport, not the layout one, and never
+        // taller than it. `dvh` alone would not do: "dynamic" accounts for a
+        // browser's collapsing toolbars, never for the on-screen keyboard,
+        // which is precisely when a confirmation is asked for and its buttons
+        // must stay reachable. `lib/viewport.ts` publishes both variables.
+        'fixed left-1/2 top-[calc(var(--vvtop,0px)+var(--vvh,100dvh)/2)] z-50 grid max-h-[calc(var(--vvh,100dvh)-2rem)] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
         className,
       )}
       {...props}

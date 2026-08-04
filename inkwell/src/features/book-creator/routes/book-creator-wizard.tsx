@@ -1,7 +1,17 @@
-import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Loader2, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { CastStep, type CastItem } from '@/features/book-creator/components/cast-step'
@@ -15,6 +25,15 @@ import {
   parseCastResponse,
   parseOutlineResponse,
 } from '@/features/book-creator/lib/prompts'
+import {
+  clearDraft,
+  draftHasContent,
+  readDraft,
+  resolveStepIndex,
+  restoredFurthestIndex,
+  writeDraft,
+  type WizardDraft,
+} from '@/features/book-creator/lib/wizard-draft'
 import { cardRepo, chapterRepo, codexRepo, projectRepo, sceneRepo } from '@/lib/db/repositories'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
@@ -25,6 +44,12 @@ const STEPS = [
   { id: 'cast', label: 'Cast' },
   { id: 'review', label: 'Review' },
 ]
+
+const STEP_IDS = STEPS.map((s) => s.id)
+
+/** Long enough that a sentence isn't stringified letter by letter, short
+ *  enough that nobody outruns it. `pagehide` covers the rest. */
+const SAVE_DELAY_MS = 400
 
 const DEFAULT_CONCEPT: ConceptDraft = {
   title: '',
@@ -60,34 +85,139 @@ export function BookCreatorWizard() {
   const provider = preset ? providers.find((p) => p.id === preset.providerId) : undefined
   const aiAvailable = Boolean(preset && provider)
 
-  const [activeIndex, setActiveIndex] = useState(0)
-  const [furthestIndex, setFurthestIndex] = useState(0)
-  const [creating, setCreating] = useState(false)
+  // Read once, before the first render, so a restored draft is simply what
+  // the wizard was already showing rather than something that pops in a
+  // frame later.
+  const [restored] = useState<WizardDraft | null>(() => {
+    const draft = readDraft()
+    return draft && draftHasContent(draft) ? draft : null
+  })
 
-  const [concept, setConcept] = useState<ConceptDraft>(DEFAULT_CONCEPT)
-  const [chapterCount, setChapterCount] = useState(12)
-  const [chapters, setChapters] = useState<OutlineItem[]>([])
-  const [castCount, setCastCount] = useState(4)
-  const [cast, setCast] = useState<CastItem[]>([])
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [furthestIndex, setFurthestIndex] = useState(() =>
+    restored ? restoredFurthestIndex(STEP_IDS, restored) : 0,
+  )
+  const [creating, setCreating] = useState(false)
+  const [resumeNotice, setResumeNotice] = useState(restored !== null)
+  const [leaveOpen, setLeaveOpen] = useState(false)
+
+  const [concept, setConcept] = useState<ConceptDraft>(restored?.concept ?? DEFAULT_CONCEPT)
+  const [chapterCount, setChapterCount] = useState(restored?.chapterCount ?? 12)
+  const [chapters, setChapters] = useState<OutlineItem[]>(restored?.chapters ?? [])
+  const [castCount, setCastCount] = useState(restored?.castCount ?? 4)
+  const [cast, setCast] = useState<CastItem[]>(restored?.cast ?? [])
 
   const outlineGen = useAiGeneration()
   const [outlineError, setOutlineError] = useState<string | null>(null)
   const castGen = useAiGeneration()
   const [castError, setCastError] = useState<string | null>(null)
 
+  // The step lives in the URL, so back means "the step before this one" for
+  // the browser's back button, Android's hardware back and iOS's swipe alike
+  // — none of which the wizard can intercept, and all of which used to throw
+  // away every field the writer had filled in.
+  const activeIndex = resolveStepIndex(STEP_IDS, searchParams.get('step'), furthestIndex)
+
+  // A restored draft belongs at the step it was left on. Replacing rather
+  // than pushing keeps the entry the writer arrived on as the way out.
+  const placedRestoredStep = useRef(false)
+  useEffect(() => {
+    if (placedRestoredStep.current) return
+    placedRestoredStep.current = true
+    if (!restored || restored.step === STEP_IDS[0]) return
+    setSearchParams({ step: restored.step }, { replace: true })
+  }, [restored, setSearchParams])
+
   function goToStep(index: number) {
-    if (index > furthestIndex) return
-    setActiveIndex(index)
+    if (index > furthestIndex || index === activeIndex) return
+    setSearchParams({ step: STEP_IDS[index] })
   }
 
   function goNext() {
-    const next = Math.min(activeIndex + 1, STEPS.length - 1)
-    setActiveIndex(next)
+    const next = Math.min(activeIndex + 1, STEP_IDS.length - 1)
     setFurthestIndex((f) => Math.max(f, next))
+    setSearchParams({ step: STEP_IDS[next] })
   }
 
   function goBack() {
-    setActiveIndex((i) => Math.max(0, i - 1))
+    if (activeIndex === 0) return
+    setSearchParams({ step: STEP_IDS[activeIndex - 1] })
+  }
+
+  // ── The draft ─────────────────────────────────────────────────────────────
+  // Every step used to live in component state alone, so leaving the wizard
+  // by any route at all — back, a tab crash, a phone reclaiming memory —
+  // discarded up to four steps of typed work with no warning.
+
+  const snapshot = useCallback(
+    (): WizardDraft => ({
+      concept,
+      chapterCount,
+      chapters,
+      castCount,
+      cast,
+      step: STEP_IDS[activeIndex],
+      furthestIndex,
+      savedAt: Date.now(),
+    }),
+    [concept, chapterCount, chapters, castCount, cast, activeIndex, furthestIndex],
+  )
+
+  // Set the moment the draft becomes a real project, so neither the pending
+  // save nor the unload flush can resurrect what was just turned into a book.
+  const done = useRef(false)
+  const latest = useRef(snapshot)
+
+  useEffect(() => {
+    latest.current = snapshot
+    const draft = snapshot()
+    if (done.current || !draftHasContent(draft)) return
+    const timer = setTimeout(() => writeDraft(draft), SAVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [snapshot])
+
+  useEffect(() => {
+    // A debounce is a window in which work is unsaved, and closing a tab is
+    // exactly the moment that window matters. `pagehide` fires where
+    // `beforeunload` is unreliable — notably when iOS discards a background
+    // tab, which is the case that loses a wizard nobody thinks they left.
+    function flush() {
+      const draft = latest.current()
+      if (!done.current && draftHasContent(draft)) writeDraft(draft)
+    }
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
+
+  function startFresh() {
+    clearDraft()
+    setConcept(DEFAULT_CONCEPT)
+    setChapterCount(12)
+    setChapters([])
+    setCastCount(4)
+    setCast([])
+    setFurthestIndex(0)
+    setResumeNotice(false)
+    setSearchParams({}, { replace: true })
+  }
+
+  function leave() {
+    setLeaveOpen(false)
+    navigate('/projects')
+  }
+
+  function discardAndLeave() {
+    done.current = true
+    clearDraft()
+    leave()
+  }
+
+  function handleCancel() {
+    if (draftHasContent(snapshot())) {
+      setLeaveOpen(true)
+      return
+    }
+    navigate('/projects')
   }
 
   async function handleGenerateOutline() {
@@ -142,7 +272,8 @@ export function BookCreatorWizard() {
 
   async function handleCreate() {
     if (!concept.title.trim()) {
-      setActiveIndex(0)
+      // A correction, not a move — it should not cost a back-press to undo.
+      setSearchParams({ step: STEP_IDS[0] }, { replace: true })
       return
     }
     setCreating(true)
@@ -230,6 +361,11 @@ export function BookCreatorWizard() {
         })
       }
 
+      // The draft has become a book; it has nothing left to protect, and
+      // leaving it would offer to resume a project that already exists.
+      done.current = true
+      clearDraft()
+
       toast({ title: `"${project.title}" created` })
       navigate(`/editor?project=${project.id}`)
     } catch {
@@ -239,7 +375,7 @@ export function BookCreatorWizard() {
     }
   }
 
-  const onLastStep = activeIndex === STEPS.length - 1
+  const onLastStep = activeIndex === STEP_IDS.length - 1
   const nextDisabled = activeIndex === 0 && !concept.title.trim()
 
   return (
@@ -250,11 +386,34 @@ export function BookCreatorWizard() {
             <Sparkles className="size-5 text-primary" />
             <h1 className="font-serif text-lg font-semibold">Book Creator</h1>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/projects')}>
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
             Cancel
           </Button>
         </div>
-        <WizardStepper steps={STEPS} activeIndex={activeIndex} furthestIndex={furthestIndex} onSelect={goToStep} />
+        <WizardStepper
+          steps={STEPS}
+          activeIndex={activeIndex}
+          furthestIndex={furthestIndex}
+          onSelect={goToStep}
+        />
+        {resumeNotice && (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2 text-sm">
+            <RotateCcw className="size-4 shrink-0 text-primary" aria-hidden />
+            <p className="min-w-0 flex-1">Picked up where you left off.</p>
+            <Button variant="ghost" size="sm" className="shrink-0" onClick={startFresh}>
+              Start fresh
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0"
+              onClick={() => setResumeNotice(false)}
+              aria-label="Dismiss"
+            >
+              <X className="size-4" />
+            </Button>
+          </div>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-5 sm:p-8">
@@ -319,6 +478,38 @@ export function BookCreatorWizard() {
           </Button>
         )}
       </footer>
+
+      <AlertDialog open={leaveOpen} onOpenChange={setLeaveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave the Book Creator?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your draft is kept on this device, so coming back picks up exactly where you left
+              off. Nothing has been added to your library yet.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-between">
+            <Button
+              variant="ghost"
+              onClick={discardAndLeave}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              Discard draft
+            </Button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <AlertDialogCancel className="mt-0">Keep writing</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault()
+                  leave()
+                }}
+              >
+                Leave
+              </AlertDialogAction>
+            </div>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

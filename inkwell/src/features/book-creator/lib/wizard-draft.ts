@@ -101,3 +101,19 @@ export function resolveStepIndex(
   if (wanted < 0) return 0
   return Math.min(wanted, Math.max(0, Math.min(furthestIndex, stepIds.length - 1)))
 }
+
+/**
+ * How far a restored draft is allowed to reach.
+ *
+ * `resolveStepIndex` clamps the URL against this, so getting it wrong on a
+ * resume would either strand the writer at Concept with their outline
+ * invisible, or hand a corrupt file the run of the wizard. Two sources
+ * agree in the normal case and are both distrusted here: the step the draft
+ * was left on, and its own record of how far it got.
+ */
+export function restoredFurthestIndex(stepIds: readonly string[], draft: WizardDraft): number {
+  const last = stepIds.length - 1
+  const fromStep = stepIds.indexOf(draft.step)
+  const recorded = Number.isFinite(draft.furthestIndex) ? Math.trunc(draft.furthestIndex) : 0
+  return Math.max(0, Math.min(last, Math.max(fromStep, recorded)))
+}

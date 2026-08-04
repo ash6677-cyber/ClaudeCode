@@ -5,6 +5,7 @@ import {
   draftHasContent,
   readDraft,
   resolveStepIndex,
+  restoredFurthestIndex,
   writeDraft,
   type WizardDraft,
 } from './wizard-draft'
@@ -119,5 +120,31 @@ describe('resolveStepIndex', () => {
 
   it('never exceeds the last step even with a corrupt furthest', () => {
     expect(resolveStepIndex(IDS, 'review', 99)).toBe(3)
+  })
+})
+
+describe('restoredFurthestIndex', () => {
+  const IDS = ['concept', 'outline', 'cast', 'review'] as const
+
+  it('takes whichever of the two records reached further', () => {
+    expect(restoredFurthestIndex(IDS, draft({ step: 'cast', furthestIndex: 1 }))).toBe(2)
+    expect(restoredFurthestIndex(IDS, draft({ step: 'outline', furthestIndex: 3 }))).toBe(3)
+  })
+
+  it('stays inside the wizard however the draft was mangled', () => {
+    // A draft is a file on disk in every sense that matters: hand-editable,
+    // and written by a version of this wizard that may have had more steps.
+    expect(restoredFurthestIndex(IDS, draft({ step: 'cast', furthestIndex: 99 }))).toBe(3)
+    expect(restoredFurthestIndex(IDS, draft({ step: 'cast', furthestIndex: -5 }))).toBe(2)
+    expect(restoredFurthestIndex(IDS, draft({ step: 'nonsense', furthestIndex: -5 }))).toBe(0)
+    expect(restoredFurthestIndex(IDS, draft({ step: 'cast', furthestIndex: NaN }))).toBe(2)
+    expect(restoredFurthestIndex(IDS, draft({ step: 'cast', furthestIndex: 1.9 }))).toBe(2)
+  })
+
+  it('agrees with resolveStepIndex, so a resumed step is never clamped away', () => {
+    for (const step of IDS) {
+      const d = draft({ step, furthestIndex: 0 })
+      expect(resolveStepIndex(IDS, step, restoredFurthestIndex(IDS, d))).toBe(IDS.indexOf(step))
+    }
   })
 })

@@ -28,6 +28,12 @@ export function WizardStepper({ steps, activeIndex, furthestIndex, onSelect }: W
               type="button"
               disabled={!reachable}
               onClick={() => onSelect(index)}
+              // Below `sm` the label is hidden and only the number is drawn,
+              // which left the phone's back-to-an-earlier-step control
+              // announcing itself as "4". The name should not depend on how
+              // wide the screen happens to be.
+              aria-label={step.label}
+              aria-current={active ? 'step' : undefined}
               className={cn(
                 'flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 text-sm font-medium transition-colors disabled:cursor-not-allowed',
                 active
