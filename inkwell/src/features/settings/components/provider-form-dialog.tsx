@@ -1,5 +1,9 @@
+import { Check, Loader2, PlugZap } from 'lucide-react'
 import { useId, useState } from 'react'
 
+import { AiFailureNotice } from '@/components/common/ai-failure-notice'
+import type { AiFailure } from '@/lib/ai/failure'
+import { getProviderAdapter } from '@/lib/ai/providers'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -45,13 +49,48 @@ function formFromProvider(provider?: AiProviderConfig): ProviderInput {
   }
 }
 
+type TestState =
+  | { status: 'idle' }
+  | { status: 'testing' }
+  | { status: 'ok'; model: string }
+  | { status: 'failed'; failure: AiFailure }
+
 export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: ProviderFormDialogProps) {
+  const [test, setTest] = useState<TestState>({ status: 'idle' })
+
   const titleId = useId()
   const [form, setForm] = useState<ProviderInput>(() => formFromProvider(provider))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const kindMeta = KIND_OPTIONS.find((k) => k.value === form.kind)!
+
+  /**
+   * One tiny request, now, rather than a failure in the middle of a scene.
+   *
+   * A wrong key used to be discovered when a writer was mid-sentence and
+   * expecting prose. Testing here costs a single token and turns that into a
+   * sentence about a key, at the moment they are already thinking about keys.
+   */
+  async function handleTest() {
+    setTest({ status: 'testing' })
+    const model = form.defaultModel?.trim() || kindMeta.placeholder
+    const adapter = getProviderAdapter(form.kind)
+    const result = await adapter.validateKey(
+      {
+        ...form,
+        id: provider?.id ?? 'unsaved',
+        createdAt: 0,
+        updatedAt: 0,
+        label: form.label.trim() || kindMeta.label,
+        baseUrl: form.baseUrl?.trim() || null,
+        defaultModel: model,
+      } as AiProviderConfig,
+      model,
+    )
+    setTest(result.ok ? { status: 'ok', model } : { status: 'failed', failure: result.failure })
+  }
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -155,6 +194,36 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
                 placeholder={kindMeta.placeholder}
               />
             </div>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={!form.apiKey.trim() || test.status === 'testing'}
+                onClick={handleTest}
+              >
+                {test.status === 'testing' ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <PlugZap className="size-3.5" />
+                )}
+                {test.status === 'testing' ? 'Testing…' : 'Test connection'}
+              </Button>
+              {test.status === 'ok' && (
+                <p className="flex items-center gap-1.5 text-xs text-success">
+                  <Check className="size-3.5" /> Answered as {test.model}.
+                </p>
+              )}
+            </div>
+            {test.status === 'failed' && <AiFailureNotice failure={test.failure} onRetry={handleTest} />}
+            <p className="text-xs text-muted-foreground">
+              Your key is stored on this device only. It is never sent anywhere but the provider,
+              and it is deliberately left out of backups and cloud sync.
+            </p>
           </div>
 
           <DialogFooter className="mt-6">

@@ -28,6 +28,7 @@ import {
   replaceOrAppend,
   type EditorRange,
 } from '@/features/editor/lib/ai-insert'
+import { AiFailureNotice } from '@/components/common/ai-failure-notice'
 import { ContextPreview } from '@/components/common/context-preview'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
@@ -71,7 +72,7 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
   const [capturedRange, setCapturedRange] = useState<EditorRange | null>(null)
   const [capturedText, setCapturedText] = useState('')
 
-  const { output, streaming, error, generate, stop, reset } = useAiGeneration()
+  const { output, streaming, failure, usage, attempt, generate, stop, reset } = useAiGeneration()
 
   const actionMeta = ACTION_OPTIONS.find((a) => a.value === action)!
   const preset = presets.find((p) => p.id === presetId)
@@ -291,8 +292,18 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
             </Button>
           )}
 
-          {error && (
-            <p className="rounded-md bg-destructive/10 p-2.5 text-xs text-destructive">{error}</p>
+          {failure && <AiFailureNotice failure={failure} onRetry={handleGenerate} />}
+
+          {streaming && attempt > 1 && (
+            <p className="text-xs text-muted-foreground">
+              Connection dropped — trying again ({attempt} of 2)…
+            </p>
+          )}
+
+          {usage && !streaming && (
+            <p className="text-xs text-muted-foreground">
+              {usage.characters.toLocaleString()} characters in {(usage.ms / 1000).toFixed(1)}s
+            </p>
           )}
 
           {(output || streaming) && (

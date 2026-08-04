@@ -7,6 +7,7 @@ import {
   PanelLeft,
   Send,
   Settings2,
+  Square,
   Trash2,
   UserRound,
 } from 'lucide-react'
@@ -39,6 +40,7 @@ import { ChatMessageBubble } from '@/features/playground/components/chat-message
 import { PersonaManagerDialog } from '@/features/playground/components/persona-manager-dialog'
 import { nextChatTitle } from '@/features/playground/lib/open-chat'
 import { playgroundPath } from '@/features/playground/lib/playground-nav'
+import { AiFailureNotice } from '@/components/common/ai-failure-notice'
 import { ContextPreview } from '@/components/common/context-preview'
 import { buildChatPrompt } from '@/lib/ai/chat-prompt-builder'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
@@ -130,7 +132,7 @@ export function CardChat() {
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  const { output, streaming, error, generate, reset } = useAiGeneration()
+  const { output, streaming, failure, attempt, generate, stop, reset } = useAiGeneration()
 
   const persona = personas.find((p) => p.id === activeChat?.personaId) ?? null
   const preset =
@@ -189,6 +191,26 @@ export function CardChat() {
     if (!freshChat) return
     const placeholder = await appendAssistantMessage(activeChat.id, '')
     await runGeneration(activeChat.id, freshChat.messages, placeholder.id)
+  }
+
+  /**
+   * Ask again, without making the writer retype what they said.
+   *
+   * A failed send leaves their message in the conversation and an empty reply
+   * after it; retrying replaces that empty reply rather than adding a second
+   * one, so the thread reads as one exchange that took two attempts.
+   */
+  async function retryLastSend() {
+    if (!activeChat || !preset || !provider) return
+    const chat = useChatStore.getState().chats.find((c) => c.id === activeChat.id)
+    if (!chat) return
+    const last = chat.messages[chat.messages.length - 1]
+    if (last?.role === 'assistant' && !last.swipes.some((s) => s.trim())) {
+      await runGeneration(chat.id, chat.messages.slice(0, -1), last.id)
+      return
+    }
+    const placeholder = await appendAssistantMessage(chat.id, '')
+    await runGeneration(chat.id, chat.messages, placeholder.id)
   }
 
   if (!projectId) {
@@ -515,7 +537,12 @@ export function CardChat() {
                     onDelete={() => {}}
                   />
                 )}
-                {error && <p className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+                {streaming && attempt > 1 && (
+                  <p className="text-xs text-muted-foreground">
+                    Connection dropped — trying again ({attempt} of 2)…
+                  </p>
+                )}
+                {failure && <AiFailureNotice failure={failure} onRetry={retryLastSend} />}
               </div>
 
               <div className="border-t border-border p-3 sm:p-4">
@@ -533,9 +560,23 @@ export function CardChat() {
                     rows={2}
                     className="min-h-0 flex-1 resize-none"
                   />
-                  <Button size="icon" onClick={handleSend} disabled={!text.trim() || streaming} aria-label="Send message">
-                    <Send className="size-4" />
-                  </Button>
+                  {streaming ? (
+                    // Mid-sentence is exactly when a reply turns out to be
+                    // going the wrong way, and whatever arrived before the
+                    // stop is kept rather than thrown away.
+                    <Button size="icon" variant="outline" onClick={stop} aria-label="Stop generating">
+                      <Square className="size-4" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="icon"
+                      onClick={handleSend}
+                      disabled={!text.trim()}
+                      aria-label="Send message"
+                    >
+                      <Send className="size-4" />
+                    </Button>
+                  )}
                 </div>
                 {!provider && (
                   <p className="mt-1.5 text-xs text-muted-foreground">

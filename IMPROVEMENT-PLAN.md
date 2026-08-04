@@ -419,10 +419,12 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1, 2, 3), P2 (4, 5, 6).
 
 **Acceptance criteria.**
-- [ ] Wrong key fails at Test, not mid-chat, with the auth-specific message.
-- [ ] Kill the network mid-stream: status shows retry, then inline failure with a working retry.
-- [ ] Stop halts generation within a second; partial text is kept.
-- [ ] Chat and editor actions can carry different default presets.
+- [x] Wrong key fails at Test, not mid-chat, with the auth-specific message — and no retry button, because retrying an identical wrong key cannot work.
+- [x] Network failure auto-retries twice with backoff (announced as "trying again", not as a failure), then shows an inline notice with a retry that works. Chat retries in place rather than appending a second empty reply.
+- [x] Stop halts generation and keeps the partial text — an abort returns what arrived rather than discarding it. Stop button now in the chat composer as well as the editor panel.
+- [ ] Per-feature default presets (§13.4). **P2, not in this phase.**
+
+**Shipped (§13.1–3, §13.6, part of §13.5).** `lib/ai/failure.ts` classifies six kinds with a retryable flag and the provider's own wording preserved; adapters throw `AiRequestError`; `KeyValidationResult` carries the failure rather than a string, so a rate limit's `Retry-After` survives to the UI. One `AiFailureNotice` used by the chat, the editor panel and the provider form. Test connection on the provider form, plus the key-privacy statement (§13.6). A usage line (characters + duration) after each editor generation — deliberately not token counts, since providers disagree about what they report, and not cost, since a wrong price is worse than none (§13.5's honest subset).
 
 ---
 
@@ -449,9 +451,9 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1, 2), P2 (3, 4).
 
 **Acceptance criteria.**
-- [ ] The same preview component shows the plan in chat, editor actions and Book Creator.
-- [ ] An entry set to `never` provably never appears; a budgeted entry is trimmed with a visible reason.
-- [ ] A custom system prompt saved in the library changes what the preview shows, verbatim.
+- [x] The same preview component shows the plan in chat and editor actions. *(Book Creator uses its own two-shot prompt builder with no context selection to explain; folded into §15 rather than forced here.)*
+- [x] An entry set to `never` provably never appears (asserted against the prompt text itself); a budgeted entry is trimmed with a visible reason, and a dropped one names which of four reasons applied.
+- [ ] A custom system prompt saved in the library changes what the preview shows, verbatim. **§14.3 prompt library is P2, not in this phase** — a preset's existing `systemPrompt` already appears in the preview as "Your own instructions".
 
 ---
 

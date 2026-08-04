@@ -1,6 +1,6 @@
 import type { AiProviderConfig } from '@/types'
 
-import { describeHttpError } from '../http-error'
+import { AiRequestError, classifyHttpError, classifyThrown } from '../failure'
 import { parseSSE } from '../sse'
 import type { KeyValidationResult, ProviderAdapter, StreamCompletionParams } from '../types'
 
@@ -37,7 +37,7 @@ export const openAiCompatibleAdapter: ProviderAdapter = {
 
     if (!response.ok) {
       const text = await response.text().catch(() => '')
-      throw new Error(describeHttpError(response.status, text))
+      throw new AiRequestError(classifyHttpError(response.status, text, response.headers))
     }
 
     for await (const data of parseSSE(response, signal)) {
@@ -68,9 +68,9 @@ export const openAiCompatibleAdapter: ProviderAdapter = {
       })
       if (response.ok) return { ok: true }
       const text = await response.text().catch(() => '')
-      return { ok: false, error: describeHttpError(response.status, text) }
+      return { ok: false, failure: classifyHttpError(response.status, text, response.headers) }
     } catch (err) {
-      return { ok: false, error: err instanceof Error ? err.message : 'Network error' }
+      return { ok: false, failure: classifyThrown(err) }
     }
   },
 }
