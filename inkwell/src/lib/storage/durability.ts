@@ -77,8 +77,19 @@ export function registerServiceWorker(): void {
 
   const base = import.meta.env.BASE_URL || '/'
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register(`${base}${SW_PATH}`, { scope: base }).catch(() => {
-      // Offline support is a bonus, never a requirement for the app to run.
-    })
+    navigator.serviceWorker
+      .register(`${base}${SW_PATH}`, { scope: base })
+      .then((registration) => {
+        // An explicit update check on every load, because this scope has a
+        // history: FC Career Tracker's worker owned it before INKWELL did,
+        // and a phone from that era serves the tracker's dead menu until
+        // the registration updates to this app's worker. register() alone
+        // leaves that to the browser's own schedule; this makes the first
+        // visit the one that heals.
+        registration.update().catch(() => {})
+      })
+      .catch(() => {
+        // Offline support is a bonus, never a requirement for the app to run.
+      })
   })
 }

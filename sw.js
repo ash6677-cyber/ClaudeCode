@@ -23,9 +23,16 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('activate', event => {
+  // Own caches only. This origin is shared with INKWELL, and deleting every
+  // cache that isn't ours meant the two workers destroyed each other's
+  // offline support on every update.
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE_VERSION).map(k => caches.delete(k))))
+      .then(keys => Promise.all(
+        keys
+          .filter(k => k.startsWith('fc-career-tracker-') && k !== CACHE_VERSION)
+          .map(k => caches.delete(k))
+      ))
       .then(() => self.clients.claim())
   );
 });
@@ -36,16 +43,13 @@ self.addEventListener('fetch', event => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // INKWELL is a separate app published under /inkwell/, inside this worker's
-  // scope but nothing to do with the tracker. Leave it entirely alone.
-  //
-  // Without this, the stale-while-revalidate below would hand back a cached
-  // copy of INKWELL's index.html on every visit and only refresh it in the
-  // background, pinning it one deploy behind for good — and its build assets
-  // would accumulate in a cache meant for the tracker.
-  // Lowercased because a mis-cased /Inkwell/ still resolves to INKWELL via
-  // the 404 page's redirect, and caching that round trip would be pointless.
-  if (url.pathname.toLowerCase().includes('/inkwell/')) return;
+  // Only requests inside this worker's own scope. The tracker used to own
+  // the site root with INKWELL carved out by path — and when the deploy
+  // swapped them, that stale carve-out left old registrations serving the
+  // tracker's cached menu over INKWELL. A scope check cannot go stale the
+  // same way: wherever this worker is mounted, it only ever answers for
+  // its own directory.
+  if (!url.href.startsWith(self.registration.scope)) return;
 
   event.respondWith(
     caches.open(CACHE_VERSION).then(cache =>

@@ -23,12 +23,47 @@ self.addEventListener('install', () => {
   self.skipWaiting()
 })
 
+/**
+ * Cache cleanup, scoped to what is actually ours.
+ *
+ * Cache storage is origin-global, and this origin is shared with FC Career
+ * Tracker at /tracker/. The first version of this handler deleted every
+ * cache it did not own — which meant the two workers deleted each other's
+ * caches on every update, quietly breaking offline support for whichever
+ * app updated second. Own prefix only, now.
+ *
+ * The second loop is the cure for a specific poisoning. The tracker owned
+ * this scope before INKWELL did, and its worker cached the tracker's pages
+ * under *this scope's* URLs — which is exactly what served writers the
+ * tracker's dead menu instead of INKWELL. Those entries are keyed by URL
+ * inside the tracker's cache, so they are removed individually; the cache
+ * itself is the live tracker's property and stays.
+ */
 self.addEventListener('activate', (event) => {
+  const scope = self.registration.scope
+  const trackerPrefix = new URL('tracker/', scope).toString()
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== SHELL && k !== ASSETS).map((k) => caches.delete(k))),
+        Promise.all(
+          keys.map(async (key) => {
+            if (key.startsWith('inkwell-')) {
+              if (key !== SHELL && key !== ASSETS) await caches.delete(key)
+              return
+            }
+            // A foreign cache. Leave it alive, but evict anything it holds
+            // for URLs inside our scope (the tracker's own /tracker/ URLs
+            // are inside our scope too, and are not ours to touch).
+            const cache = await caches.open(key)
+            const entries = await cache.keys()
+            await Promise.all(
+              entries
+                .filter((req) => req.url.startsWith(scope) && !req.url.startsWith(trackerPrefix))
+                .map((req) => cache.delete(req)),
+            )
+          }),
+        ),
       )
       .then(() => self.clients.claim()),
   )
