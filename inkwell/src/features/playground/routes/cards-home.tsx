@@ -1,4 +1,4 @@
-import { Library, Plus, Users } from 'lucide-react'
+import { Library, Plus, SearchX, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -8,7 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { CardFormDialog } from '@/features/playground/components/card-form-dialog'
+import { CardToolbar } from '@/features/playground/components/card-toolbar'
 import { CharacterCardTile } from '@/features/playground/components/character-card-tile'
+import {
+  EMPTY_FILTER,
+  applyCardFilter,
+  filterIsEmpty,
+} from '@/features/playground/lib/card-filter'
 import { useCardStore } from '@/stores/card-store'
 import type { CharacterCard } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
@@ -24,6 +30,9 @@ export function CardsHome() {
   const [formOpen, setFormOpen] = useState(false)
   const [deletingCard, setDeletingCard] = useState<CharacterCard | null>(null)
   const [deleting, setDeleting] = useState(false)
+  // Local to the screen on purpose: a filter is a way of looking at the cast
+  // right now, not a setting to be remembered and wondered about later.
+  const [filter, setFilter] = useState(EMPTY_FILTER)
 
   useEffect(() => {
     if (projectId) loadProject(projectId)
@@ -65,16 +74,22 @@ export function CardsHome() {
     )
   }
 
+  const shown = applyCardFilter(cards, filter)
+
   return (
     <div className="flex h-full flex-col">
       {status === 'ready' && cards.length > 0 && (
-        <div className="flex shrink-0 items-center justify-between gap-3 px-4 pt-4 sm:px-6">
-          <p className="text-sm text-muted-foreground">
-            {cards.length} {cards.length === 1 ? 'character' : 'characters'}
-          </p>
-          <Button size="sm" onClick={() => setFormOpen(true)}>
-            <Plus /> New card
-          </Button>
+        <div className="shrink-0 px-4 pt-4 sm:px-6">
+          <CardToolbar
+            cards={cards}
+            filter={filter}
+            onChange={setFilter}
+            actions={
+              <Button size="sm" onClick={() => setFormOpen(true)}>
+                <Plus /> New card
+              </Button>
+            }
+          />
         </div>
       )}
 
@@ -110,17 +125,36 @@ export function CardsHome() {
               className="max-w-md border-none bg-transparent"
             />
           </div>
+        ) : shown.length === 0 ? (
+          <EmptyState
+            icon={SearchX}
+            title="Nobody matches"
+            description="No character in this book has all of that. Try fewer words, or fewer tags."
+            action={
+              <Button variant="outline" onClick={() => setFilter(EMPTY_FILTER)}>
+                Clear filters
+              </Button>
+            }
+            className="max-w-md border-none bg-transparent"
+          />
         ) : (
-          <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
-            {cards.map((card) => (
-              <CharacterCardTile
-                key={card.id}
-                card={card}
-                projectId={projectId}
-                onDelete={() => setDeletingCard(card)}
-              />
-            ))}
-          </div>
+          <>
+            {!filterIsEmpty(filter) && (
+              <p className="mb-3 text-sm text-muted-foreground">
+                {shown.length} of {cards.length}
+              </p>
+            )}
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
+              {shown.map((card) => (
+                <CharacterCardTile
+                  key={card.id}
+                  card={card}
+                  projectId={projectId}
+                  onDelete={() => setDeletingCard(card)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 

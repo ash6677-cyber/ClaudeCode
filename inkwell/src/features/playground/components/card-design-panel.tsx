@@ -1,7 +1,9 @@
 import { Label } from '@/components/ui/label'
 import {
   accentFor,
+  applyPreset,
   DEFAULT_DESIGN,
+  DESIGN_PRESETS,
   designIsDefault,
   FINISHES,
   FINISH_HINT,
@@ -10,6 +12,7 @@ import {
   FRAME_HINT,
   FRAME_LABEL,
   generatedAccent,
+  matchingPreset,
   normalizeDesign,
 } from '@/features/playground/lib/card-design'
 import { formatOklch, parseOklch } from '@/features/theme/lib/oklch'
@@ -72,6 +75,7 @@ export function CardDesignPanel({ design, name, onChange }: CardDesignPanelProps
   const current = normalizeDesign(design)
   const set = (changes: Partial<CardDesign>) => onChange({ ...current, ...changes })
   const shown = accentFor(current, name)
+  const wearing = matchingPreset(current)
 
   return (
     <section className="space-y-3 rounded-lg border border-border p-3">
@@ -91,6 +95,37 @@ export function CardDesignPanel({ design, name, onChange }: CardDesignPanelProps
             Reset
           </button>
         )}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">Start from</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {DESIGN_PRESETS.map((preset) => {
+            const chosen = wearing?.id === preset.id
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => onChange(applyPreset(current, preset))}
+                aria-pressed={chosen}
+                title={preset.hint}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  chosen
+                    ? 'border-primary bg-primary/10 font-medium text-foreground'
+                    : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
+                )}
+              >
+                {preset.label}
+              </button>
+            )
+          })}
+        </div>
+        <p className="text-[11px] text-muted-foreground/80">
+          {wearing
+            ? wearing.hint
+            : 'A look to take rather than build. None of them change this character’s colour.'}
+        </p>
       </div>
 
       <div className="space-y-1.5">

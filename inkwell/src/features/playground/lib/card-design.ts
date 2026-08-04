@@ -148,3 +148,81 @@ export function designClasses(design: CardDesign | undefined): string {
   const d = normalizeDesign(design)
   return `card-face card-frame-${d.frame} card-finish-${d.finish}`
 }
+
+export interface DesignPreset {
+  id: string
+  label: string
+  hint: string
+  /** Everything but the colour: the accent stays the character's own. */
+  design: Omit<CardDesign, 'accent'>
+}
+
+/**
+ * Looks a writer can take rather than build.
+ *
+ * Five dials is a design tool; most people want a card that looks considered
+ * and want it now. Each preset is a combination that was worth arriving at,
+ * so the panel starts with an answer instead of a blank instrument.
+ *
+ * None of them set a colour. The accent is the one part of a card that means
+ * something — it is that character's, stable from their name — and a preset
+ * that overwrote it would make six characters look like the same person.
+ */
+export const DESIGN_PRESETS: readonly DesignPreset[] = [
+  {
+    id: 'plate-glass',
+    label: 'Plate glass',
+    hint: 'Heavy nameplate, a hard line of light across it.',
+    design: { frame: 'plate', finish: 'foil', gloss: 0.7, vignette: 0.6 },
+  },
+  {
+    id: 'chapel',
+    label: 'Chapel',
+    hint: 'An arched top and a deep shadow. Reads as a portrait.',
+    design: { frame: 'arch', finish: 'satin', gloss: 0.45, vignette: 0.75 },
+  },
+  {
+    id: 'pressed-paper',
+    label: 'Pressed paper',
+    hint: 'No sheen anywhere. Ink on stock.',
+    design: { frame: 'inlay', finish: 'matte', gloss: 0, vignette: 0.4 },
+  },
+  {
+    id: 'prism',
+    label: 'Prism',
+    hint: 'Cut corners and a highlight that splits into spectrum.',
+    design: { frame: 'shard', finish: 'holo', gloss: 0.85, vignette: 0.5 },
+  },
+  {
+    id: 'nightfall',
+    label: 'Nightfall',
+    hint: 'Almost all shadow, with one soft sheen left in it.',
+    design: { frame: 'plain', finish: 'satin', gloss: 0.3, vignette: 0.95 },
+  },
+  {
+    id: 'showcase',
+    label: 'Showcase',
+    hint: 'Bright and open, the way a card looks in a shop window.',
+    design: { frame: 'inlay', finish: 'foil', gloss: 0.6, vignette: 0.25 },
+  },
+]
+
+/**
+ * Applies a preset while leaving the character's colour alone — including a
+ * colour the writer chose by hand, which a preset has no business discarding.
+ */
+export function applyPreset(design: CardDesign | undefined, preset: DesignPreset): CardDesign {
+  return { ...preset.design, accent: normalizeDesign(design).accent }
+}
+
+/** Which preset a card is currently wearing, if any. Colour is not part of it. */
+export function matchingPreset(design: CardDesign | undefined): DesignPreset | undefined {
+  const d = normalizeDesign(design)
+  return DESIGN_PRESETS.find(
+    (p) =>
+      p.design.frame === d.frame &&
+      p.design.finish === d.finish &&
+      p.design.gloss === d.gloss &&
+      p.design.vignette === d.vignette,
+  )
+}
