@@ -18,24 +18,54 @@
   /* Its own stacking context, so a card's shine can never paint over the
      card next to it in the grid. */
   isolation: isolate;
-  /* Where the specular highlight sits. Static here; the next step drives
-     these from the pointer. */
+  /* Where the specular highlight sits, and how far the card is leaning.
+     Tilt is unitless — the same number becomes degrees here and pixels in
+     the parallax layer, and calc() can scale a number into either but can
+     never convert one unit to another. JS writes these; CSS owns what they
+     mean. */
   --card-shine-x: 30%;
   --card-shine-y: 18%;
+  --card-tilt-x: 0;
+  --card-tilt-y: 0;
+  transform: perspective(900px) rotateX(calc(var(--card-tilt-x) * 1deg))
+    rotateY(calc(var(--card-tilt-y) * 1deg));
+  transition: transform calc(320ms * var(--motion-scale)) var(--ease-out-soft);
+}
+
+/* While the pointer is inside, the variables update every frame and the
+   easing would only lag behind the hand. The transition exists for the way
+   *out* — the settle back to flat when the pointer leaves. */
+.card-face.card-tilting,
+.card-face.card-tilting .card-parallax {
+  transition: none;
+}
+
+/* The portrait's own layer, riding slightly against the card's lean. The
+   card rotates one way, the portrait slides the other, and the offset between
+   them is what reads as depth — a window onto the character rather than a
+   sticker on card stock. Scaled just past the edges so the slide never shows
+   a gap, and carrying the hover zoom, which cannot live on the img: the img's
+   inline crop transform would always win. */
+.card-parallax {
+  position: absolute;
+  inset: 0;
+  transform: translate3d(
+      calc(var(--card-tilt-y) * -1.5px),
+      calc(var(--card-tilt-x) * 1.5px),
+      0
+    )
+    scale(calc(1.06 * var(--card-hzoom, 1)));
+  transition: transform calc(320ms * var(--motion-scale)) var(--ease-out-soft);
+}
+
+.card-face:hover {
+  --card-hzoom: 1.025;
 }
 
 .card-portrait {
-  position: absolute;
-  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  /* Only transform animates, so a hover never costs layout. */
-  transition: transform calc(500ms * var(--motion-scale)) var(--ease-premium);
-}
-
-.card-face:hover .card-portrait {
-  transform: scale(calc(1 + 0.04 * var(--card-zoom, 1)));
 }
 
 /* The dark pull toward the foot of the card that the name sits on. Two
@@ -72,12 +102,15 @@
   box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.14);
 }
 
-/* A rule set in from the edge, the way a printed border sits inside the trim. */
+/* A rule set in from the edge, the way a printed border sits inside the
+   trim. The frame element itself is inset rather than shadow-stacked: a
+   transparent box-shadow between two others masks nothing, so shadows alone
+   can only draw a band *at* the edge — which is a different frame. */
 .card-frame-inlay .card-frame {
-  box-shadow:
-    inset 0 0 0 1px oklch(100% 0 0 / 0.1),
-    inset 0 0 0 9px transparent,
-    inset 0 0 0 10px var(--card-accent);
+  inset: 9px;
+  border: 1.5px solid var(--card-accent);
+  border-radius: calc(var(--radius-lg) - 4px);
+  box-shadow: 0 0 0 9px oklch(0% 0 0 / 0.18);
 }
 
 .card-frame-arch {
@@ -220,11 +253,20 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card-portrait,
+  .card-face,
+  .card-parallax,
   .card-shine {
     transition: none;
   }
-  .card-face:hover .card-portrait {
+  /* Belt to the JS gate's braces: even if a frame were written, it would
+     not paint. */
+  .card-face {
     transform: none;
+  }
+  .card-parallax {
+    transform: none;
+  }
+  .card-face:hover {
+    --card-hzoom: 1;
   }
 }

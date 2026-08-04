@@ -1,11 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { UserRound } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
 import {
   accentFor,
   designClasses,
   designStyle,
 } from '@/features/cards/lib/card-design'
+import {
+  frameVars,
+  motionAllowed,
+  REST_FRAME,
+  tiltFrame,
+} from '@/features/cards/lib/card-tilt'
 import { imageAssetRepo } from '@/lib/db/repositories'
 import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import { cn } from '@/lib/utils'
@@ -24,6 +31,12 @@ interface CardFaceProps {
   className?: string
   /** Smaller type, for the places a card is shown at thumbnail size. */
   compact?: boolean
+  /**
+   * Draws the card flat and inert. For surfaces that are not really the
+   * screen — an export canvas, a print preview — where a tilt frozen
+   * mid-lean would be baked into the picture.
+   */
+  still?: boolean
 }
 
 const DEFAULT_CROP: CropSettings = { x: 50, y: 50, zoom: 1 }
@@ -50,8 +63,59 @@ export function CardFace({
   corner,
   className,
   compact = false,
+  still = false,
 }: CardFaceProps) {
   const c = crop ?? DEFAULT_CROP
+  const el = useRef<HTMLDivElement>(null)
+  // The pending pointer position and the scheduled frame. Refs, not state:
+  // sixty writes a second through setState would re-render the whole card
+  // sixty times a second to move two custom properties.
+  const pending = useRef<{ x: number; y: number } | null>(null)
+  const raf = useRef(0)
+  const active = useRef(false)
+
+  useEffect(() => () => cancelAnimationFrame(raf.current), [])
+
+  const write = (vars: Record<string, string>) => {
+    const node = el.current
+    if (!node) return
+    for (const [k, v] of Object.entries(vars)) node.style.setProperty(k, v)
+  }
+
+  const onPointerEnter = () => {
+    if (still) return
+    // Both switches read at the moment of entry, not at mount: the writer
+    // can turn a theme's motion off while this card is on screen.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const scale = getComputedStyle(el.current ?? document.documentElement)
+      .getPropertyValue('--motion-scale')
+    active.current = motionAllowed(reduced, scale)
+    if (active.current) el.current?.classList.add('card-tilting')
+  }
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!active.current || !el.current) return
+    const r = el.current.getBoundingClientRect()
+    pending.current = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }
+    // One write per painted frame, however many pointer events arrive.
+    if (!raf.current) {
+      raf.current = requestAnimationFrame(() => {
+        raf.current = 0
+        if (pending.current) write(frameVars(tiltFrame(pending.current.x, pending.current.y)))
+      })
+    }
+  }
+
+  const onPointerLeave = () => {
+    if (!active.current) return
+    active.current = false
+    pending.current = null
+    // The class comes off first so the settle back to flat gets the eased
+    // transition the mid-gesture frames deliberately do not.
+    el.current?.classList.remove('card-tilting')
+    write(frameVars(REST_FRAME))
+  }
+
   const style = {
     ...designStyle(design, name),
     // Read by the hover rule, so a portrait already zoomed in by cropping
@@ -60,14 +124,23 @@ export function CardFace({
   } as React.CSSProperties
 
   return (
-    <div className={cn(designClasses(design), className)} style={style}>
+    <div
+      ref={el}
+      className={cn(designClasses(design), className)}
+      style={style}
+      onPointerEnter={onPointerEnter}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
+    >
       {imageUrl ? (
-        <img
-          src={imageUrl}
-          alt=""
-          className="card-portrait"
-          style={{ objectPosition: `${c.x}% ${c.y}%`, transform: `scale(${c.zoom})` }}
-        />
+        <div className="card-parallax" aria-hidden={false}>
+          <img
+            src={imageUrl}
+            alt=""
+            className="card-portrait"
+            style={{ objectPosition: `${c.x}% ${c.y}%`, transform: `scale(${c.zoom})` }}
+          />
+        </div>
       ) : (
         <div
           className="absolute inset-0 flex items-center justify-center"
