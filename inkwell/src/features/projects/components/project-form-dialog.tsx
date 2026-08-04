@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { STRUCTURE_OPTIONS } from '@/features/projects/lib/structure-options'
+import { BookThemePicker } from '@/features/theme/components/book-theme-picker'
 import { TemplatePicker } from '@/features/templates/components/template-picker'
 import { DEFAULT_TEMPLATE_ID } from '@/features/templates/lib/templates'
 import { cn } from '@/lib/utils'
@@ -44,6 +45,7 @@ const EMPTY_FORM: ProjectFormInput = {
   pov: 'third-limited',
   tense: 'past',
   structureMode: 'scenes',
+  themeId: null,
   templateId: DEFAULT_TEMPLATE_ID,
 }
 
@@ -58,6 +60,7 @@ function formFromProject(project: Project): ProjectFormInput {
     pov: project.settings.pov,
     tense: project.settings.tense,
     structureMode: project.settings.structureMode ?? 'scenes',
+    themeId: project.themeId ?? null,
   }
 }
 
@@ -95,8 +98,12 @@ export function ProjectFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <form onSubmit={handleSubmit}>
+      {/* Bounded and scrolling in the middle. This form has grown a field at a
+          time, and on a laptop the last one to arrive pushed "Create project"
+          off the bottom of the screen with nothing to scroll — the dialog was
+          sized by its content and its content had outgrown the viewport. */}
+      <DialogContent className="flex max-w-lg flex-col">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-col">
           <DialogHeader>
             <DialogTitle>{project ? 'Project settings' : 'New project'}</DialogTitle>
             <DialogDescription>
@@ -106,7 +113,7 @@ export function ProjectFormDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-5 grid gap-4">
+          <div className="mt-5 grid min-h-0 flex-1 gap-4 overflow-y-auto pr-1">
             <div className="grid gap-1.5">
               <Label htmlFor={`${titleId}-title`}>Title</Label>
               <Input
@@ -285,9 +292,14 @@ export function ProjectFormDialog({
                 </Select>
               </div>
             </div>
+
+            <BookThemePicker
+              value={form.themeId}
+              onChange={(themeId) => setForm({ ...form, themeId })}
+            />
           </div>
 
-          <DialogFooter className="mt-6">
+          <DialogFooter className="mt-6 shrink-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>

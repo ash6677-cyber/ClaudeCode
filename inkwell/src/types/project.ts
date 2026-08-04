@@ -42,6 +42,16 @@ export interface Project extends BaseEntity {
    * Meaningless while `seriesId` is null.
    */
   seriesOrder: number
+  /**
+   * A look of this book's own, worn whenever it is open.
+   *
+   * Null — and absent on every project made before themes existed — means it
+   * follows whatever the writer has chosen for the app. Set, it wins while
+   * the book is open and stops mattering the moment they leave, which is why
+   * it lives here and not in the theme store: it is a property of the book,
+   * travels with it between devices, and survives the app being reinstalled.
+   */
+  themeId?: string | null
   status: ProjectStatus
   settings: ProjectSettings
 }

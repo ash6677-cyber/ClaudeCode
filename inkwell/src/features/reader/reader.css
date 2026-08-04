@@ -249,9 +249,14 @@
 /* ---- page typography ---- */
 
 .book-flow {
-  font-family: var(--font-editor, 'Literata', Georgia, serif);
-  font-size: 1.02rem;
-  line-height: 1.72;
+  /* A theme's reading face wins; failing that the book is set in the writer's
+     own manuscript typeface, which is what anyone would expect of their book.
+     This used to name `--font-editor`, which nothing has ever set — the
+     property the editor writes is `--editor-font` — so the book was printed in
+     fallback Literata no matter what the writer had chosen. */
+  font-family: var(--reading-font, var(--editor-font, var(--display-font)));
+  font-size: calc(1.02rem * var(--prose-scale, 1));
+  line-height: calc(1.72 * var(--prose-leading, 1));
   color: var(--ink);
   text-align: justify;
   hyphens: auto;
@@ -371,4 +376,42 @@
   .book-stage {
     filter: none;
   }
+}
+
+/* The page the book opens on. Padded like a real jacket rather than bled to
+   the trim, so the art sits on the page instead of becoming it. */
+.book-front-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6%;
+}
+
+.book-front-art {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 2px;
+  box-shadow: 0 8px 24px oklch(0% 0 0 / 0.28);
+}
+
+.book-front-type {
+  text-align: center;
+}
+
+.book-front-title {
+  font-family: var(--display-font);
+  font-size: clamp(1.6rem, 4.4cqw, 2.6rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.book-front-author {
+  margin-top: 1.4em;
+  font-family: var(--display-font);
+  font-size: clamp(0.85rem, 2cqw, 1rem);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
 }

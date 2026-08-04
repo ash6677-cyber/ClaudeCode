@@ -1,13 +1,13 @@
 {
   "name": "Inkwell — novel-writing studio",
   "short_name": "Inkwell",
-  "description": "A calm, local-first novel-writing studio: manuscript editor, worldbuilding codex, character cards, and cover design.",
+  "description": "A calm, local-first novel-writing studio: manuscript editor, worldbuilding almanac, character cards, and cover design.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0d0d10",
-  "theme_color": "#0d0d10",
+  "background_color": "#06080e",
+  "theme_color": "#06080e",
   "categories": ["productivity", "books"],
   "icons": [
     { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

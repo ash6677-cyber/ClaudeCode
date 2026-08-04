@@ -117,6 +117,24 @@ describe('contrastRatio', () => {
   })
 })
 
+describe("the app's own default palette", () => {
+  // The values in index.css, so a redesign that quietly makes a button
+  // unreadable fails here rather than shipping. Every pair is a colour and
+  // the thing written on top of it.
+  const pairs: [string, string, string][] = [
+    ['light button', 'oklch(46% 0.11 74)', 'oklch(98% 0.012 80)'],
+    ['dark button', 'oklch(78% 0.12 78)', 'oklch(18% 0.03 74)'],
+    ['light hovered row', 'oklch(93% 0.03 74)', 'oklch(32% 0.07 74)'],
+    ['dark hovered row', 'oklch(30% 0.045 74)', 'oklch(90% 0.05 78)'],
+  ]
+
+  it.each(pairs)('keeps %s readable', (_name, background, foreground) => {
+    const ratio = contrastRatio(parseOklch(background)!, parseOklch(foreground)!)
+    expect(contrastVerdict(ratio)).not.toBe('fails')
+    expect(ratio).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
 describe('contrastVerdict', () => {
   it('uses the thresholds that mean something for reading', () => {
     expect(contrastVerdict(1.4)).toBe('fails')

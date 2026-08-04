@@ -12,7 +12,10 @@
 
 import type { Theme } from '@/types'
 
-export type ThemePreset = Pick<Theme, 'name' | 'description' | 'light' | 'dark' | 'page'> & {
+export type ThemePreset = Pick<
+  Theme,
+  'name' | 'description' | 'light' | 'dark' | 'page' | 'shape' | 'type'
+> & {
   id: string
 }
 
@@ -29,7 +32,17 @@ export const BUILT_IN_THEMES: ThemePreset[] = [
     // burnt orange that sits with it rather than fighting it.
     id: 'builtin:sepia',
     name: 'Sepia',
-    description: 'Old paper and ink. Warm through, with a burnt-orange accent.',
+    description: 'Old paper and ink, set in Garamond. Warm through.',
+    // The interface is left alone: a whole app in Garamond is a period
+    // costume, not a reading experience. Only the parts that are meant to
+    // look printed are set in it.
+    type: {
+      ui: 'default',
+      display: 'eb-garamond',
+      reading: 'eb-garamond',
+      proseScale: 1.06,
+      leading: 1,
+    },
     light: {
       background: 'oklch(96.5% 0.018 82)',
       card: 'oklch(98% 0.014 82)',
@@ -118,7 +131,18 @@ export const BUILT_IN_THEMES: ThemePreset[] = [
     // to be unambiguous.
     id: 'builtin:high-contrast',
     name: 'High contrast',
-    description: 'Maximum separation, minimum colour. For bright rooms and tired eyes.',
+    description: 'Maximum separation, minimum colour. Square, flat, and still.',
+    shape: { radius: 2, depth: 'flat', wash: 0, motion: 0.6, scale: 1 },
+    // Atkinson Hyperlegible throughout, drawn by the Braille Institute to
+    // keep letters apart that most faces let blur together — a b from a d, a
+    // 1 from an l. The rest of this preset is about separation; so is this.
+    type: {
+      ui: 'atkinson',
+      display: 'atkinson',
+      reading: 'atkinson',
+      proseScale: 1.1,
+      leading: 1.05,
+    },
     light: {
       background: 'oklch(100% 0 0)',
       card: 'oklch(100% 0 0)',

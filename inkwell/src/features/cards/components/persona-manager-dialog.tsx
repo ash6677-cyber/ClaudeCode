@@ -58,7 +58,7 @@ export function PersonaManagerDialog({ open, onOpenChange }: PersonaManagerDialo
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setEditingId(null) }}>
-      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Personas</DialogTitle>
           <DialogDescription>

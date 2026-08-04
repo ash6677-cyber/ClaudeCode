@@ -47,6 +47,63 @@ export interface PageEdge {
   glowOpacity: number
 }
 
+/** How much the interface lifts off the page. */
+export type ThemeDepth = 'flat' | 'soft' | 'lifted' | 'dramatic'
+
+/**
+ * The shape of the interface, as distinct from its colour.
+ *
+ * Rounding, depth, the wash behind everything, how fast things move and how
+ * big it all is. Colour decides what an app looks like; these decide what it
+ * feels like to use, and they are the settings people actually reach for —
+ * "too bouncy", "too rounded", "too small" are all complaints about this and
+ * none of them about the palette.
+ */
+export interface ThemeShape {
+  /** Corner rounding in px. Zero is square; the app's own is about 11. */
+  radius: number
+  depth: ThemeDepth
+  /** Strength of the ambient wash behind everything, 0–1 of the app's own. */
+  wash: number
+  /**
+   * Animation speed, as a multiple. 1 is the app's own pace, 2 is half speed,
+   * 0 is still — which is a real preference and not only an accessibility
+   * setting, though the system one is still honoured on top of it.
+   */
+  motion: number
+  /** Overall size of the interface, as a multiple. */
+  scale: number
+}
+
+/**
+ * The faces a theme chooses, and how big the prose sits.
+ *
+ * Three faces, because they are three genuinely different jobs: the interface
+ * is read in glances, headings are read as shapes, and a book is read for
+ * hours. A single "font" setting would have to be wrong for two of them.
+ *
+ * The writer's own manuscript typeface is deliberately *not* here. That one
+ * lives in preferences, because it is a property of the hand rather than of
+ * the book — it should follow a writer from project to project, and stay put
+ * when they change how the app looks.
+ *
+ * Prose size is separate from `ThemeShape.scale` for the same reason: scale
+ * grows the whole interface, and wanting larger prose in a normal-sized app
+ * is the more common request by a distance.
+ */
+export interface ThemeType {
+  /** Face id for the interface — buttons, labels, navigation. */
+  ui: string
+  /** Face id for headings and titles. */
+  display: string
+  /** Face id for the reader's pages. */
+  reading: string
+  /** Prose size in the editor and the book, as a multiple. */
+  proseScale: number
+  /** Line spacing for prose, as a multiple. */
+  leading: number
+}
+
 export interface Theme extends BaseEntity {
   name: string
   description: string
@@ -60,4 +117,12 @@ export interface Theme extends BaseEntity {
    * newer version.
    */
   page?: PageEdge
+  /**
+   * Absent on themes made before shape existed. Optional for the same reason
+   * as `page`: nothing changes what it looks like by being loaded into a
+   * newer version of the app.
+   */
+  shape?: ThemeShape
+  /** Absent on themes made before typography existed. Same reason again. */
+  type?: ThemeType
 }

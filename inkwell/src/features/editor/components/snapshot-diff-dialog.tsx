@@ -42,7 +42,7 @@ export function SnapshotDiffDialog({
 
   return (
     <Dialog open={snapshot !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[80vh] max-w-2xl flex-col">
+      <DialogContent className="flex max-w-2xl flex-col">
         <DialogHeader>
           <DialogTitle>What restoring would change</DialogTitle>
           <DialogDescription>

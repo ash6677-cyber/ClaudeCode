@@ -17,6 +17,8 @@ export interface ProjectFormInput {
   pov: Project['settings']['pov']
   tense: Project['settings']['tense']
   structureMode: Project['settings']['structureMode']
+  /** A look of this book's own, or null to follow the app's. */
+  themeId: string | null
   /**
    * Which format to lay the manuscript out in. Only read when creating —
    * a book already has its shape, and re-applying a template to it would
@@ -69,6 +71,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       coverId: null,
       seriesId: null,
       seriesOrder: 0,
+      themeId: input.themeId,
       status: input.status,
       settings: {
         defaultAiPresetId: null,
@@ -96,6 +99,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       synopsis: input.synopsis,
       genre: input.genre,
       targetWordCount: input.targetWordCount,
+      themeId: input.themeId,
       status: input.status,
       settings: {
         ...get().projects.find((p) => p.id === id)!.settings,

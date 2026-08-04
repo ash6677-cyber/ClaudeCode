@@ -33,7 +33,27 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
+        // Bounded, scrolling, and centred on the part of the screen a person
+        // can actually see.
+        //
+        // Two separate failures, both of which put a dialog's buttons out of
+        // reach. A dialog is centred, so one taller than the screen hangs off
+        // *both* ends at once with nothing to scroll — the New project form
+        // was 1044px on an 844px screen, Close 108px above the top and
+        // "Create project" 100px below the bottom. And a dialog sized to the
+        // full screen ignores the keyboard entirely, which put that same
+        // footer underneath it the moment anyone tapped the title field.
+        //
+        // `--vvh` and `--vvtop` come from `visualViewport` and describe the
+        // region left over once the keyboard is up; they fall back to `100dvh`
+        // and `0px`, so nothing changes where there is no keyboard. `dvh`
+        // alone is not enough — it tracks the browser's collapsing toolbars,
+        // never the keyboard.
+        //
+        // A dialog wanting a pinned header and footer still says so itself,
+        // with `flex max-h-[…] flex-col` and its own inner scroller — this is
+        // the floor, not the ceiling.
+        'fixed left-1/2 top-[calc(var(--vvtop,0px)+var(--vvh,100dvh)/2)] z-50 flex flex-col max-h-[calc(var(--vvh,100dvh)-2rem)] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-lg duration-150 data-[state=open]:animate-slide-in',
         className,
       )}
       {...props}
@@ -53,9 +73,36 @@ const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
 )
 DialogHeader.displayName = 'DialogHeader'
 
+/**
+ * The dialog's actions — and on a phone, they move to the top.
+ *
+ * Not a style preference. A keyboard covers the bottom of the screen and
+ * nothing else; the top is the one region it can never reach. Sizing the
+ * dialog to `visualViewport` is the right fix and it is applied, but it
+ * depends on the browser reporting an honest number, and iOS has a long
+ * history of not doing so mid-animation, on rotation, or with a hardware
+ * keyboard attached. Actions stuck to the top do not depend on measuring
+ * anything: as long as the dialog's top edge is on screen — which centring
+ * guarantees for anything shorter than the viewport — they are reachable.
+ *
+ * Two independent defences for the same failure, because this one strands
+ * someone in a form with no way to submit it and no way out.
+ *
+ * It is also the native pattern on both platforms: dismiss on the left,
+ * confirm on the right, in a bar at the top. `pr-12` leaves the corner free
+ * for the close button, which sits above this in the stacking order.
+ */
 const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
-    className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
+    className={cn(
+      'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
+      // No negative margins: this is a scrolling box, and content pulled
+      // above its top edge gets clamped rather than positioned — which left
+      // the bar painting straight over the dialog's title. It sits inside the
+      // padding instead, and `sticky` pins it there once the body scrolls.
+      'max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:order-first max-sm:mb-0 max-sm:mt-0 max-sm:flex-row max-sm:items-center max-sm:justify-end max-sm:border-b max-sm:border-border max-sm:bg-card max-sm:pb-3 max-sm:pr-12',
+      className,
+    )}
     {...props}
   />
 )

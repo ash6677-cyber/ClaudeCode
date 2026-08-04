@@ -8,18 +8,32 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <!-- viewport-fit=cover so the app reaches under the iPhone's rounded
-         corners once installed; the shell already pads for safe areas. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+         corners once installed; the shell already pads for safe areas.
+
+         interactive-widget=resizes-content makes Android Chrome shrink the
+         *layout* viewport when the keyboard opens, so `dvh` and fixed
+         positioning both account for it. Its default, resizes-visual, leaves
+         the layout viewport at full height and hides the bottom of every
+         dialog behind the keyboard. iOS ignores this entirely, which is what
+         `--vvh` in lib/viewport.ts is for. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d0d10" />
+    <!-- The colours the app actually paints, read off `body` rather than
+         guessed: warm paper and blue-black, not white and grey. These tint the
+         status bar of an installed app, so a value that merely looks close
+         leaves a visible seam across the top of the screen. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf9f5" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#06080e" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Inkwell" />
     <meta
       name="description"
-      content="Inkwell — a calm, local-first novel-writing studio: manuscript editor, worldbuilding codex, character cards, and cover design."
+      content="Inkwell — a calm, local-first novel-writing studio: manuscript editor, worldbuilding almanac, character cards, and cover design."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

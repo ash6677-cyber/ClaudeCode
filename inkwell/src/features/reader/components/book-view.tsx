@@ -6,6 +6,11 @@ import { PageSurface, type PageMetrics } from '@/features/reader/components/page
 import type { BookChapter } from '@/features/reader/lib/compile-book'
 import { criticalDamping, isSpringAtRest, stepSpring } from '@/features/reader/lib/spring'
 import { cn } from '@/lib/utils'
+import { FrontPage } from '@/features/reader/components/front-page'
+
+export type ReaderPage =
+  | { kind: 'front' }
+  | { kind: 'chapter'; chapterIndex: number; localIndex: number }
 
 /** Past this fraction of a turn, releasing completes it instead of snapping back. */
 const COMMIT_THRESHOLD = 0.5
@@ -41,11 +46,6 @@ interface TurnState {
   backPage: number
 }
 
-interface FlatPage {
-  chapterIndex: number
-  localIndex: number
-}
-
 export function BookView({
   book,
   pageCounts,
@@ -54,6 +54,9 @@ export function BookView({
   pageIndex,
   onPageIndexChange,
   flatPages,
+  projectId,
+  title,
+  author,
 }: {
   book: BookChapter[]
   pageCounts: number[]
@@ -61,7 +64,10 @@ export function BookView({
   columns: 1 | 2
   pageIndex: number
   onPageIndexChange: (index: number) => void
-  flatPages: FlatPage[]
+  flatPages: ReaderPage[]
+  projectId: string
+  title: string
+  author: string
 }) {
   const totalPages = flatPages.length
   const curlRef = useRef<CurlHandle | null>(null)
@@ -325,16 +331,24 @@ export function BookView({
     (index: number, side: 'left' | 'right') => {
       const page = flatPages[index]
       if (!page) return <div className="book-page book-page-blank" style={{ width: metrics.width, height: metrics.height }} />
+      if (page.kind === 'front') {
+        return (
+          <FrontPage projectId={projectId} title={title} author={author} metrics={metrics} />
+        )
+      }
       return (
         <PageSurface metrics={metrics} pageIndex={page.localIndex} side={side}>
           <ChapterContent chapter={book[page.chapterIndex]} />
         </PageSurface>
       )
     },
-    [book, flatPages, metrics],
+    [book, flatPages, metrics, projectId, title, author],
   )
 
-  const pageNumberFor = (index: number) => (index >= 0 && index < totalPages ? index + 1 : null)
+  // The front page carries no folio, and the first page of prose is page one
+  // — which is how a printed book counts, and why this is not `index + 1`.
+  const pageNumberFor = (index: number) =>
+    index > 0 && index < totalPages ? index : null
 
   // While a sheet is lifting, the page it uncovers must already be painted
   // underneath — otherwise you'd see the table through the gap.

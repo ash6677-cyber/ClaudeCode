@@ -1,0 +1,67 @@
+name: PR checks
+
+# Nothing ran on pull requests before this. The three real workflows fire on
+# a tag, on a push to main, or by hand — so a change could only be validated
+# after it had already landed, and the one file that did name `pull_request`
+# was a starter template saved without a `.yml` extension, which GitHub never
+# loaded at all.
+#
+# The same gates the deploy runs, deliberately: a pull request should be held
+# to the repository's own definition of green and not to a second, private
+# one that drifts from it.
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'inkwell/**'
+      - '.github/workflows/pr-checks.yml'
+  workflow_dispatch: {}
+
+# Reading the code is all this needs; it publishes nothing.
+permissions:
+  contents: read
+
+# A new push supersedes the run it interrupted — there is no value in
+# finishing a check against a commit nobody is looking at any more.
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: inkwell/package-lock.json
+
+      - name: Install dependencies
+        working-directory: inkwell
+        run: npm ci
+
+      - name: Type-check
+        working-directory: inkwell
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: inkwell
+        run: npm run lint
+
+      - name: Test
+        working-directory: inkwell
+        run: npm test
+
+      - name: Build
+        working-directory: inkwell
+        # Built at the base path it is actually deployed under, so a broken
+        # asset prefix fails here rather than on the live site. The Firebase
+        # values are left unset on purpose: they are compiled into the public
+        # bundle either way, and the app is local-first and fully usable with
+        # cloud accounts switched off.
+        env:
+          INKWELL_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build

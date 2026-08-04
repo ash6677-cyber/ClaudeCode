@@ -14,8 +14,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ColorRow } from '@/features/theme/components/color-row'
 import { PageEdgeEditor } from '@/features/theme/components/page-edge-editor'
+import { ShapeEditor } from '@/features/theme/components/shape-editor'
+import { TypographyEditor } from '@/features/theme/components/typography-editor'
 import { applyTheme, readBaseTokens, type ColorMode } from '@/features/theme/lib/apply-theme'
 import { parseOklch } from '@/features/theme/lib/oklch'
+import { shapeIsDefault } from '@/features/theme/lib/shape'
+import { typeIsDefault } from '@/features/theme/lib/typography'
 import {
   clearColor,
   effectiveColor,
@@ -27,7 +31,13 @@ import {
 } from '@/features/theme/lib/palette-edit'
 import { TOKEN_GROUPS } from '@/features/theme/lib/tokens'
 import { cn } from '@/lib/utils'
-import { resolveTheme, useThemeStore, type ThemeChoice, type ThemeDraft } from '@/stores/theme-store'
+import {
+  activeThemeId,
+  resolveTheme,
+  useThemeStore,
+  type ThemeChoice,
+  type ThemeDraft,
+} from '@/stores/theme-store'
 import type { ThemePalette } from '@/types'
 
 interface ThemeEditorDialogProps {
@@ -55,6 +65,8 @@ export function ThemeEditorDialog({
     light: { ...start.light },
     dark: { ...start.dark },
     page: start.page ? { ...start.page } : undefined,
+    shape: start.shape ? { ...start.shape } : undefined,
+    type: start.type ? { ...start.type } : undefined,
   }))
   const [nameError, setNameError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -80,8 +92,8 @@ export function ThemeEditorDialog({
   // saving, where the store has by then made this the active theme anyway.
   useEffect(() => {
     return () => {
-      const { custom, activeId } = useThemeStore.getState()
-      applyTheme(resolveTheme(custom, activeId), mode)
+      const state = useThemeStore.getState()
+      applyTheme(resolveTheme(state.custom, activeThemeId(state)), mode)
     }
   }, [mode])
 
@@ -117,6 +129,12 @@ export function ThemeEditorDialog({
           // Kept only when it draws something, so a theme does not carry a
           // switched-off edge around forever.
           page: draft.page?.enabled ? draft.page : undefined,
+          // Same again: a shape identical to the app's own is not stored, so
+          // the theme keeps following the design where it did not decide.
+          shape: shapeIsDefault(draft.shape) ? undefined : draft.shape,
+          // And once more for the faces: a theme that chose none of them is
+          // not carrying a copy of the app's own typography around.
+          type: typeIsDefault(draft.type) ? undefined : draft.type,
         },
         editingId,
       )
@@ -130,7 +148,7 @@ export function ThemeEditorDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[88vh] max-w-3xl flex-col">
+      <DialogContent className="flex max-w-3xl flex-col">
         <DialogHeader>
           <DialogTitle>{editingId ? 'Edit theme' : 'New theme'}</DialogTitle>
           <DialogDescription>
@@ -191,6 +209,10 @@ export function ThemeEditorDialog({
               ))}
             </div>
           </div>
+
+          <TypographyEditor type={draft.type} onChange={(type) => setDraft({ ...draft, type })} />
+
+          <ShapeEditor shape={draft.shape} onChange={(shape) => setDraft({ ...draft, shape })} />
 
           <PageEdgeEditor edge={draft.page} onChange={(page) => setDraft({ ...draft, page })} />
 

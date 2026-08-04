@@ -15,6 +15,22 @@
   --page-edge-glow: 0 0 0 transparent;
   --page-edge-book-width: 0px;
 
+  /* Shape. A theme sets these; the values here are the app's own. */
+  --wash-strength: 1;
+  --motion-scale: 1;
+  --ui-scale: 1;
+
+  /* The three faces, named here rather than in the theme block below, because
+     `@theme inline` bakes its values straight into the utilities it generates:
+     `.font-sans` would come out holding the literal Inter stack, and setting
+     `--font-sans` at runtime would change nothing anyone can see. Declared
+     here and referenced there, every `font-sans` in the app resolves through
+     a property a theme can actually turn — the same indirection the colours
+     already use. */
+  --ui-font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --display-font: 'Source Serif 4', ui-serif, Georgia, serif;
+  --mono-font: 'JetBrains Mono', ui-monospace, monospace;
+
   /* Warm paper light mode */
   --background: oklch(98.2% 0.006 85);
   --foreground: oklch(20% 0.022 55);
@@ -25,10 +41,10 @@
   --popover: oklch(99.4% 0.003 85);
   --popover-foreground: oklch(20% 0.022 55);
 
-  --primary: oklch(47% 0.17 271);
-  --primary-foreground: oklch(98.5% 0.008 271);
+  --primary: oklch(46% 0.11 74);
+  --primary-foreground: oklch(98% 0.012 80);
 
-  --brand-2: oklch(62% 0.19 320);
+  --brand-2: oklch(56% 0.13 42);
 
   --secondary: oklch(94.5% 0.008 85);
   --secondary-foreground: oklch(28% 0.02 55);
@@ -36,8 +52,8 @@
   --muted: oklch(95.5% 0.008 85);
   --muted-foreground: oklch(47% 0.012 55);
 
-  --accent: oklch(93% 0.035 271);
-  --accent-foreground: oklch(30% 0.11 271);
+  --accent: oklch(93% 0.03 74);
+  --accent-foreground: oklch(32% 0.07 74);
 
   --destructive: oklch(56% 0.21 25);
   --destructive-foreground: oklch(98% 0.01 25);
@@ -50,7 +66,7 @@
 
   --border: oklch(90% 0.012 85);
   --input: oklch(89.5% 0.012 85);
-  --ring: oklch(47% 0.17 271);
+  --ring: oklch(46% 0.11 74);
 
   --sidebar: oklch(96.8% 0.008 85);
   --sidebar-foreground: oklch(30% 0.02 55);
@@ -60,7 +76,7 @@
   --elevation-sm: 0 1px 2px -1px oklch(22% 0.03 55 / 0.07), 0 1px 3px 0 oklch(22% 0.03 55 / 0.06);
   --elevation-md: 0 4px 6px -2px oklch(22% 0.03 55 / 0.05), 0 8px 16px -4px oklch(22% 0.03 55 / 0.09);
   --elevation-lg: 0 8px 12px -4px oklch(22% 0.03 55 / 0.06), 0 20px 32px -8px oklch(22% 0.03 55 / 0.14);
-  --elevation-glow: 0 0 0 1px oklch(47% 0.17 271 / 0.14), 0 12px 28px -8px oklch(47% 0.17 271 / 0.32);
+  --elevation-glow: 0 0 0 1px oklch(46% 0.11 74 / 0.16), 0 12px 28px -8px oklch(46% 0.11 74 / 0.3);
 }
 
 .dark {
@@ -74,10 +90,10 @@
   --popover: oklch(21% 0.018 262);
   --popover-foreground: oklch(93% 0.007 85);
 
-  --primary: oklch(76% 0.14 271);
-  --primary-foreground: oklch(15% 0.03 271);
+  --primary: oklch(78% 0.12 78);
+  --primary-foreground: oklch(18% 0.03 74);
 
-  --brand-2: oklch(78% 0.15 320);
+  --brand-2: oklch(74% 0.13 46);
 
   --secondary: oklch(23.5% 0.016 262);
   --secondary-foreground: oklch(90% 0.008 85);
@@ -85,8 +101,8 @@
   --muted: oklch(23.5% 0.016 262);
   --muted-foreground: oklch(67% 0.014 262);
 
-  --accent: oklch(31% 0.052 271);
-  --accent-foreground: oklch(89% 0.055 271);
+  --accent: oklch(30% 0.045 74);
+  --accent-foreground: oklch(90% 0.05 78);
 
   --destructive: oklch(66% 0.2 25);
   --destructive-foreground: oklch(98% 0.01 25);
@@ -99,7 +115,7 @@
 
   --border: oklch(28% 0.018 262);
   --input: oklch(28% 0.018 262);
-  --ring: oklch(76% 0.14 271);
+  --ring: oklch(78% 0.12 78);
 
   --sidebar: oklch(9.5% 0.014 262);
   --sidebar-foreground: oklch(87% 0.01 85);
@@ -109,13 +125,13 @@
   --elevation-sm: 0 2px 4px -1px oklch(0% 0 0 / 0.36), 0 1px 3px 0 oklch(0% 0 0 / 0.3);
   --elevation-md: 0 6px 10px -3px oklch(0% 0 0 / 0.34), 0 12px 24px -6px oklch(0% 0 0 / 0.46);
   --elevation-lg: 0 12px 20px -5px oklch(0% 0 0 / 0.38), 0 28px 48px -12px oklch(0% 0 0 / 0.56);
-  --elevation-glow: 0 0 0 1px oklch(76% 0.14 271 / 0.2), 0 0 36px -2px oklch(76% 0.14 271 / 0.32);
+  --elevation-glow: 0 0 0 1px oklch(78% 0.12 78 / 0.22), 0 0 36px -2px oklch(78% 0.12 78 / 0.3);
 }
 
 @theme inline {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-serif: 'Source Serif 4', ui-serif, Georgia, serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: var(--ui-font);
+  --font-serif: var(--display-font);
+  --font-mono: var(--mono-font);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -160,14 +176,14 @@
   --ease-premium: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-soft: cubic-bezier(0.4, 0, 0.2, 1);
 
-  --animate-fade-in: fade-in 220ms var(--ease-out-soft);
-  --animate-slide-in: slide-in 260ms var(--ease-premium);
-  --animate-scale-in: scale-in 180ms var(--ease-premium);
-  --animate-shimmer: shimmer 1.8s ease-in-out infinite;
-  --animate-sheet-in-left: sheet-in-left 260ms var(--ease-premium);
-  --animate-sheet-in-right: sheet-in-right 260ms var(--ease-premium);
-  --animate-sheet-in-top: sheet-in-top 260ms var(--ease-premium);
-  --animate-sheet-in-bottom: sheet-in-bottom 260ms var(--ease-premium);
+  --animate-fade-in: fade-in calc(220ms * var(--motion-scale)) var(--ease-out-soft);
+  --animate-slide-in: slide-in calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-scale-in: scale-in calc(180ms * var(--motion-scale)) var(--ease-premium);
+  --animate-shimmer: shimmer calc(1.8s * max(var(--motion-scale), 0.001)) ease-in-out infinite;
+  --animate-sheet-in-left: sheet-in-left calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-sheet-in-right: sheet-in-right calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-sheet-in-top: sheet-in-top calc(260ms * var(--motion-scale)) var(--ease-premium);
+  --animate-sheet-in-bottom: sheet-in-bottom calc(260ms * var(--motion-scale)) var(--ease-premium);
 
   @keyframes fade-in {
     from {
@@ -252,21 +268,25 @@
     color-scheme: dark;
   }
 
+  html {
+    font-size: calc(100% * var(--ui-scale));
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
     background-image:
-      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) 7%, transparent), transparent 62%),
-      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) 6%, transparent), transparent 60%);
+      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) calc(7% * var(--wash-strength)), transparent), transparent 62%),
+      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) calc(6% * var(--wash-strength)), transparent), transparent 60%);
     background-repeat: no-repeat;
     background-attachment: fixed;
   }
 
   .dark body {
     background-image:
-      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) 20%, transparent), transparent 62%),
-      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) 17%, transparent), transparent 60%),
-      radial-gradient(1200px 700px at 60% 112%, color-mix(in oklch, var(--primary) 8%, transparent), transparent 62%);
+      radial-gradient(1000px 620px at 38% -4%, color-mix(in oklch, var(--primary) calc(20% * var(--wash-strength)), transparent), transparent 62%),
+      radial-gradient(900px 600px at 96% 0%, color-mix(in oklch, var(--brand-2) calc(17% * var(--wash-strength)), transparent), transparent 60%),
+      radial-gradient(1200px 700px at 60% 112%, color-mix(in oklch, var(--primary) calc(8% * var(--wash-strength)), transparent), transparent 62%);
   }
 
   h1,
@@ -338,8 +358,14 @@
   }
 
   .editor-prose {
-    @apply text-[1.0625rem] leading-[1.75] text-foreground;
-    font-family: var(--editor-font, var(--font-serif));
+    @apply text-foreground;
+    font-family: var(--editor-font, var(--display-font));
+    /* Prose sizing is stated once, here and in `.book-flow`, and scaled by a
+       theme rather than overridden by one. Separate from `--ui-scale` on
+       purpose: larger prose in a normal-sized interface is a different — and
+       far more common — request than a bigger app. */
+    font-size: calc(1.0625rem * var(--prose-scale, 1));
+    line-height: calc(1.75 * var(--prose-leading, 1));
   }
 
   .editor-prose p {

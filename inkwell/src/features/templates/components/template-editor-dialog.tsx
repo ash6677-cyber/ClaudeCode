@@ -121,7 +121,7 @@ export function TemplateEditorDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col">
+      <DialogContent className="flex max-w-2xl flex-col">
         <DialogHeader>
           <DialogTitle>{templateId ? 'Edit format' : 'New format'}</DialogTitle>
           <DialogDescription>
