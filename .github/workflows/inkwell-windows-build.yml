@@ -1,10 +1,21 @@
 name: Build INKWELL Windows Installer
 
 on:
-  workflow_dispatch: {}
+  # A manual run can publish too, not only build. Pushing a tag is not
+  # available from every environment this repo is worked on from, and a build
+  # artifact nobody can reach without signing in to GitHub is not a download.
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Publish a release under this tag (leave empty to only build)'
+        required: false
+        default: ''
   push:
     tags:
       - 'inkwell-v*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -65,9 +76,24 @@ jobs:
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/inkwell-v')
+        if: startsWith(github.ref, 'refs/tags/inkwell-v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          name: INKWELL ${{ inputs.release_tag || github.ref_name }}
+          # The updater reads latest.json from the newest release, so a build
+          # that is not ready to be offered to everyone must not become one.
+          make_latest: true
+          body: |
+            The Windows app for INKWELL.
+
+            Download `INKWELL_*_x64-setup.exe` below and run it. Windows will
+            warn about an unrecognised app the first time — the installer is
+            not certificate-signed yet, so choose **More info**, then
+            **Run anyway**.
+
+            Your books are saved as ordinary files on your computer, the app
+            works with no internet at all, and it updates itself from here.
           files: |
             inkwell/src-tauri/target/release/bundle/nsis/*.exe
             inkwell/src-tauri/target/release/bundle/nsis/*.sig
