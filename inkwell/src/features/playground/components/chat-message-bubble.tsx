@@ -1,4 +1,13 @@
-import { ChevronLeft, ChevronRight, Copy, Loader2, Pencil, RotateCcw, Trash2 } from 'lucide-react'
+import {
+  BookmarkPlus,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Loader2,
+  Pencil,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -16,6 +25,8 @@ interface ChatMessageBubbleProps {
   onDelete: () => void
   onRegenerate?: () => void
   onSwipe?: (direction: -1 | 1) => void
+  /** Keep this line — in the Almanac, or in a scene's notes. */
+  onKeep?: () => void
 }
 
 export function ChatMessageBubble({
@@ -27,6 +38,7 @@ export function ChatMessageBubble({
   onDelete,
   onRegenerate,
   onSwipe,
+  onKeep,
 }: ChatMessageBubbleProps) {
   const { toast } = useToast()
   const isUser = message.role === 'user'
@@ -94,7 +106,7 @@ export function ChatMessageBubble({
         )}
 
         {!editing && !streaming && (
-          <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex items-center gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
             {!isUser && message.swipes.length > 1 && (
               <>
                 <Button
@@ -107,9 +119,26 @@ export function ChatMessageBubble({
                 >
                   <ChevronLeft className="size-3.5" />
                 </Button>
-                <span className="text-[10px] tabular-nums text-muted-foreground">
-                  {message.activeSwipe + 1}/{message.swipes.length}
-                </span>
+                {message.swipes.length <= 6 ? (
+                  <span
+                    className="flex items-center gap-1 px-0.5"
+                    aria-label={`Response ${message.activeSwipe + 1} of ${message.swipes.length}`}
+                  >
+                    {message.swipes.map((_, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          'size-1.5 rounded-full transition-colors',
+                          i === message.activeSwipe ? 'bg-primary' : 'bg-muted-foreground/30',
+                        )}
+                      />
+                    ))}
+                  </span>
+                ) : (
+                  <span className="text-[10px] tabular-nums text-muted-foreground">
+                    {message.activeSwipe + 1}/{message.swipes.length}
+                  </span>
+                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -133,6 +162,17 @@ export function ChatMessageBubble({
             <Button variant="ghost" size="icon" className="size-6" onClick={handleCopy} aria-label="Copy message">
               <Copy className="size-3.5" />
             </Button>
+            {!isUser && onKeep && content.trim() && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6"
+                onClick={onKeep}
+                aria-label="Keep this line"
+              >
+                <BookmarkPlus className="size-3.5" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"

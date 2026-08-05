@@ -160,10 +160,10 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (2, 3), P2 (1, 4, 5).
 
 **Acceptance criteria.**
-- [ ] Preview drawer lists every prompt section and the lorebook entries actually injected for the next send.
-- [ ] "Save to Almanac" appends visibly to the entry, undoable via the entry's history.
-- [ ] A failed send shows an inline retry that works; stop halts a stream mid-sentence.
-- [ ] Swipe variants are discoverable (dots) and switching persists.
+- [x] Preview drawer lists every prompt section and the lorebook entries actually injected for the next send — and the ones that were not, with reasons (§14).
+- [x] "Keep this line" appends visibly to a chosen Almanac entry or a scene's notes, attributed to the speaker. Appends only — a chat is where you discover things and the Almanac is where you keep them, so nothing is ever replaced.
+- [x] A failed send shows an inline retry that works (§13); stop halts a stream mid-sentence and keeps what arrived.
+- [x] Swipe variants show as dots up to six, a count beyond that, and switching persists. Message actions are also visible without hover, which is the only way they exist at all on a touch screen.
 
 ---
 
@@ -198,7 +198,7 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 - [x] Mapping screen shows every field pair before anything writes, blanks included, plus an explicit list of what an update never touches.
 - [x] Each duplicate strategy behaves as labelled, verified live against a name collision: Skip leaves the card alone, Update refreshes only the written fields, Add-a-second numbers the copy.
 - [x] Undo after a bulk import leaves the card list identical to before — design, scenario, first message and voice notes of the updated card all intact (`scripts/import-check.mjs`, 16/16). Only `updatedAt` differs, which is bookkeeping rather than content.
-- [ ] "Pull latest from Almanac" updates a linked card; "Send to Almanac" round-trips. **§6.8 outstanding** — the link is written and the refresh path is the same executor, so this is the per-card buttons only.
+- [x] "Pull from Almanac" updates a linked card; "Add to Almanac" creates the entry and links it; "Send to Almanac" pushes the card's fields back. Verified round trip (`scripts/writeback-check.mjs`, 7/7). A pull that would change nothing says "Already up to date" rather than flashing a success it did not earn.
 
 **Shipped (§6.1–6.7).** `lib/import-characters.ts` decides (pure: mapping, duplicate detection preferring the link over the name, copy numbering that projects the run's own results so two copies become "(2)" and "(3)"); `lib/run-import.ts` writes, behind an injected pair of repositories so undo can be proved without a database; `lib/import-source.ts` resolves this book / another book / a series to its character entries. Three-step dialog (Source → Select → Review) with a 30-second Undo in the result toast. Linked by default with a per-run snapshot toggle.
 
@@ -757,7 +757,7 @@ Ordered phases; each ends with the standing gates (typecheck 0 · lint 0 · test
 | **1 — done** | §7.1–7.4 wizard history/draft/matrix | M | low | shipped; §7 boxes ticked, 32/32 matrix |
 | **2 — done** | §2.2/2.5/2.6, §2.3, §3.1–3.4/3.6 | M+M | med (redirects) | shipped; §2 + §3 boxes ticked, 22/22 + 21/21 live. §3.5 deferred to Phase 4 with §5 |
 | **3 — done** | §6.1–6.7, §4.1/4.3 | L | med (undo correctness) | shipped; undo byte-check green (16/16 live, 27 unit). §6.8 Send/Pull outstanding |
-| **4 — Chat depth + AI trust** | §13.1–3, §14.1–2, §5.2–3 | L | med | context preview live across features |
+| **4 — done** | §13.1–3/13.6, §14.1–2, §5.2–3/5.5, §3.5, §6.8 | L | med | shipped; 47 new unit tests, 3 live suites (10/10, 7/7 + earlier). §13.4–5, §14.3–4 are P2, deferred |
 | **5 — Mobile overhaul** | §8.1–8.5 (reader first) | L | med (reader CSS) | device-matrix suite green |
 | **6 — Editor + data safety** | §11.1–2, §21.1–2, §12.3 | M | med (sync path) | conflict-snapshot test green |
 | **7 — Creation flows** | §15.2–5, §22.1, §16.1+3 | L | med | wizard-template + import previews |

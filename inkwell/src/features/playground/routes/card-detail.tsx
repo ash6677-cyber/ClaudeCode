@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, MessageCircle, Trash2 } from 'lucide-react'
+import { ArrowLeft, BookOpen, Loader2, MessageCircle, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
@@ -22,7 +22,9 @@ import { ExampleDialogueList } from '@/features/playground/components/example-di
 import { CardDesignPanel } from '@/features/playground/components/card-design-panel'
 import { CardFacePreview } from '@/features/playground/components/card-face'
 import { PortraitUploadField } from '@/features/playground/components/portrait-upload-field'
+import { mapEntryToCard } from '@/features/playground/lib/import-characters'
 import { chatToOpenFor } from '@/features/playground/lib/open-chat'
+import { cardMatchesEntry, cardToEntryFields } from '@/features/playground/lib/writeback'
 import { playgroundPath } from '@/features/playground/lib/playground-nav'
 import { useCardStore } from '@/stores/card-store'
 import { useChatStore } from '@/stores/chat-store'
@@ -41,6 +43,8 @@ export function CardDetail() {
     useCardStore()
   const codexEntries = useCodexStore((s) => s.entries)
   const loadCodexProject = useCodexStore((s) => s.loadProject)
+  const createCodexEntry = useCodexStore((s) => s.createEntry)
+  const updateCodexEntry = useCodexStore((s) => s.updateEntry)
   const loadChats = useChatStore((s) => s.loadProject)
 
   useEffect(() => {
@@ -66,6 +70,7 @@ export function CardDetail() {
   const [systemPromptDraft, setSystemPromptDraft] = useState(card?.systemPromptOverride ?? '')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [openingChat, setOpeningChat] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   // Starts undefined (not `cardId`) so that when this card's data arrives asynchronously
   // after mount — e.g. a direct page load/refresh, where the store is still empty at mount
@@ -81,6 +86,67 @@ export function CardDetail() {
     setFirstMessageDraft(card.firstMessage)
     setVoiceNotesDraft(card.voiceNotes)
     setSystemPromptDraft(card.systemPromptOverride ?? '')
+  }
+
+  const linkedEntry = card?.codexEntryId
+    ? (codexEntries.find((e) => e.id === card.codexEntryId) ?? null)
+    : null
+
+  /**
+   * Two directions, both explicit.
+   *
+   * Nothing syncs on its own: merging two versions of someone's prose without
+   * being asked is the failure this whole feature is built to avoid. Pulling
+   * takes the Almanac's written fields; sending takes the card's. Each
+   * overwrites only what the other end has an opinion about.
+   */
+  async function pullFromAlmanac() {
+    if (!card || !linkedEntry) return
+    setSyncing(true)
+    try {
+      if (cardMatchesEntry(card, linkedEntry)) {
+        toast({ title: 'Already up to date' })
+        return
+      }
+      const mapped = mapEntryToCard(linkedEntry)
+      await updateCard(card.id, {
+        displayName: mapped.displayName,
+        description: mapped.description,
+        personality: mapped.personality,
+        tags: mapped.tags,
+      })
+      // The fields on this page are drafts, hydrated once when the card
+      // loads; without this the record changes underneath a form still
+      // showing the old text, and the writer is told it worked while looking
+      // at proof that it didn't.
+      setNameDraft(mapped.displayName)
+      setDescriptionDraft(mapped.description)
+      setPersonalityDraft(mapped.personality)
+      setTagsDraft(mapped.tags.join(', '))
+      toast({ title: `Updated from ${linkedEntry.name}` })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function sendToAlmanac() {
+    if (!card || !projectId) return
+    setSyncing(true)
+    try {
+      const fields = cardToEntryFields(card)
+      if (linkedEntry) {
+        await updateCodexEntry(linkedEntry.id, fields)
+        toast({ title: `${linkedEntry.name} updated in the Almanac` })
+        return
+      }
+      const created = await createCodexEntry({ ...fields, aliases: [], type: 'character' })
+      await updateCard(card.id, { codexEntryId: created.id })
+      toast({ title: `${fields.name} added to the Almanac` })
+    } catch {
+      toast({ title: 'Could not reach the Almanac', variant: 'destructive' })
+    } finally {
+      setSyncing(false)
+    }
   }
 
   if (!projectId) {
@@ -135,6 +201,35 @@ export function CardDetail() {
           </Link>
         </Button>
         <div className="flex items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            disabled={syncing}
+            onClick={linkedEntry ? pullFromAlmanac : sendToAlmanac}
+            title={
+              linkedEntry
+                ? `Take the latest written fields from ${linkedEntry.name}`
+                : 'Create an Almanac entry for this character'
+            }
+          >
+            {syncing ? <Loader2 className="size-4 animate-spin" /> : <BookOpen className="size-4" />}
+            <span className="hidden sm:inline">
+              {linkedEntry ? 'Pull from Almanac' : 'Add to Almanac'}
+            </span>
+          </Button>
+          {linkedEntry && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden gap-1.5 sm:inline-flex"
+              disabled={syncing}
+              onClick={sendToAlmanac}
+              title={`Send this card's name, description and tags to ${linkedEntry.name}`}
+            >
+              Send to Almanac
+            </Button>
+          )}
           <Button
             size="sm"
             className="gap-1.5"

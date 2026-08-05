@@ -38,6 +38,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
 import { ChatMessageBubble } from '@/features/playground/components/chat-message-bubble'
 import { PersonaManagerDialog } from '@/features/playground/components/persona-manager-dialog'
+import { SaveLineDialog } from '@/features/playground/components/save-line-dialog'
 import { nextChatTitle } from '@/features/playground/lib/open-chat'
 import { playgroundPath } from '@/features/playground/lib/playground-nav'
 import { AiFailureNotice } from '@/components/common/ai-failure-notice'
@@ -127,6 +128,7 @@ export function CardChat() {
   const [mobileListOpen, setMobileListOpen] = useState(false)
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
+  const [keeping, setKeeping] = useState<string | null>(null)
   const [personaManagerOpen, setPersonaManagerOpen] = useState(false)
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null)
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
@@ -515,6 +517,9 @@ export function CardChat() {
                             ? (direction) => setActiveSwipe(activeChat.id, message.id, message.activeSwipe + direction)
                             : undefined
                         }
+                        onKeep={() =>
+                          setKeeping(message.swipes[message.activeSwipe] ?? message.content)
+                        }
                       />
                     )
                   })
@@ -657,6 +662,15 @@ export function CardChat() {
       )}
 
       <PersonaManagerDialog open={personaManagerOpen} onOpenChange={setPersonaManagerOpen} />
+
+      <SaveLineDialog
+        open={keeping !== null}
+        onOpenChange={(open) => !open && setKeeping(null)}
+        projectId={projectId}
+        speaker={card.displayName}
+        text={keeping ?? ''}
+        linkedEntryId={card.codexEntryId}
+      />
 
       {/*
         Built only while the drawer is open. It is a read-only answer to a
