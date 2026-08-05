@@ -111,7 +111,7 @@ describe('contrastRatio', () => {
   })
 
   it('rates the app’s own dark mode as readable too', () => {
-    const background = parseOklch('oklch(13.5% 0.014 262)')!
+    const background = parseOklch('oklch(13.5% 0.02 290)')!
     const foreground = parseOklch('oklch(93% 0.007 85)')!
     expect(contrastRatio(background, foreground)).toBeGreaterThan(7)
   })
@@ -122,10 +122,10 @@ describe("the app's own default palette", () => {
   // unreadable fails here rather than shipping. Every pair is a colour and
   // the thing written on top of it.
   const pairs: [string, string, string][] = [
-    ['light button', 'oklch(47% 0.17 271)', 'oklch(98.5% 0.008 271)'],
-    ['dark button', 'oklch(76% 0.14 271)', 'oklch(15% 0.03 271)'],
-    ['light hovered row', 'oklch(93% 0.035 271)', 'oklch(30% 0.11 271)'],
-    ['dark hovered row', 'oklch(31% 0.052 271)', 'oklch(89% 0.055 271)'],
+    ['light button', 'oklch(45% 0.22 290)', 'oklch(98.5% 0.01 290)'],
+    ['dark button', 'oklch(72% 0.19 290)', 'oklch(14% 0.04 290)'],
+    ['light hovered row', 'oklch(93% 0.045 290)', 'oklch(30% 0.13 290)'],
+    ['dark hovered row', 'oklch(32% 0.07 290)', 'oklch(90% 0.06 290)'],
   ]
 
   it.each(pairs)('keeps %s readable', (_name, background, foreground) => {

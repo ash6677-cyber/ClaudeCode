@@ -18,7 +18,7 @@ import type { PageEdge, PageEdgeSource } from '@/types'
 export const NO_PAGE_EDGE: PageEdge = {
   enabled: false,
   source: 'primary',
-  color: 'oklch(70% 0.15 271)',
+  color: 'oklch(70% 0.17 290)',
   width: 1,
   borderOpacity: 0.7,
   radius: 12,
@@ -30,7 +30,7 @@ export const NO_PAGE_EDGE: PageEdge = {
 export const DEFAULT_PAGE_EDGE: PageEdge = {
   enabled: true,
   source: 'primary',
-  color: 'oklch(70% 0.15 271)',
+  color: 'oklch(70% 0.17 290)',
   width: 1,
   borderOpacity: 0.55,
   radius: 12,
