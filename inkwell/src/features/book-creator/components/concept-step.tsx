@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { STRUCTURE_OPTIONS } from '@/features/projects/lib/structure-options'
+import { TemplatePicker } from '@/features/templates/components/template-picker'
 import { cn } from '@/lib/utils'
 import type { PointOfView, StructureMode, Tense } from '@/types'
 
@@ -21,6 +22,8 @@ export interface ConceptDraft {
   pov: PointOfView
   tense: Tense
   structureMode: StructureMode
+  /** The format the manuscript starts in; null until the writer picks one. */
+  templateId: string | null
 }
 
 interface ConceptStepProps {
@@ -80,6 +83,13 @@ export function ConceptStep({ draft, onChange }: ConceptStepProps) {
           placeholder="What's this book about? A paragraph is plenty — the more you give, the better the AI can help with an outline and cast later."
         />
       </div>
+
+      <TemplatePicker
+        value={draft.templateId}
+        onChange={(templateId) => onChange({ templateId })}
+        structureMode={draft.structureMode}
+        onStructureMode={(structureMode) => onChange({ structureMode })}
+      />
 
       <div className="grid gap-1.5">
         <Label>Manuscript structure</Label>

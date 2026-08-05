@@ -31,6 +31,7 @@ import { FindInScene } from '@/features/editor/components/find-in-scene'
 import { ManuscriptSearchPanel } from '@/features/editor/components/manuscript-search-panel'
 import { SceneEditor } from '@/features/editor/components/scene-editor'
 import { SceneMetadataDrawer } from '@/features/editor/components/scene-metadata-drawer'
+import { HandoffBanner } from '@/features/book-creator/components/handoff-banner'
 import { useDebouncedCallback } from '@/lib/hooks/use-debounced-callback'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { projectRepo, snapshotRepo } from '@/lib/db/repositories'
@@ -501,6 +502,8 @@ export function EditorHome() {
             </div>
           </header>
         )}
+
+        {!focusMode && <HandoffBanner projectId={projectId} />}
 
         <div className="relative flex-1 overflow-y-auto">
           {activeScene && findOpen && (

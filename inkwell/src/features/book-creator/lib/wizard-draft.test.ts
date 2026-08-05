@@ -35,6 +35,7 @@ const draft = (changes: Partial<WizardDraft> = {}): WizardDraft => ({
     pov: 'third-limited',
     tense: 'past',
     structureMode: 'scenes',
+    templateId: null,
   },
   chapterCount: 12,
   chapters: [],

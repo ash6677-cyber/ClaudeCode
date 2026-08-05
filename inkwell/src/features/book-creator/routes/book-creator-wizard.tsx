@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowRight, Loader2, RotateCcw, Sparkles, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, FastForward, Loader2, RotateCcw, Sparkles, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
 import {
@@ -34,9 +34,15 @@ import {
   writeDraft,
   type WizardDraft,
 } from '@/features/book-creator/lib/wizard-draft'
+import { mergeOutline } from '@/features/book-creator/lib/merge-outline'
+import { expandTemplate } from '@/features/templates/lib/templates'
 import { cardRepo, chapterRepo, codexRepo, projectRepo, sceneRepo } from '@/lib/db/repositories'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
+import { findTemplate, templateChoices, useTemplateStore } from '@/stores/template-store'
+import { rememberHandoff } from '@/features/book-creator/lib/handoff'
+import { stepAdvice } from '@/features/book-creator/lib/step-advice'
+import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const STEPS = [
@@ -61,6 +67,7 @@ const DEFAULT_CONCEPT: ConceptDraft = {
   pov: 'third-limited',
   tense: 'past',
   structureMode: 'scenes',
+  templateId: null,
 }
 
 function newOutlineItem(title = '', summary = ''): OutlineItem {
@@ -83,6 +90,12 @@ export function BookCreatorWizard() {
     loadAiStore()
   }, [loadAiStore])
 
+  const customTemplates = useTemplateStore((s) => s.custom)
+  const loadTemplates = useTemplateStore((s) => s.load)
+  useEffect(() => {
+    void loadTemplates()
+  }, [loadTemplates])
+
   const preset = presets.find((p) => p.isDefault) ?? presets[0]
   const provider = preset ? providers.find((p) => p.id === preset.providerId) : undefined
   const aiAvailable = Boolean(preset && provider)
@@ -103,7 +116,13 @@ export function BookCreatorWizard() {
   const [resumeNotice, setResumeNotice] = useState(restored !== null)
   const [leaveOpen, setLeaveOpen] = useState(false)
 
-  const [concept, setConcept] = useState<ConceptDraft>(restored?.concept ?? DEFAULT_CONCEPT)
+  // Spread over the defaults rather than replacing them: a draft written by
+  // an older build has none of the fields added since, and a wizard that
+  // opens with `undefined` in a select is a worse outcome than a lost field.
+  const [concept, setConcept] = useState<ConceptDraft>({
+    ...DEFAULT_CONCEPT,
+    ...restored?.concept,
+  })
   const [chapterCount, setChapterCount] = useState(restored?.chapterCount ?? 12)
   const [chapters, setChapters] = useState<OutlineItem[]>(restored?.chapters ?? [])
   const [castCount, setCastCount] = useState(restored?.castCount ?? 4)
@@ -272,7 +291,29 @@ export function BookCreatorWizard() {
     setCast(parsed.map((c) => newCastItem(c.name, c.role, c.personality)))
   }
 
-  async function handleCreate() {
+  /**
+   * Everything the book will be made of, worked out before anything is
+   * written. The wizard used to create a flat run of chapters and ignore the
+   * chosen format entirely, so a "Standard novel" built here had no prologue
+   * and a "Screenplay" had chapters.
+   */
+  const planFor = useCallback(
+    (outline: OutlineItem[]) => {
+      const template = findTemplate(templateChoices(customTemplates), concept.templateId)
+      const scenesPerChapter = concept.structureMode === 'chapters-only' ? 'one' : 'template'
+      const plan = template ? expandTemplate(template, { scenesPerChapter }) : []
+      return mergeOutline(
+        plan,
+        outline.map((c) => ({ title: c.title, summary: c.summary })),
+        { numbering: template?.numbering ?? 'words', scenesPerChapter },
+      )
+    },
+    [customTemplates, concept.templateId, concept.structureMode],
+  )
+
+  const plannedChapters = useMemo(() => planFor(chapters), [planFor, chapters])
+
+  async function handleCreate(options: { conceptOnly?: boolean } = {}) {
     if (!concept.title.trim()) {
       // A correction, not a move — it should not cost a back-press to undo.
       setSearchParams({ step: STEP_IDS[0] }, { replace: true })
@@ -299,33 +340,44 @@ export function BookCreatorWizard() {
         },
       })
 
-      for (const [index, chapter] of chapters.entries()) {
+      // The format lays out the divisions; the outline says what happens in
+      // them. One pass creates both, so a prologue is a prologue and chapter
+      // three carries the summary written for chapter three.
+      const planned = options.conceptOnly ? planFor([]) : plannedChapters
+      for (const [index, chapter] of planned.entries()) {
         const created = await chapterRepo.create({
           projectId: project.id,
           title: chapter.title.trim() || `Chapter ${index + 1}`,
           order: index,
           status: 'outline',
+          kind: chapter.kind,
         })
-        await sceneRepo.create({
-          chapterId: created.id,
-          projectId: project.id,
-          title: 'Scene 1',
-          order: 0,
-          content: null,
-          plainText: '',
-          wordCount: 0,
-          status: 'outline',
-          povCharacterId: null,
-          locationCodexId: null,
-          summary: chapter.summary.trim(),
-          beats: [],
-          labels: [],
-          linkedCodexIds: [],
-        })
+        for (const [sceneIndex, sceneTitle] of chapter.scenes.entries()) {
+          await sceneRepo.create({
+            chapterId: created.id,
+            projectId: project.id,
+            title: sceneTitle,
+            order: sceneIndex,
+            content: null,
+            plainText: '',
+            wordCount: 0,
+            status: 'outline',
+            povCharacterId: null,
+            locationCodexId: null,
+            // The outline describes the chapter, so it belongs on the scene
+            // the writer opens first rather than on every one of them.
+            summary: sceneIndex === 0 ? chapter.summary : '',
+            beats: [],
+            labels: [],
+            linkedCodexIds: [],
+          })
+        }
       }
 
-      for (const character of cast) {
+      let charactersCreated = 0
+      for (const character of options.conceptOnly ? [] : cast) {
         if (!character.name.trim()) continue
+        charactersCreated += 1
         let codexEntryId: string | null = null
         if (character.addToCodex) {
           const entry = await codexRepo.create({
@@ -368,6 +420,19 @@ export function BookCreatorWizard() {
       done.current = true
       clearDraft()
 
+      // Everything the wizard made is real but invisible — the cast most of
+      // all, since it lives on a page the writer has no reason to open. The
+      // editor says so once, on arrival.
+      rememberHandoff({
+        projectId: project.id,
+        chapters: planned.length,
+        scenes: planned.reduce((n, c) => n + c.scenes.length, 0),
+        characters: charactersCreated,
+        cards: charactersCreated > 0,
+        templateName:
+          findTemplate(templateChoices(customTemplates), concept.templateId)?.name ?? '',
+      })
+
       toast({ title: `"${project.title}" created` })
       navigate(`/editor?project=${project.id}`)
     } catch {
@@ -378,7 +443,12 @@ export function BookCreatorWizard() {
   }
 
   const onLastStep = activeIndex === STEP_IDS.length - 1
-  const nextDisabled = activeIndex === 0 && !concept.title.trim()
+  const advice = stepAdvice(STEP_IDS[activeIndex], {
+    title: concept.title,
+    chapters,
+    cast,
+  })
+  const nextDisabled = Boolean(advice.block)
 
   return (
     <div className="flex h-full flex-col">
@@ -462,21 +532,66 @@ export function BookCreatorWizard() {
             error={castError}
           />
         )}
-        {activeIndex === 3 && <ReviewStep concept={concept} chapters={chapters} cast={cast} />}
+        {activeIndex === 3 && (
+          <ReviewStep concept={concept} chapters={plannedChapters} cast={cast} />
+        )}
       </div>
 
-      <footer className="flex items-center justify-between border-t border-border px-4 py-3 sm:px-6">
-        <Button variant="outline" onClick={goBack} disabled={activeIndex === 0} className="gap-1.5">
-          <ArrowLeft className="size-4" /> Back
-        </Button>
-        {onLastStep ? (
-          <Button onClick={handleCreate} disabled={creating || !concept.title.trim()} className="gap-1.5">
-            {creating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            {creating ? 'Creating…' : 'Create book'}
+      <footer className="border-t border-border px-4 py-3 sm:px-6">
+        {(advice.block || advice.note) && (
+          <p
+            className={cn(
+              'mb-2 text-xs',
+              advice.block ? 'text-destructive' : 'text-muted-foreground',
+            )}
+            role={advice.block ? 'alert' : 'status'}
+          >
+            {advice.block ?? advice.note}
+          </p>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <Button variant="outline" onClick={goBack} disabled={activeIndex === 0} className="gap-1.5">
+            <ArrowLeft className="size-4" /> Back
           </Button>
-        ) : (
-          <Button onClick={goNext} disabled={nextDisabled} className="gap-1.5">
-            Next <ArrowRight className="size-4" />
+          <div className="flex items-center gap-2">
+            {/* The wizard is four steps long, and some days a writer has the
+                idea and nothing else. Making the book from the concept alone
+                is a real answer, not an escape hatch. */}
+            {!onLastStep && concept.title.trim() !== '' && (
+              <Button
+                variant="ghost"
+                onClick={() => handleCreate({ conceptOnly: true })}
+                disabled={creating}
+                className="hidden gap-1.5 sm:inline-flex"
+              >
+                <FastForward className="size-4" /> Just make the book
+              </Button>
+            )}
+            {onLastStep ? (
+              <Button
+                onClick={() => handleCreate()}
+                disabled={creating || !concept.title.trim()}
+                className="gap-1.5"
+              >
+                {creating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                {creating ? 'Creating…' : 'Create book'}
+              </Button>
+            ) : (
+              <Button onClick={goNext} disabled={nextDisabled} className="gap-1.5">
+                Next <ArrowRight className="size-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        {!onLastStep && concept.title.trim() !== '' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleCreate({ conceptOnly: true })}
+            disabled={creating}
+            className="mt-2 w-full gap-1.5 sm:hidden"
+          >
+            <FastForward className="size-4" /> Just make the book
           </Button>
         )}
       </footer>
