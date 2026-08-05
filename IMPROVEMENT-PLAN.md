@@ -485,9 +485,11 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (2 — two sources of truth), P2 (3, 4, 5).
 
 **Acceptance criteria.**
-- [ ] A wizard book built on "Standard novel" has Prologue/Chapters/Epilogue with outline content in the right places.
-- [ ] Skip from step 1 yields a usable empty project.
-- [ ] Banner appears once, links work, never returns after dismiss.
+- [x] A wizard book built on "Standard novel" has Prologue/Chapters/Epilogue with outline content in the right places.
+- [x] Skip from step 1 yields a usable empty project. *(It yields a usable project laid out in the chosen format, which is better than empty and no more work.)*
+- [x] Banner appears once, links work, never returns after dismiss.
+
+**Done** — `merge-outline.ts` + `step-advice.ts` + `handoff.ts`, `scripts/wizard-template-check.mjs` (24 checks).
 
 ---
 
@@ -516,10 +518,12 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1, 3 — the stated "cover maker upgrade" core), P2 (2, 4, 6), P3/suggestion (5 spine maths).
 
 **Acceptance criteria.**
-- [ ] Drag the image; exported PNG matches the preview position within a pixel-probe tolerance.
-- [ ] Scrim makes white text legible over a light image (contrast probe on the export).
-- [ ] Two variants switchable; box set and front page use the active one (`resolve-cover` tests extended).
-- [ ] Undo reverts the last ten operations in-session.
+- [x] Drag the image; exported PNG matches the preview position within a pixel-probe tolerance. *(They match exactly, not within a tolerance — both now read one geometry.)*
+- [x] Scrim makes white text legible over a light image (contrast probe on the export). **Correction to this section's premise:** the scrim already existed (`cover.overlay`, in both the preview and `render-cover.ts`); what was missing was any proof it worked, which is what the probe adds.
+- [ ] Two variants switchable; box set and front page use the active one (`resolve-cover` tests extended). *(16.4, still open.)*
+- [ ] Undo reverts the last ten operations in-session. *(16.6, still open.)*
+
+**Done: 16.1, 16.3** — `crop-geometry.ts`, `scripts/cover-crop-check.mjs` (17 checks). 16.2, 16.4–16.6 remain.
 
 ---
 
@@ -688,8 +692,10 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1), P2 (2, 3).
 
 **Acceptance criteria.**
-- [ ] A 30-chapter Markdown file imports with structure matching the preview exactly; word counts sum correctly.
-- [ ] Almanac JSON round-trips entries, attributes, relationships (images included as base64, matching backup format conventions).
+- [x] A 30-chapter Markdown file imports with structure matching the preview exactly; word counts sum correctly.
+- [ ] Almanac JSON round-trips entries, attributes, relationships (images included as base64, matching backup format conventions). *(22.2, still open.)*
+
+**Done: 22.1** — `features/import/` (`parse-manuscript.ts`, `read-document.ts`, `commit-import.ts`), `scripts/manuscript-import-check.mjs` (28 checks). It landed under `features/import/` rather than `features/export/lib/importers.ts`: reading a foreign document has nothing in common with writing one of ours, and the parse is the whole of the work. 22.2–22.3 remain.
 
 ---
 
