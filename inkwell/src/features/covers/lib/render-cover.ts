@@ -2,6 +2,7 @@ import { getEditorFont } from '@/lib/editor/fonts'
 import type { Cover, CoverTypographyLayer } from '@/types'
 
 import { ASPECT_DIMENSIONS } from './aspect'
+import { coverGeometry } from './crop-geometry'
 
 export function hexWithAlpha(hex: string, alpha: number): string {
   const clean = hex.replace('#', '')
@@ -30,18 +31,20 @@ function drawCoverBackground(
   canvasH: number,
   crop: Cover['crop'],
 ) {
-  const baseScale = Math.max(canvasW / image.width, canvasH / image.height)
-  const scaledW = image.width * baseScale
-  const scaledH = image.height * baseScale
-  const offsetX = (canvasW - scaledW) * (crop.x / 100)
-  const offsetY = (canvasH - scaledH) * (crop.y / 100)
+  // The same geometry the preview lays out with, so what was framed on screen
+  // is what comes out of the export. The zoom is inside the placement rather
+  // than a transform around it, which is what lets a zoomed cover be moved.
+  const geo = coverGeometry(
+    { w: canvasW, h: canvasH },
+    { w: image.width, h: image.height },
+    crop,
+  )
 
   ctx.save()
   ctx.translate(canvasW / 2, canvasH / 2)
   ctx.rotate((crop.rotation * Math.PI) / 180)
-  ctx.scale(crop.zoom, crop.zoom)
   ctx.translate(-canvasW / 2, -canvasH / 2)
-  ctx.drawImage(image, offsetX, offsetY, scaledW, scaledH)
+  ctx.drawImage(image, geo.x, geo.y, geo.w, geo.h)
   ctx.restore()
 }
 

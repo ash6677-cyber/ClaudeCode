@@ -18,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/use-toast'
 import { CoverPreview } from '@/features/covers/components/cover-preview'
+import { MAX_ZOOM, MIN_ZOOM } from '@/features/covers/lib/crop-geometry'
 import { TypographyLayerRow } from '@/features/covers/components/typography-layer-row'
 import { ASPECT_DIMENSIONS } from '@/features/covers/lib/aspect'
 import { exportCoverPng } from '@/features/covers/lib/render-cover'
@@ -187,6 +188,7 @@ export function CoversHome() {
             selectedLayerId={selectedLayerId}
             onSelectLayer={setSelectedLayerId}
             onCommitLayerPosition={(id, x, y) => updateTypographyLayer(id, { x, y })}
+            onCropChange={updateCrop}
             className="w-full max-w-sm"
           />
         </div>
@@ -230,12 +232,16 @@ export function CoversHome() {
               <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Frame image
               </Label>
+              <p className="text-xs text-muted-foreground">
+                Drag the picture to move it, or hold {'\u2318'}/Ctrl and scroll to zoom. The
+                sliders do the same thing, for when you want it exact.
+              </p>
               <div className="grid gap-1.5">
                 <Label className="text-xs">Zoom</Label>
                 <input
                   type="range"
-                  min={1}
-                  max={3}
+                  min={MIN_ZOOM}
+                  max={MAX_ZOOM}
                   step={0.05}
                   value={cover.crop.zoom}
                   onChange={(e) => updateCrop({ zoom: Number(e.target.value) })}
