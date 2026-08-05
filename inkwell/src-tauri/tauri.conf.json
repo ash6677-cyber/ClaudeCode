@@ -25,7 +25,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://api.anthropic.com https://api.openai.com https://openrouter.ai https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com http://127.0.0.1:9099 http://127.0.0.1:8080; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; img-src 'self' asset: http://asset.localhost data: blob: https://lh3.googleusercontent.com https://platform-lookaside.fbsbx.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'"
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https: http://localhost:* http://127.0.0.1:* wss://*.firebaseio.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; img-src 'self' asset: http://asset.localhost data: blob: https://lh3.googleusercontent.com https://platform-lookaside.fbsbx.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'"
     }
   },
   "plugins": {
@@ -39,7 +39,9 @@
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": true,
-    "targets": ["nsis"],
+    "targets": [
+      "nsis"
+    ],
     "publisher": "INKWELL",
     "copyright": "Copyright INKWELL",
     "shortDescription": "A calm, local-first novel-writing studio",
@@ -53,7 +55,9 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "languages": ["English"],
+        "languages": [
+          "English"
+        ],
         "displayLanguageSelector": false
       },
       "webviewInstallMode": {

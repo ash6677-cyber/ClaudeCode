@@ -83,3 +83,19 @@ with `tauri signer generate`, no CA involved) to sign the *update payload* so
 the app can verify an update actually came from you before installing it.
 That's unrelated to Authenticode/SmartScreen and doesn't cost anything or
 need a third party — it's covered in the auto-update work, not here.
+
+## Why the desktop app can reach any AI service
+
+`connect-src` in `src-tauri/tauri.conf.json` allows `https:` generally, plus
+`http://localhost:*` and `http://127.0.0.1:*`.
+
+That is wider than the three named services it used to list, and it is
+deliberate. Bring-your-own-key means *any* key: OpenRouter today, a company's
+own endpoint tomorrow, a model running on the writer's own machine after
+that. A policy naming three hosts silently blocks the fourth, and the failure
+surfaces as a chat that never answers rather than as anything a writer could
+diagnose.
+
+Plain `http:` is still refused except on the loopback addresses, so a key
+cannot be sent unencrypted to somewhere else on the network. Script and style
+sources are unchanged and remain restricted to the app's own bundle.
