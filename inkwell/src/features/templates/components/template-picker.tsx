@@ -121,7 +121,10 @@ export function TemplatePicker({
                 onClick={() => choose(choice.id)}
                 aria-pressed={active}
                 className={cn(
-                  'rounded-full border px-3 py-1 text-xs transition-colors',
+                  // Grown rather than given an invisible larger hit box: these
+                  // wrap, and overlapping boxes in a wrapped row steal each
+                  // other's taps. Real height is the only safe way here.
+                  'flex items-center rounded-full border px-3 py-1 text-xs transition-colors max-sm:min-h-11 max-sm:px-4',
                   choice.custom && 'rounded-r-none border-r-0',
                   active
                     ? 'border-primary bg-primary/10 font-medium text-foreground ring-1 ring-primary'
@@ -133,14 +136,14 @@ export function TemplatePicker({
               {choice.custom && (
                 <span
                   className={cn(
-                    'flex items-center rounded-r-full border py-0.5 pr-1.5',
+                    'flex items-center rounded-r-full border py-0.5 pr-1.5 max-sm:min-h-11 max-sm:pr-2',
                     active ? 'border-primary ring-1 ring-primary' : 'border-border',
                   )}
                 >
                   <button
                     type="button"
                     aria-label={`Edit ${choice.name}`}
-                    className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    className="rounded p-0.5 text-muted-foreground hover:text-foreground max-sm:p-2"
                     onClick={() => setEditing({ id: choice.id })}
                   >
                     <Pencil className="size-3" />
@@ -148,7 +151,7 @@ export function TemplatePicker({
                   <button
                     type="button"
                     aria-label={`Delete ${choice.name}`}
-                    className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+                    className="rounded p-0.5 text-muted-foreground hover:text-destructive max-sm:p-2"
                     onClick={async () => {
                       await remove(choice.id)
                       if (active) choose(choices[0]?.id ?? '')
