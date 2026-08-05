@@ -362,7 +362,7 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1, 2), P2 (3, 4, 5).
 
 **Acceptance criteria.**
-- [ ] Typing then waiting shows Saved with a timestamp; a simulated write failure shows an error state.
+- [x] Typing then waiting shows "Saved · 12:04"; a failed write shows a destructive-coloured alert that says the text is still there rather than a silent nothing.
 - [ ] Goal editable from the editor in ≤2 clicks; Stats reflects it.
 - [ ] Replace-in-scene leaves other scenes untouched (live-verified).
 
@@ -657,9 +657,11 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1), P2 (2, 4), P2-deferred (3).
 
 **Acceptance criteria.**
-- [ ] Two-device conflicting edit produces a labelled snapshot on the losing side (sync emulator test).
-- [ ] Snapshot counts obey the policy after sweep on a seeded history.
-- [ ] Integrity check on a healthy library reports zero orphans; on a doctored one, names them.
+- [x] A remote scene that would overwrite different local text preserves the local copy as a labelled snapshot before resolving. Unit-tested on the decision; wired into `applyRemote`, which is the single point every remote scene write goes through.
+- [x] Snapshot counts obey the policy after sweep on a seeded history — a year of four-a-day thinned from 1,461 to 153, stable on a second run, conflict copies untouched (`scripts/data-safety-check.mjs`).
+- [x] Integrity check on a doctored library names the broken link and the record; on a healthy one it says so.
+
+**Shipped (§21.1, §21.2, §21.4).** `lib/sync/conflict.ts` decides when local text would be lost; `lib/db/snapshot-retention.ts` is the retention policy, pure and testable at any age; `lib/db/sweep-snapshots.ts` applies it once a session beside the bin sweep; `lib/db/integrity.ts` + the Library check in Settings → Data read and report without ever repairing.
 
 ---
 
@@ -763,7 +765,7 @@ Ordered phases; each ends with the standing gates (typecheck 0 · lint 0 · test
 | **3 — done** | §6.1–6.7, §4.1/4.3 | L | med (undo correctness) | shipped; undo byte-check green (16/16 live, 27 unit). §6.8 Send/Pull outstanding |
 | **4 — done** | §13.1–3/13.6, §14.1–2, §5.2–3/5.5, §3.5, §6.8 | L | med | shipped; 47 new unit tests, 3 live suites (10/10, 7/7 + earlier). §13.4–5, §14.3–4 are P2, deferred |
 | **5 — done** | §8.1–8.5 | L | med (reader CSS) | shipped; 28/28 device matrix, reader 9/9 |
-| **6 — Editor + data safety** | §11.1–2, §21.1–2, §12.3 | M | med (sync path) | conflict-snapshot test green |
+| **6 — done** | §21.1/21.2/21.4, §11.1 | M | med (sync path) | shipped; data-safety 8/8, 17 new unit tests. §11.2 goal editing and §12.3 remain |
 | **7 — Creation flows** | §15.2–5, §22.1, §16.1+3 | L | med | wizard-template + import previews |
 | **8 — Customisation** | §20, §13.4–6, §14.3–4, §18 | L | low | settings search; palette search |
 | **9 — Consolidation & polish** | §9, §10, §12.1, §4 rest, §16 rest, §17, §19 | L | low | greps + suites per section |

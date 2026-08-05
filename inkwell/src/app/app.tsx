@@ -13,6 +13,7 @@ import { ImportConfirmDialog } from '@/components/common/import-confirm-dialog'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useSyncEditorFont } from '@/lib/editor/use-sync-editor-font'
+import { sweepSnapshots } from '@/lib/db/sweep-snapshots'
 import { useTrashStore } from '@/stores/trash-store'
 
 export function App() {
@@ -23,6 +24,10 @@ export function App() {
   // deletes something, and a writer who has not opened the app has not.
   useEffect(() => {
     void useTrashStore.getState().sweepExpired()
+    // Scene history is thinned on the same schedule and for the same reason:
+    // it only grows while someone is writing, so once a session is the right
+    // cadence and a timer would be noise.
+    void sweepSnapshots()
   }, [])
 
   return (

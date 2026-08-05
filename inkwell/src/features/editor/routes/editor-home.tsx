@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/react'
 import {
+  AlertTriangle,
   Library,
   Maximize2,
   Minimize2,
@@ -44,7 +45,7 @@ import { useUiStore } from '@/stores/ui-store'
 import type { Project, RichContent } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
-type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved'
+type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'failed'
 const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000
 
 export function EditorHome() {
@@ -116,6 +117,8 @@ export function EditorHome() {
   const [findQuery, setFindQuery] = useState('')
   const [findSeed, setFindSeed] = useState(0)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
+  /** When the last successful write landed, so "Saved" can say when. */
+  const [savedAt, setSavedAt] = useState<number | null>(null)
   const [editorEpoch, setEditorEpoch] = useState(0)
   const [snapshotVersion, setSnapshotVersion] = useState(0)
   const [liveEditor, setLiveEditor] = useState<Editor | null>(null)
@@ -132,6 +135,13 @@ export function EditorHome() {
   useDocumentTitle(activeScene?.title, 'Editor')
 
   const bookWordCount = useMemo(() => scenes.reduce((sum, s) => sum + s.wordCount, 0), [scenes])
+  const savedTimeLabel = useMemo(
+    () =>
+      savedAt === null
+        ? 'Saved'
+        : `Saved · ${new Date(savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    [savedAt],
+  )
   const structureMode = project?.settings.structureMode ?? 'scenes'
 
   // Reset the save-status pill when the active scene changes, via render-time adjustment
@@ -195,8 +205,16 @@ export function EditorHome() {
         lastSnapshotAtRef.current.set(sceneId, Date.now())
         setSnapshotVersion((v) => v + 1)
       }
-      await updateSceneContent(sceneId, input)
-      setSaveStatus('saved')
+      try {
+        await updateSceneContent(sceneId, input)
+        setSavedAt(Date.now())
+        setSaveStatus('saved')
+      } catch {
+        // The one anxiety a local-first app has to answer is "is my work
+        // safe?". Swallowing a failed write and continuing to look calm is
+        // the worst possible answer, so this says so and keeps saying so.
+        setSaveStatus('failed')
+      }
     },
     [updateSceneContent],
   )
@@ -387,7 +405,15 @@ export function EditorHome() {
               >
                 {formatWordCount(bookWordCount)} words in this book
               </span>
-              {activeScene && (
+              {activeScene && saveStatus === 'failed' && (
+                <span
+                  role="alert"
+                  className="mr-1 flex items-center gap-1 text-xs font-medium text-destructive"
+                >
+                  <AlertTriangle className="size-3.5" /> Could not save — your text is still here
+                </span>
+              )}
+              {activeScene && saveStatus !== 'failed' && (
                 <span
                   className={cn(
                     'mr-1 hidden text-xs sm:inline',
@@ -399,7 +425,10 @@ export function EditorHome() {
                     : saveStatus === 'unsaved'
                       ? 'Unsaved changes'
                       : saveStatus === 'saved'
-                        ? 'Saved'
+                        ? // The time is the point. "Saved" alone is a claim;
+                          // "Saved · 12:04" is something a writer can check
+                          // against the clock and their own last keystroke.
+                          savedTimeLabel
                         : ''}
                 </span>
               )}

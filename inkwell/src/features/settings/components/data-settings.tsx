@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { LibraryCheck } from '@/features/settings/components/library-check'
 import {
   Dialog,
   DialogContent,
@@ -123,6 +124,10 @@ export function DataSettings() {
     return (
       <div className="space-y-8">
         <StorageHealth />
+        {/* Worth more here than on the desktop build, not less: a browser
+            library has no folder of files to inspect, so this is the only
+            way to ask whether it is all still there. */}
+        <LibraryCheck />
         <TrashSettings />
       </div>
     )
@@ -155,6 +160,8 @@ export function DataSettings() {
           </Button>
         </div>
       </section>
+
+      <LibraryCheck />
 
       <section>
         <div className="flex items-center justify-between">

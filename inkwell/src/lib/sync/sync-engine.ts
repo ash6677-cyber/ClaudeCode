@@ -9,10 +9,11 @@ import {
 } from 'firebase/firestore'
 
 import type { TableLike } from '@/lib/db/repository'
+import { conflictLabel, localTextWouldBeLost } from '@/lib/sync/conflict'
 import { firestore } from '@/lib/firebase/config'
 import { decodeEntity, encodeEntity, isTombstone, tombstoneFor } from '@/lib/sync/entity-codec'
 import type { LocalChangeKind } from '@/lib/sync/synced-table'
-import type { BaseEntity } from '@/types'
+import type { BaseEntity, Scene } from '@/types'
 
 /**
  * Every table that participates in cloud sync.
@@ -284,9 +285,61 @@ class SyncEngine {
 
     const entity = decodeEntity(table, remoteDoc, chunks)
     const existing = await localTable.get(id)
-    if (existing) await localTable.update(id, entity)
-    else await localTable.add(entity)
+    if (existing) {
+      await this.preserveLosingScene(table, existing, entity)
+      await localTable.update(id, entity)
+    } else {
+      await localTable.add(entity)
+    }
     this.markRemoteApplied(table)
+  }
+
+  /**
+   * Keeps the local text that is about to be overwritten.
+   *
+   * Sync resolves by `updatedAt` and always will: the rule is symmetric and
+   * idempotent, which is why it is the right one. But it means two pages
+   * written on a laptop can be replaced by two different pages written on a
+   * phone, silently, with nothing to say the first two ever existed.
+   *
+   * The resolution is unchanged. The losing text simply lands in the scene's
+   * own history first, labelled, where the writer already knows how to find
+   * it. Scenes only — everything else sync carries is a record rather than
+   * prose, and a lost tag is not a lost afternoon.
+   */
+  private async preserveLosingScene(
+    table: SyncedTableName,
+    existing: BaseEntity,
+    incoming: BaseEntity,
+  ) {
+    if (table !== 'scenes') return
+    const local = existing as unknown as Scene
+    const remote = incoming as unknown as Scene
+    if (!localTextWouldBeLost(local, remote.plainText)) return
+
+    // Written through the engine's own table handle rather than the snapshot
+    // repository: `repositories` imports the schema, the schema imports this,
+    // and reaching for it here would close that circle and break the module
+    // graph at load time — which it did, once.
+    const snapshots = this.tables.get('snapshots')
+    if (!snapshots) return
+
+    const now = Date.now()
+    try {
+      await snapshots.add({
+        id: crypto.randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+        sceneId: local.id,
+        content: local.content,
+        plainText: local.plainText,
+        wordCount: local.wordCount,
+        label: conflictLabel(),
+      } as unknown as BaseEntity)
+    } catch {
+      // A history entry is a safety net, not a precondition. Failing to write
+      // one must not stop the sync it was protecting.
+    }
   }
 
   private async pushEntities(table: SyncedTableName, ids: string[]) {
