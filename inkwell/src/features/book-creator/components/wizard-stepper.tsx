@@ -35,7 +35,7 @@ export function WizardStepper({ steps, activeIndex, furthestIndex, onSelect }: W
               aria-label={step.label}
               aria-current={active ? 'step' : undefined}
               className={cn(
-                'flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 text-sm font-medium transition-colors disabled:cursor-not-allowed',
+                'flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full py-1.5 pl-1.5 pr-3 text-sm font-medium transition-colors disabled:cursor-not-allowed max-sm:pr-1.5 sm:min-h-0 sm:min-w-0 sm:justify-start',
                 active
                   ? 'bg-accent text-accent-foreground'
                   : reachable

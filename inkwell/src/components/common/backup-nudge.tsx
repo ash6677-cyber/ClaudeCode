@@ -98,11 +98,11 @@ export function BackupNudge() {
             INKWELL on any device.
           </p>
           <div className="mt-2.5 flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={handleExport} disabled={busy} className="h-8 gap-1.5">
+            <Button size="sm" onClick={handleExport} disabled={busy} className="h-8 gap-1.5 max-sm:h-11">
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
               Back up now
             </Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => snooze(SNOOZE_DAYS)}>
+            <Button size="sm" variant="ghost" className="h-8 max-sm:h-11" onClick={() => snooze(SNOOZE_DAYS)}>
               Later
             </Button>
           </div>
@@ -111,7 +111,7 @@ export function BackupNudge() {
           type="button"
           aria-label="Dismiss backup reminder"
           onClick={() => snooze(SNOOZE_DAYS)}
-          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
+          className="touch-target shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground"
         >
           <X className="size-4" />
         </button>

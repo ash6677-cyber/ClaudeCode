@@ -15,11 +15,22 @@ export const buttonVariants = cva(
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline active:scale-100',
       },
+      /*
+       * Two sizes for every button: the one a cursor needs and the one a
+       * fingertip does. A mouse pointer is a single pixel and a fingertip is
+       * about 44 of them, which is why every platform's guidance lands on
+       * that number — and why a 32px control that feels precise on a desktop
+       * is a control most people miss on a phone.
+       *
+       * The height grows below `sm`; padding and type do not, so the buttons
+       * stay the same shape and weight rather than becoming a different
+       * design at a different width.
+       */
       size: {
-        default: 'h-9 px-4 py-2',
-        sm: 'h-8 rounded-md px-3 text-xs',
-        lg: 'h-10 rounded-md px-6',
-        icon: 'h-9 w-9',
+        default: 'h-9 max-sm:h-11 px-4 py-2',
+        sm: 'h-8 max-sm:h-11 rounded-md px-3 text-xs',
+        lg: 'h-10 max-sm:h-12 rounded-md px-6',
+        icon: 'size-9 max-sm:size-11',
       },
     },
     defaultVariants: {

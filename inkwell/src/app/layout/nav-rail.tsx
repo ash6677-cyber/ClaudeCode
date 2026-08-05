@@ -17,7 +17,7 @@ export function NavRail() {
   return (
     <aside
       className={cn(
-        'hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar shadow-[8px_0_32px_-20px_oklch(0%_0_0/0.6)] transition-[width] duration-200 ease-out lg:flex',
+        'pad-safe-top hidden h-full shrink-0 flex-col border-r border-sidebar-border bg-sidebar shadow-[8px_0_32px_-20px_oklch(0%_0_0/0.6)] transition-[width] duration-200 ease-out lg:flex',
         collapsed ? 'w-16' : 'w-60',
       )}
     >

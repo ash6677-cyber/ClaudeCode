@@ -27,6 +27,11 @@
      here and referenced there, every `font-sans` in the app resolves through
      a property a theme can actually turn — the same indirection the colours
      already use. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
   --ui-font: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --display-font: 'Source Serif 4', ui-serif, Georgia, serif;
   --mono-font: 'JetBrains Mono', ui-monospace, monospace;
@@ -325,6 +330,57 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+@layer utilities {
+  /*
+   * A hit area a fingertip can actually land on, without changing the layout.
+   *
+   * Most controls simply grow on a phone, which is the honest fix. A few
+   * cannot: a reorder grip inside a dense list row, a dismiss cross on a
+   * banner — enlarging those would push the row apart and make the screen
+   * worse to read in order to make one target easier to hit. This expands
+   * only what the finger touches, leaving what the eye sees alone.
+   */
+  .touch-target {
+    position: relative;
+  }
+
+  .touch-target::after {
+    content: '';
+    position: absolute;
+    /* Centred on the control, so the growth is even on every side. */
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+  }
+
+  /*
+   * Chrome that sits against the edge of the screen.
+   *
+   * `viewport-fit=cover` lets the app use the whole display, which on a
+   * notched phone means the top bar starts underneath the notch and the
+   * bottom row underneath the home indicator. These put it back.
+   *
+   * Routed through variables rather than reading `env()` at each use, because
+   * `env()` cannot be overridden and a headless browser has no notch — which
+   * would make this the one piece of layout that could never be tested. The
+   * variables are the real insets in a real browser and a test can set them.
+   */
+  .pad-safe-top {
+    padding-top: var(--safe-top);
+  }
+
+  .pad-safe-bottom {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  .pad-safe-x {
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
   }
 }
 

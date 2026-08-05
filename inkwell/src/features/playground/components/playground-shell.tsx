@@ -47,7 +47,7 @@ export function PlaygroundShell() {
               key={section.slug}
               to={playgroundPath(section.slug, projectId)}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors',
+                'flex min-h-11 shrink-0 items-center gap-1.5 rounded-t-md border-b-2 px-3 py-2 text-sm font-medium transition-colors',
                 section.slug === active
                   ? 'border-primary text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground',

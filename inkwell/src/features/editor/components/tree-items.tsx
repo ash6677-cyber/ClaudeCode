@@ -119,7 +119,7 @@ export function ChapterRow({
           {...attributes}
           {...listeners}
           aria-label={`Reorder ${chapter.title}`}
-          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+          className="touch-target flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing max-sm:opacity-70"
         >
           <GripVertical className="size-3.5" />
         </button>
@@ -128,7 +128,7 @@ export function ChapterRow({
           onClick={onToggleExpand}
           aria-label={expanded ? 'Collapse chapter' : 'Expand chapter'}
           aria-expanded={expanded}
-          className="flex size-5 shrink-0 items-center justify-center text-muted-foreground"
+          className="touch-target flex size-5 shrink-0 items-center justify-center text-muted-foreground"
         >
           <ChevronRight className={cn('size-3.5 transition-transform', expanded && 'rotate-90')} />
         </button>
@@ -168,7 +168,7 @@ export function ChapterRow({
           type="button"
           onClick={onAddScene}
           aria-label={`Add scene to ${chapter.title}`}
-          className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+          className="touch-target flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100 max-sm:opacity-70"
         >
           <Plus className="size-3.5" />
         </button>
@@ -178,7 +178,7 @@ export function ChapterRow({
             <button
               type="button"
               aria-label={`More actions for ${chapter.title}`}
-              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+              className="touch-target flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100 max-sm:opacity-70"
             >
               <MoreHorizontal className="size-3.5" />
             </button>
@@ -264,7 +264,7 @@ export function ChapterOnlyRow({
           {...attributes}
           {...listeners}
           aria-label={`Reorder ${chapter.title}`}
-          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+          className="touch-target flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing max-sm:opacity-70"
         >
           <GripVertical className="size-3.5" />
         </button>
@@ -308,7 +308,7 @@ export function ChapterOnlyRow({
             <button
               type="button"
               aria-label={`More actions for ${chapter.title}`}
-              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+              className="touch-target flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100 max-sm:opacity-70"
             >
               <MoreHorizontal className="size-3.5" />
             </button>
@@ -383,7 +383,7 @@ export function SceneRow({
           {...attributes}
           {...listeners}
           aria-label={`Reorder ${scene.title}`}
-          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+          className="touch-target flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 opacity-0 group-hover:opacity-100 active:cursor-grabbing max-sm:opacity-70"
         >
           <GripVertical className="size-3.5" />
         </button>
@@ -405,7 +405,7 @@ export function SceneRow({
             onClick={onSelect}
             onDoubleClick={() => setRenaming(true)}
             className={cn(
-              'min-w-0 flex-1 truncate text-left text-sm',
+              'min-w-0 flex-1 truncate text-left text-sm max-sm:min-h-11',
               active ? 'font-medium text-foreground' : 'text-foreground/80',
             )}
           >
@@ -422,7 +422,7 @@ export function SceneRow({
             <button
               type="button"
               aria-label={`More actions for ${scene.title}`}
-              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100"
+              className="touch-target flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 hover:bg-secondary hover:text-foreground group-hover:opacity-100 max-sm:opacity-70"
             >
               <MoreHorizontal className="size-3.5" />
             </button>

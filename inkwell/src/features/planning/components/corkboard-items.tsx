@@ -40,7 +40,7 @@ export function ChapterColumn({ chapter, scenes, isDropTarget, onOpenScene }: Ch
           {...attributes}
           {...listeners}
           aria-label={`Reorder ${chapter.title}`}
-          className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 active:cursor-grabbing"
+          className="touch-target flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground/50 active:cursor-grabbing"
         >
           <GripVertical className="size-3.5" />
         </button>
@@ -110,7 +110,7 @@ export function SortableSceneCard({ scene, chapterId, onOpen }: SortableSceneCar
         <button
           type="button"
           onClick={onOpen}
-          className="min-w-0 flex-1 truncate text-left text-sm font-medium"
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium max-sm:min-h-11"
         >
           {scene.title}
         </button>
@@ -160,7 +160,7 @@ export function ChapterOnlyCard({ chapter, scene, onOpen }: ChapterOnlyCardProps
         <button
           type="button"
           onClick={onOpen}
-          className="min-w-0 flex-1 truncate text-left text-sm font-semibold"
+          className="min-w-0 flex-1 truncate text-left text-sm font-semibold max-sm:min-h-11"
         >
           {chapter.title}
         </button>
