@@ -1,4 +1,4 @@
-import { Library, Plus, Sparkles } from 'lucide-react'
+import { Library, Plus, Sparkles, Upload } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/use-toast'
 import { ProjectCard } from '@/features/projects/components/project-card'
 import { ExportDialog } from '@/features/export/components/export-dialog'
+import { ImportManuscriptDialog } from '@/features/import/components/import-manuscript-dialog'
 import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog'
 import { useProjectStore } from '@/stores/project-store'
 import { useUiStore } from '@/stores/ui-store'
@@ -35,6 +36,7 @@ export function ProjectsHome() {
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined)
   const [deletingProject, setDeletingProject] = useState<Project | null>(null)
   const [exportingProject, setExportingProject] = useState<Project | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -99,6 +101,9 @@ export function ProjectsHome() {
           status === 'ready' &&
           projects.length > 0 && (
             <>
+              <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                <Upload /> Import
+              </Button>
               <Button size="sm" variant="outline" asChild>
                 <Link to="/book-creator">
                   <Sparkles /> Book Creator
@@ -135,7 +140,7 @@ export function ProjectsHome() {
             <EmptyState
               icon={Library}
               title="No projects yet"
-              description="Create your first project to start building your manuscript, worldbuilding, and characters."
+              description="Start something new, or bring in a manuscript you have already written."
               action={
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={openCreateDialog}>
@@ -145,6 +150,9 @@ export function ProjectsHome() {
                     <Link to="/book-creator">
                       <Sparkles /> Use Book Creator
                     </Link>
+                  </Button>
+                  <Button variant="outline" onClick={() => setImportOpen(true)}>
+                    <Upload /> Import a manuscript
                   </Button>
                 </div>
               }
@@ -172,6 +180,8 @@ export function ProjectsHome() {
         open={exportingProject !== null}
         onOpenChange={(open) => !open && setExportingProject(null)}
       />
+
+      <ImportManuscriptDialog open={importOpen} onOpenChange={setImportOpen} />
 
       <ProjectFormDialog
         key={formKey}
