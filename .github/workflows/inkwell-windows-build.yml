@@ -51,19 +51,44 @@ jobs:
           npm run lint
           npm test
 
-      # This builds a valid, working NSIS installer either way:
-      # - Authenticode (SmartScreen) signing needs a purchased certificate —
-      #   see inkwell/docs/WINDOWS_SIGNING.md — and isn't wired up here yet.
-      # - Updater-artifact signing (TAURI_SIGNING_PRIVATE_KEY) uses a keypair
-      #   generated locally with `tauri signer generate`, no purchase needed;
-      #   set it as a repo secret and this step picks it up automatically.
-      #   Without it, `createUpdaterArtifacts` still runs but the .sig files
-      #   won't verify, so the in-app updater will reject the update.
+      # Whether the in-app updater can be signed decides how the build runs,
+      # so it is settled before the build rather than discovered at the end of
+      # one. A malformed key used to fail the job *after* a perfectly good
+      # installer had already been produced, so nothing was published at all
+      # — which is the worst of both outcomes.
+      #
+      # A minisign secret key is two lines: a comment beginning "untrusted
+      # comment:", then the base64. Pasting only the base64 into the secret
+      # gives "Missing comment in secret key", which is exactly what happened.
+      - name: Check the updater signing key
+        id: signing
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | head -n1 | grep -qi 'untrusted comment'; then
+            echo 'usable=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'usable=false' >> "$GITHUB_OUTPUT"
+            echo "::warning title=Updater signing skipped::TAURI_SIGNING_PRIVATE_KEY is missing or is not a whole minisign secret key (it must include its 'untrusted comment:' first line). The installer is still built and published; in-app updates will not be offered until the secret is fixed and a new release is made."
+          fi
+
+      # Authenticode (SmartScreen) signing needs a purchased certificate — see
+      # inkwell/docs/WINDOWS_SIGNING.md — and is not wired up here. The
+      # installer works regardless; Windows shows an "unrecognised app" prompt.
       - name: Build installer
+        if: steps.signing.outputs.usable == 'true'
         run: npm run desktop:build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      # Updater artifacts are turned off rather than produced unsigned: a .sig
+      # that cannot verify is worse than no .sig, because the updater would
+      # offer the update and then reject it.
+      - name: Build installer (without updater signing)
+        if: steps.signing.outputs.usable != 'true'
+        run: npm run desktop:build -- --config "{\"bundle\":{\"createUpdaterArtifacts\":false}}"
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
@@ -73,6 +98,8 @@ jobs:
             inkwell/src-tauri/target/release/bundle/nsis/*.exe
             inkwell/src-tauri/target/release/bundle/nsis/*.sig
             inkwell/src-tauri/target/release/bundle/*.json
+          # The .exe must exist; the .sig and latest.json only exist when the
+          # updater could be signed, and their absence is already warned about.
           if-no-files-found: error
 
       - name: Create GitHub Release
