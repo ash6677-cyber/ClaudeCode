@@ -37,6 +37,7 @@ import {
 import { mergeOutline } from '@/features/book-creator/lib/merge-outline'
 import { expandTemplate } from '@/features/templates/lib/templates'
 import { cardRepo, chapterRepo, codexRepo, projectRepo, sceneRepo } from '@/lib/db/repositories'
+import { resolveProvider } from '@/lib/ai/resolve-provider'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
 import { findTemplate, templateChoices, useTemplateStore } from '@/stores/template-store'
@@ -97,7 +98,8 @@ export function BookCreatorWizard() {
   }, [loadTemplates])
 
   const preset = presets.find((p) => p.isDefault) ?? presets[0]
-  const provider = preset ? providers.find((p) => p.id === preset.providerId) : undefined
+  // Any working key, not only the one this preset names. See resolve-provider.
+  const provider = resolveProvider(preset, providers)?.provider
   const aiAvailable = Boolean(preset && provider)
 
   // Read once, before the first render, so a restored draft is simply what

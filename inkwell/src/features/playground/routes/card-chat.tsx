@@ -5,6 +5,7 @@ import {
   MessageSquarePlus,
   MoreHorizontal,
   PanelLeft,
+  PlugZap,
   Send,
   Settings2,
   Square,
@@ -44,10 +45,14 @@ import { playgroundPath } from '@/features/playground/lib/playground-nav'
 import { AiFailureNotice } from '@/components/common/ai-failure-notice'
 import { ContextPreview } from '@/components/common/context-preview'
 import { buildChatPrompt } from '@/lib/ai/chat-prompt-builder'
+import { resolveProvider } from '@/lib/ai/resolve-provider'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
+import { useStoryScenes } from '@/lib/hooks/use-story-scenes'
+import { ProviderFormDialog } from '@/features/settings/components/provider-form-dialog'
 import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { cn } from '@/lib/utils'
 import { useAiStore } from '@/stores/ai-store'
+import { useCodexStore } from '@/stores/codex-store'
 import { useCardStore } from '@/stores/card-store'
 import { useChatStore } from '@/stores/chat-store'
 import { useLorebookStore } from '@/stores/lorebook-store'
@@ -108,6 +113,7 @@ export function CardChat() {
   const presets = useAiStore((s) => s.presets)
   const providers = useAiStore((s) => s.providers)
   const loadAiStore = useAiStore((s) => s.loadAll)
+  const createProvider = useAiStore((s) => s.createProvider)
 
   useEffect(() => {
     if (projectId) loadCardsProject(projectId)
@@ -134,6 +140,7 @@ export function CardChat() {
   const wideEnoughForSidebar = useMediaQuery('(min-width: 1024px)')
   const [keeping, setKeeping] = useState<string | null>(null)
   const [personaManagerOpen, setPersonaManagerOpen] = useState(false)
+  const [connectOpen, setConnectOpen] = useState(false)
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null)
   const [pendingMessageId, setPendingMessageId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -145,8 +152,19 @@ export function CardChat() {
     presets.find((p) => p.id === activeChat?.aiPresetId) ??
     presets.find((p) => p.isDefault) ??
     presets[0]
-  const provider = preset ? providers.find((p) => p.id === preset.providerId) : undefined
+  // Falls back to any working key rather than only the one this preset names.
+  // Every preset the app ships with starts pointing at nothing, so the strict
+  // version meant a writer could add a key and still get silence.
+  const resolved = resolveProvider(preset, providers)
+  const provider = resolved?.provider
   const personaName = persona?.name ?? 'You'
+
+  // The book this character is in, so they can remember what happened in it.
+  const scenes = useStoryScenes(projectId)
+  const codexEntries = useCodexStore((s) => s.entries)
+  const linkedEntry = card?.codexEntryId
+    ? codexEntries.find((e) => e.id === card.codexEntryId)
+    : undefined
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
@@ -166,10 +184,19 @@ export function CardChat() {
     if (!card || !activeChat || !preset || !provider) return
     setPendingMessageId(messageId)
     reset()
-    const built = buildChatPrompt({ card, chat: activeChat, persona, lorebooks, preset, history })
+    const built = buildChatPrompt({
+      card,
+      chat: activeChat,
+      persona,
+      lorebooks,
+      preset,
+      history,
+      scenes,
+      aliases: linkedEntry?.aliases ?? [],
+    })
     const finalText = await generate({
       provider,
-      model: preset.model || provider.defaultModel || '',
+      model: resolved?.model || '',
       messages: built.messages,
       temperature: preset.temperature,
       topP: preset.topP,
@@ -189,7 +216,10 @@ export function CardChat() {
     await sendUserMessage(activeChat.id, trimmed)
 
     if (!preset || !provider) {
-      toast({ title: 'No AI provider configured', description: 'Add one in Settings → AI to get replies.' })
+      toast({
+        title: 'No AI connected yet',
+        description: 'Your message is saved. Connect an AI below and ask again for a reply.',
+      })
       return
     }
 
@@ -593,19 +623,33 @@ export function CardChat() {
                   )}
                 </div>
                 {!provider && (
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    No AI provider configured — messages are saved but won't get replies.{' '}
-                    <Link to="/settings" className="underline">
-                      Set one up
-                    </Link>
-                    .
-                  </p>
+                  // Offered here, in the place the writer already is, rather
+                  // than as a link to a settings page they have to find their
+                  // way back from. This is the moment they want it.
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-accent/30 px-3 py-2">
+                    <p className="min-w-0 flex-1 text-xs text-muted-foreground">
+                      No AI connected — your messages are saved, but {card?.displayName ?? 'they'} can't
+                      answer yet. It takes about a minute and works with any provider.
+                    </p>
+                    <Button size="sm" className="shrink-0 gap-1.5" onClick={() => setConnectOpen(true)}>
+                      <PlugZap className="size-3.5" /> Connect an AI
+                    </Button>
+                  </div>
                 )}
               </div>
             </>
           )}
         </div>
       </div>
+
+      <ProviderFormDialog
+        open={connectOpen}
+        onOpenChange={setConnectOpen}
+        onSubmit={async (input) => {
+          await createProvider(input)
+          toast({ title: 'Connected', description: `${card?.displayName ?? 'Your characters'} can reply now.` })
+        }}
+      />
 
       {activeChat && (
         <Sheet open={mobileSettingsOpen} onOpenChange={setMobileSettingsOpen}>

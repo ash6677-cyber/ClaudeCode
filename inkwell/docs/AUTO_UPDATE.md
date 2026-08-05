@@ -9,7 +9,7 @@ app.
 ## How it's wired
 
 - `src-tauri/tauri.conf.json` → `plugins.updater` points at
-  `https://github.com/ash6677-cyber/ClaudeCode/releases/latest/download/latest.json`.
+  `https://github.com/ash6677-cyber/ink/releases/latest/download/latest.json`.
   GitHub automatically points `.../releases/latest/...` at whichever tagged
   release isn't marked pre-release, so publishing a new
   `inkwell-vX.Y.Z` release makes it the update target with no extra config.

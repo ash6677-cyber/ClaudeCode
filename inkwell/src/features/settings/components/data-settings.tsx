@@ -9,6 +9,7 @@ import {
 import { useCallback, useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { DesktopDownload } from '@/features/settings/components/desktop-download'
 import { LibraryCheck } from '@/features/settings/components/library-check'
 import {
   Dialog,
@@ -123,6 +124,10 @@ export function DataSettings() {
   if (!desktop) {
     return (
       <div className="space-y-8">
+        {/* First, because it is the answer to the problem the panel below
+            describes: a browser can clear its own storage, and the installed
+            app cannot. */}
+        <DesktopDownload />
         <StorageHealth />
         {/* Worth more here than on the desktop build, not less: a browser
             library has no folder of files to inspect, so this is the only
@@ -135,6 +140,8 @@ export function DataSettings() {
 
   return (
     <div className="space-y-8">
+      <DesktopDownload />
+
       <section>
         <h2 className="text-sm font-semibold">Storage location</h2>
         <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">

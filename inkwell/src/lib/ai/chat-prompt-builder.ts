@@ -1,6 +1,13 @@
 import type { AiPreset, CardChat, CharacterCard, ChatMessage, Lorebook, Persona } from '@/types'
 
+import {
+  CHARACTER_CONDUCT,
+  THIN_CARD_NOTE,
+  cardIsThin,
+  conversationModeBrief,
+} from './character-brief'
 import { contextItem, excluded, makePlan, trimToTokens, type ContextItem, type ContextPlan } from './context-plan'
+import { buildStoryDigest, EMPTY_DIGEST, type StoryScene } from './story-context'
 import { estimateTokens } from './token-estimate'
 import type { AiChatMessage } from './types'
 
@@ -11,6 +18,14 @@ export interface ChatPromptInput {
   lorebooks: Lorebook[]
   preset: AiPreset
   history: ChatMessage[]
+  /**
+   * The manuscript this character lives in, so they can remember it. Left out
+   * for a card that belongs to no project — the chat still works, the
+   * character simply has no book behind them.
+   */
+  scenes?: StoryScene[]
+  /** Names the character answers to in the prose, beyond their card name. */
+  aliases?: string[]
 }
 
 export interface BuiltChatPrompt {
@@ -104,44 +119,61 @@ function planLorebook(
   return { text: kept.join('\n\n'), items }
 }
 
-function buildCharacterSystemPrompt(card: CharacterCard, persona: Persona | null, mode: CardChat['mode']): string {
+function buildCharacterSystemPrompt(
+  card: CharacterCard,
+  persona: Persona | null,
+  mode: CardChat['mode'],
+): string {
+  // An override replaces the description of *who* this is. The conduct below
+  // still applies: a writer who rewrites a character's identity has not asked
+  // for a character who answers unhelpfully.
+  const identity: string[] = []
   if (card.systemPromptOverride?.trim()) {
-    return card.systemPromptOverride.trim()
+    identity.push(card.systemPromptOverride.trim())
+  } else {
+    identity.push(`You are ${card.displayName || 'a character in this book'}.`)
+    if (card.description.trim()) identity.push(`Description: ${card.description.trim()}`)
+    if (card.personality.trim()) identity.push(`Personality: ${card.personality.trim()}`)
+    if (card.scenario.trim()) identity.push(`Scenario: ${card.scenario.trim()}`)
+    if (card.voiceNotes.trim()) identity.push(`Voice and speech patterns: ${card.voiceNotes.trim()}`)
+    if (cardIsThin(card)) identity.push(THIN_CARD_NOTE)
   }
 
-  const lines = [`You are ${card.displayName}.`]
-  if (card.description.trim()) lines.push(`Description: ${card.description.trim()}`)
-  if (card.personality.trim()) lines.push(`Personality: ${card.personality.trim()}`)
-  if (card.scenario.trim()) lines.push(`Scenario: ${card.scenario.trim()}`)
-  if (card.voiceNotes.trim()) lines.push(`Voice and speech patterns: ${card.voiceNotes.trim()}`)
-
   if (card.exampleDialogue.length > 0) {
-    const personaName = persona?.name || 'User'
+    const personaName = persona?.name || 'the author'
     const examples = card.exampleDialogue
       .map((line) => `${personaName}: ${line.input}\n${card.displayName}: ${line.response}`)
       .join('\n\n')
-    lines.push(`Example exchanges (for voice and tone only, not part of this conversation):\n${examples}`)
+    identity.push(`Example exchanges (for voice and tone only, not part of this conversation):\n${examples}`)
   }
 
-  if (persona) {
-    lines.push(
-      `You are talking with ${persona.name}.${persona.description.trim() ? ` About them: ${persona.description.trim()}` : ''}`,
-    )
-  }
-
-  lines.push(
-    mode === 'interview'
-      ? "The user is the author, stepping out of the story to interview you about yourself. Answer in your own voice, but it's fine to reflect on your own story, motivations, and history with candor — this is character development, not in-scene roleplay."
-      : 'Stay fully and permanently in character. Respond only as your character would within the scenario — never break character, never acknowledge being an AI, and never narrate for the other person.',
+  identity.push(
+    persona
+      ? `You are talking with ${persona.name}, who is writing this book.${persona.description.trim() ? ` About them: ${persona.description.trim()}` : ''}`
+      : 'You are talking with the author of the book you are in.',
   )
 
-  return lines.join('\n\n')
+  identity.push(CHARACTER_CONDUCT)
+  identity.push(conversationModeBrief(mode))
+
+  return identity.join('\n\n')
 }
 
 export function buildChatPrompt(input: ChatPromptInput): BuiltChatPrompt {
-  const { card, chat, persona, lorebooks, preset, history } = input
+  const { card, chat, persona, lorebooks, preset, history, scenes, aliases } = input
 
   const characterPrompt = buildCharacterSystemPrompt(card, persona, chat.mode)
+
+  // What the manuscript says has happened to them. Budgeted against the same
+  // world-info allowance as lorebooks when one is set, because both are
+  // background the model is asked to hold in mind at once.
+  const storyDigest = scenes?.length
+    ? buildStoryDigest(
+        { id: card.id, name: card.displayName, aliases: aliases ?? [] },
+        scenes,
+        { tokenBudget: preset.contextRules.lorebookTokenBudget || 900 },
+      )
+    : EMPTY_DIGEST
 
   const recentText = history
     .slice(-6)
@@ -166,6 +198,7 @@ export function buildChatPrompt(input: ChatPromptInput): BuiltChatPrompt {
   const lorebookContext = lorebookPlan.text
 
   const systemParts = [characterPrompt]
+  if (storyDigest.text) systemParts.push(`What has happened to you in the book so far:\n${storyDigest.text}`)
   if (lorebookContext) systemParts.push(`World info:\n${lorebookContext}`)
   if (preset.systemPrompt.trim()) systemParts.push(preset.systemPrompt.trim())
   const systemPrompt = systemParts.join('\n\n---\n\n')
@@ -184,6 +217,26 @@ export function buildChatPrompt(input: ChatPromptInput): BuiltChatPrompt {
       contextItem('persona', `Who you are (${persona.name})`, persona.description || persona.name, {
         source: 'Persona',
       }),
+    )
+  }
+  if (storyDigest.text) {
+    items.push(
+      contextItem(
+        'story',
+        `Your story so far (${storyDigest.moments.length} of ${storyDigest.sceneCount} ${storyDigest.sceneCount === 1 ? 'scene' : 'scenes'})`,
+        storyDigest.text,
+        { source: 'The manuscript' },
+      ),
+    )
+  } else if (scenes?.length) {
+    items.push(
+      excluded(
+        'story',
+        'Your story so far',
+        '',
+        `${card.displayName} is not named anywhere in the manuscript yet.`,
+        'The manuscript',
+      ),
     )
   }
   items.push(...lorebookPlan.items)

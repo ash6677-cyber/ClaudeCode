@@ -31,6 +31,7 @@ import {
 import { AiFailureNotice } from '@/components/common/ai-failure-notice'
 import { ContextPreview } from '@/components/common/context-preview'
 import { buildPrompt } from '@/lib/ai/prompt-builder'
+import { resolveProvider } from '@/lib/ai/resolve-provider'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
 import { useAiStore } from '@/stores/ai-store'
 import { useEditorStore } from '@/stores/editor-store'
@@ -76,7 +77,11 @@ export function AiAssistantPanel({ scene, editor, codexEntries, pov, tense, onCl
 
   const actionMeta = ACTION_OPTIONS.find((a) => a.value === action)!
   const preset = presets.find((p) => p.id === presetId)
-  const provider = preset ? providers.find((p) => p.id === preset.providerId) : undefined
+  // Any working key, not only the one this preset names — the shipped
+  // presets start pointing at nothing, so the strict lookup left a writer
+  // with a valid key and no explanation for the silence.
+  const resolved = resolveProvider(preset, providers)
+  const provider = resolved?.provider
 
   const liveSelectionText = editor ? getSelectionText(editor) : ''
 

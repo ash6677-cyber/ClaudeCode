@@ -2,6 +2,7 @@ import { create } from 'zustand'
 
 import { aiPresetRepo, aiProviderRepo } from '@/lib/db/repositories'
 import { getProviderAdapter } from '@/lib/ai/providers'
+import { presetsAwaitingProvider } from '@/lib/ai/resolve-provider'
 import type { AiPreset, AiProviderConfig, AiProviderKind } from '@/types'
 
 type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -110,6 +111,31 @@ export const useAiStore = create<AiStoreState>((set, get) => ({
   createProvider: async (input) => {
     const provider = await aiProviderRepo.create({ ...input, enabled: true })
     set({ providers: [...get().providers, provider] })
+
+    // Every preset the app ships with is created before any key exists, so
+    // they all start pointing at nothing. Without this, a writer could paste
+    // a working key, watch it pass its own connection test, and still get no
+    // replies anywhere — with nothing on screen to say why. Only presets that
+    // were never given a provider are claimed; one the writer deliberately
+    // attached to a local model stays where they put it.
+    const orphans = presetsAwaitingProvider(get().presets)
+    if (orphans.length > 0) {
+      const model = provider.defaultModel?.trim() || ''
+      for (const preset of orphans) {
+        await aiPresetRepo.update(preset.id, {
+          providerId: provider.id,
+          model: preset.model?.trim() || model,
+        })
+      }
+      set({
+        presets: get().presets.map((preset) =>
+          orphans.some((o) => o.id === preset.id)
+            ? { ...preset, providerId: provider.id, model: preset.model?.trim() || model }
+            : preset,
+        ),
+      })
+    }
+
     return provider
   },
 

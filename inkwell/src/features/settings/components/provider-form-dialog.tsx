@@ -1,8 +1,14 @@
-import { Check, Loader2, PlugZap } from 'lucide-react'
+import { Check, ExternalLink, Loader2, PlugZap } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { AiFailureNotice } from '@/components/common/ai-failure-notice'
 import type { AiFailure } from '@/lib/ai/failure'
+import {
+  PROVIDER_PROFILES,
+  defaultModelFor,
+  detectProviderKind,
+  providerProfile,
+} from '@/lib/ai/provider-catalog'
 import { getProviderAdapter } from '@/lib/ai/providers'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,15 +28,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import type { ProviderInput } from '@/stores/ai-store'
 import type { AiProviderConfig, AiProviderKind } from '@/types'
-
-const KIND_OPTIONS: { value: AiProviderKind; label: string; needsBaseUrl?: boolean; placeholder: string }[] = [
-  { value: 'openai', label: 'OpenAI', placeholder: 'gpt-4o' },
-  { value: 'anthropic', label: 'Anthropic', placeholder: 'claude-sonnet-4-5' },
-  { value: 'openrouter', label: 'OpenRouter', placeholder: 'openrouter/auto' },
-  { value: 'openai-compatible', label: 'OpenAI-compatible (custom / local)', needsBaseUrl: true, placeholder: 'llama3' },
-]
 
 interface ProviderFormDialogProps {
   open: boolean
@@ -41,7 +41,7 @@ interface ProviderFormDialogProps {
 
 function formFromProvider(provider?: AiProviderConfig): ProviderInput {
   return {
-    kind: provider?.kind ?? 'openai',
+    kind: provider?.kind ?? 'openrouter',
     label: provider?.label ?? '',
     apiKey: provider?.apiKey ?? '',
     baseUrl: provider?.baseUrl ?? null,
@@ -55,6 +55,17 @@ type TestState =
   | { status: 'ok'; model: string }
   | { status: 'failed'; failure: AiFailure }
 
+const CUSTOM_MODEL = '__custom__'
+
+/**
+ * Bringing your own key.
+ *
+ * The form this replaces asked four questions in a row — which service, what
+ * label, what base URL, which model — of somebody whose actual situation is
+ * "I have a key in my clipboard and I want to talk to my character". Three of
+ * those four can be worked out from the key itself, so now they are: paste
+ * first, and everything else arrives already filled in and correctable.
+ */
 export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: ProviderFormDialogProps) {
   const [test, setTest] = useState<TestState>({ status: 'idle' })
 
@@ -62,8 +73,45 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
   const [form, setForm] = useState<ProviderInput>(() => formFromProvider(provider))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [customModel, setCustomModel] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
-  const kindMeta = KIND_OPTIONS.find((k) => k.value === form.kind)!
+  const profile = providerProfile(form.kind)
+  const model = form.defaultModel?.trim() || defaultModelFor(form.kind)
+  const modelIsListed = profile.models.includes(model)
+
+  /** A pasted key names its own service, so nobody has to be asked. */
+  function handleKeyChange(apiKey: string) {
+    const detected = detectProviderKind(apiKey)
+    setForm((current) => {
+      if (!detected || detected === current.kind) return { ...current, apiKey }
+      return {
+        ...current,
+        apiKey,
+        kind: detected,
+        // Only replace a model the writer did not choose themselves; a model
+        // from the wrong service would fail on the first message instead.
+        defaultModel: providerProfile(current.kind).models.includes(current.defaultModel?.trim() ?? '')
+          ? defaultModelFor(detected)
+          : current.defaultModel,
+      }
+    })
+    setCustomModel(false)
+    setTest({ status: 'idle' })
+    if (error) setError(null)
+  }
+
+  function chooseKind(kind: AiProviderKind) {
+    setForm((current) => ({
+      ...current,
+      kind,
+      defaultModel: providerProfile(current.kind).models.includes(current.defaultModel?.trim() ?? '')
+        ? defaultModelFor(kind)
+        : current.defaultModel,
+    }))
+    setCustomModel(false)
+    setTest({ status: 'idle' })
+  }
 
   /**
    * One tiny request, now, rather than a failure in the middle of a scene.
@@ -74,7 +122,6 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
    */
   async function handleTest() {
     setTest({ status: 'testing' })
-    const model = form.defaultModel?.trim() || kindMeta.placeholder
     const adapter = getProviderAdapter(form.kind)
     const result = await adapter.validateKey(
       {
@@ -82,7 +129,7 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
         id: provider?.id ?? 'unsaved',
         createdAt: 0,
         updatedAt: 0,
-        label: form.label.trim() || kindMeta.label,
+        label: form.label.trim() || profile.label,
         baseUrl: form.baseUrl?.trim() || null,
         defaultModel: model,
       } as AiProviderConfig,
@@ -91,11 +138,14 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
     setTest(result.ok ? { status: 'ok', model } : { status: 'failed', failure: result.failure })
   }
 
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.apiKey.trim()) {
-      setError('An API key is required.')
+      setError('Paste your key here to continue.')
+      return
+    }
+    if (profile.needsBaseUrl && !form.baseUrl?.trim()) {
+      setError('This one needs an address — where is the model running?')
       return
     }
     setSubmitting(true)
@@ -103,9 +153,11 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
     try {
       await onSubmit({
         ...form,
-        label: form.label.trim() || kindMeta.label,
+        label: form.label.trim() || profile.label,
         baseUrl: form.baseUrl?.trim() || null,
-        defaultModel: form.defaultModel?.trim() || null,
+        // Saved rather than left blank, so the chat has a model to use
+        // without the writer having to visit a second screen.
+        defaultModel: model || null,
       })
       onOpenChange(false)
     } finally {
@@ -115,85 +167,143 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{provider ? 'Edit provider' : 'Add AI provider'}</DialogTitle>
+            <DialogTitle>{provider ? 'Edit this connection' : 'Connect an AI'}</DialogTitle>
             <DialogDescription>
-              Your key stays on this device and is sent only to the provider you choose here.
+              Paste a key from any of these services. It stays on this device and is sent only to
+              the service it belongs to.
             </DialogDescription>
           </DialogHeader>
 
           <div className="mt-5 grid gap-4">
             <div className="grid gap-1.5">
-              <Label>Provider</Label>
-              <Select
-                value={form.kind}
-                onValueChange={(v: AiProviderKind) => setForm({ ...form, kind: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {KIND_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label htmlFor={`${titleId}-label`}>Label</Label>
-              <Input
-                id={`${titleId}-label`}
-                value={form.label}
-                onChange={(e) => setForm({ ...form, label: e.target.value })}
-                placeholder={kindMeta.label}
-              />
-            </div>
-
-            <div className="grid gap-1.5">
-              <Label htmlFor={`${titleId}-key`}>API key</Label>
+              <Label htmlFor={`${titleId}-key`}>Your key</Label>
               <Input
                 id={`${titleId}-key`}
                 type="password"
                 autoComplete="off"
+                autoFocus
                 value={form.apiKey}
-                onChange={(e) => {
-                  setForm({ ...form, apiKey: e.target.value })
-                  if (error) setError(null)
-                }}
-                placeholder="sk-…"
+                onChange={(e) => handleKeyChange(e.target.value)}
+                placeholder="Paste it here — sk-…"
                 aria-invalid={error ? true : undefined}
               />
               {error && <p className="text-xs text-destructive">{error}</p>}
             </div>
 
-            {(kindMeta.needsBaseUrl || form.kind === 'openai' || form.kind === 'openrouter') && (
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${titleId}-base-url`}>
-                  Base URL {!kindMeta.needsBaseUrl && <span className="text-muted-foreground">(optional)</span>}
-                </Label>
-                <Input
-                  id={`${titleId}-base-url`}
-                  value={form.baseUrl ?? ''}
-                  onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
-                  placeholder={kindMeta.needsBaseUrl ? 'http://localhost:11434/v1' : 'Provider default'}
-                />
+            <div className="grid gap-1.5">
+              <Label>Service</Label>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {PROVIDER_PROFILES.map((option) => {
+                  const active = option.kind === form.kind
+                  return (
+                    <button
+                      key={option.kind}
+                      type="button"
+                      onClick={() => chooseKind(option.kind)}
+                      aria-pressed={active}
+                      className={cn(
+                        'rounded-lg border p-2.5 text-left transition-colors',
+                        active
+                          ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                          : 'border-border hover:bg-accent',
+                      )}
+                    >
+                      <span className="block text-sm font-medium">{option.label}</span>
+                      <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                        {option.note}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
-            )}
+              {profile.keyUrl && (
+                <a
+                  href={profile.keyUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex w-fit items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                >
+                  Get a key from {profile.label} <ExternalLink className="size-3" />
+                </a>
+              )}
+            </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor={`${titleId}-model`}>Default model</Label>
-              <Input
-                id={`${titleId}-model`}
-                value={form.defaultModel ?? ''}
-                onChange={(e) => setForm({ ...form, defaultModel: e.target.value })}
-                placeholder={kindMeta.placeholder}
-              />
+              <Label htmlFor={`${titleId}-model`}>Model</Label>
+              {profile.models.length > 0 && !customModel ? (
+                <Select
+                  value={modelIsListed ? model : CUSTOM_MODEL}
+                  onValueChange={(v) => {
+                    if (v === CUSTOM_MODEL) {
+                      setCustomModel(true)
+                      return
+                    }
+                    setForm({ ...form, defaultModel: v })
+                    setTest({ status: 'idle' })
+                  }}
+                >
+                  <SelectTrigger id={`${titleId}-model`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {profile.models.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={CUSTOM_MODEL}>Something else…</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id={`${titleId}-model`}
+                  value={form.defaultModel ?? ''}
+                  onChange={(e) => setForm({ ...form, defaultModel: e.target.value })}
+                  placeholder={profile.models[0] ?? 'The model name your service uses'}
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                You can change this any time, and each AI preset can use a different one.
+              </p>
             </div>
+
+            {(profile.needsBaseUrl || showAdvanced) && (
+              <>
+                <div className="grid gap-1.5">
+                  <Label htmlFor={`${titleId}-base-url`}>
+                    Address {!profile.needsBaseUrl && <span className="text-muted-foreground">(optional)</span>}
+                  </Label>
+                  <Input
+                    id={`${titleId}-base-url`}
+                    value={form.baseUrl ?? ''}
+                    onChange={(e) => setForm({ ...form, baseUrl: e.target.value })}
+                    placeholder={profile.baseUrlPlaceholder ?? 'Leave empty for the usual one'}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor={`${titleId}-label`}>Name this connection</Label>
+                  <Input
+                    id={`${titleId}-label`}
+                    value={form.label}
+                    onChange={(e) => setForm({ ...form, label: e.target.value })}
+                    placeholder={profile.label}
+                  />
+                </div>
+              </>
+            )}
+
+            {!profile.needsBaseUrl && !showAdvanced && (
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(true)}
+                className="w-fit text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+              >
+                Advanced — custom address, or a name for this connection
+              </button>
+            )}
           </div>
 
           <div className="mt-4 space-y-2">
@@ -211,18 +321,18 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
                 ) : (
                   <PlugZap className="size-3.5" />
                 )}
-                {test.status === 'testing' ? 'Testing…' : 'Test connection'}
+                {test.status === 'testing' ? 'Checking…' : 'Check it works'}
               </Button>
               {test.status === 'ok' && (
                 <p className="flex items-center gap-1.5 text-xs text-success">
-                  <Check className="size-3.5" /> Answered as {test.model}.
+                  <Check className="size-3.5" /> Working — {test.model} answered.
                 </p>
               )}
             </div>
             {test.status === 'failed' && <AiFailureNotice failure={test.failure} onRetry={handleTest} />}
             <p className="text-xs text-muted-foreground">
-              Your key is stored on this device only. It is never sent anywhere but the provider,
-              and it is deliberately left out of backups and cloud sync.
+              Your key is stored on this device only. It is never sent anywhere but the service it
+              belongs to, and it is deliberately left out of backups and cloud sync.
             </p>
           </div>
 
@@ -231,7 +341,7 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : provider ? 'Save changes' : 'Add provider'}
+              {submitting ? 'Saving…' : provider ? 'Save changes' : 'Connect'}
             </Button>
           </DialogFooter>
         </form>
