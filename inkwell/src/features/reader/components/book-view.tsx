@@ -34,6 +34,10 @@ const CANCEL_SPRING = { stiffness: 210, damping: criticalDamping(210) }
 
 /** Initial speed given to a keyboard or button turn, in turns per second.
  * Starting from a dead stop is what made those feel mechanical. */
+/** A finger never lands perfectly still, and a tap is over quickly. */
+const TAP_SLOP_PX = 10
+const TAP_MAX_MS = 350
+
 const NUDGE_VELOCITY = 1.15
 
 type Direction = 'forward' | 'backward'
@@ -82,6 +86,8 @@ export function BookView({
   const draggingRef = useRef(false)
   const pointerStartRef = useRef(0)
   const lastMoveRef = useRef({ x: 0, t: 0 })
+  /** When the press began, so a tap can be told from a very slow drag. */
+  const pressStartRef = useRef(0)
   const velocityRef = useRef(0)
   const rafRef = useRef<number | null>(null)
   const turnRef = useRef<TurnState | null>(null)
@@ -220,8 +226,20 @@ export function BookView({
     [beginTurn, settle],
   )
 
+  /**
+   * How much of the left edge belongs to the operating system.
+   *
+   * iOS starts its interactive back gesture from the very edge of the screen,
+   * and Android's is the same idea. A page-turn drag beginning in that strip
+   * is a fight the app cannot win and should not pick: the writer gets a
+   * half-turned page and a half-dismissed screen. Turning the page still
+   * works from anywhere else, including a tap.
+   */
+  const OS_EDGE_PX = 24
+
   function handlePointerDown(event: React.PointerEvent) {
     if (event.button !== 0) return
+    if (event.pointerType !== 'mouse' && event.clientX <= OS_EDGE_PX) return
     const bounds = event.currentTarget.getBoundingClientRect()
     const relative = (event.clientX - bounds.left) / bounds.width
     const direction: Direction = relative > 0.5 ? 'forward' : 'backward'
@@ -229,6 +247,7 @@ export function BookView({
 
     draggingRef.current = true
     pointerStartRef.current = event.clientX
+    pressStartRef.current = performance.now()
     lastMoveRef.current = { x: event.clientX, t: performance.now() }
     velocityRef.current = 0
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -293,8 +312,20 @@ export function BookView({
     const flickedComplete = forward ? velocity > FLICK_VELOCITY : velocity < -FLICK_VELOCITY
     const flickedCancel = forward ? velocity < -FLICK_VELOCITY : velocity > FLICK_VELOCITY
 
+    // A tap is not a failed drag.
+    //
+    // Dragging a page across is the lovely gesture; tapping the side of the
+    // page is the one people actually use, and every e-reader ever made
+    // turns on it. Without this, a tap began a turn, moved it nowhere, and
+    // settled it back — so the page simply refused to turn for anyone who
+    // did not think to swipe.
+    const travelled = Math.abs(event.clientX - pointerStartRef.current)
+    const held = performance.now() - pressStartRef.current
+    const tapped = travelled < TAP_SLOP_PX && held < TAP_MAX_MS
+
     let target: 0 | 1
-    if (flickedComplete) target = forward ? 1 : 0
+    if (tapped) target = forward ? 1 : 0
+    else if (flickedComplete) target = forward ? 1 : 0
     else if (flickedCancel) target = forward ? 0 : 1
     else if (forward) target = progress > COMMIT_THRESHOLD ? 1 : 0
     else target = progress < 1 - COMMIT_THRESHOLD ? 0 : 1

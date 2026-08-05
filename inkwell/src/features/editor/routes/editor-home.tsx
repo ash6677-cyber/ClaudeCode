@@ -264,13 +264,21 @@ export function EditorHome() {
 
   return (
     <div className="flex h-full">
-      {!focusMode && (
-        <aside className="hidden w-72 shrink-0 overflow-y-auto border-r border-border py-2 lg:block">
+      {/*
+        One tree, in whichever container the screen calls for.
+        It used to be written twice — a sidebar hidden below `lg` and a Sheet
+        above it. `hidden` is a CSS word, not a React one, so on a phone the
+        sidebar copy was still mounted, still running its live queries and
+        drag sensors, for a panel nobody could see. Rendering by measurement
+        rather than by class means exactly one exists at a time.
+      */}
+      {!focusMode && isDesktop && (
+        <aside className="w-72 shrink-0 overflow-y-auto border-r border-border py-2">
           <ChapterSceneTree structureMode={structureMode} />
         </aside>
       )}
 
-      {!focusMode && (
+      {!focusMode && !isDesktop && (
         <Sheet open={mobileTreeOpen} onOpenChange={setMobileTreeOpen}>
           <SheetContent side="left" className="w-80 max-w-[85vw] p-0">
             <VisuallyHidden>

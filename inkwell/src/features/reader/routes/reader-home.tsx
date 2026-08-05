@@ -208,11 +208,14 @@ export function ReaderHome() {
       </div>
 
       {ready && (
-        <footer className="flex shrink-0 items-center gap-3 px-5 pb-4 pt-1">
+        <footer
+          data-edge-chrome
+          className="pad-safe-bottom flex shrink-0 items-center gap-3 px-5 pb-4 pt-1"
+        >
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0"
+            className="size-8 shrink-0 max-sm:size-11"
             aria-label="Previous page"
             disabled={pageIndex === 0}
             onClick={() => setPageIndex(Math.max(0, pageIndex - columns))}
@@ -237,7 +240,7 @@ export function ReaderHome() {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0"
+            className="size-8 shrink-0 max-sm:size-11"
             aria-label="Next page"
             disabled={pageIndex + columns >= flatPages.length}
             onClick={() => setPageIndex(Math.min(flatPages.length - 1, pageIndex + columns))}

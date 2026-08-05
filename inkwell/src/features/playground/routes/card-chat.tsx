@@ -45,6 +45,7 @@ import { AiFailureNotice } from '@/components/common/ai-failure-notice'
 import { ContextPreview } from '@/components/common/context-preview'
 import { buildChatPrompt } from '@/lib/ai/chat-prompt-builder'
 import { useAiGeneration } from '@/lib/ai/use-ai-generation'
+import { useMediaQuery } from '@/lib/hooks/use-media-query'
 import { cn } from '@/lib/utils'
 import { useAiStore } from '@/stores/ai-store'
 import { useCardStore } from '@/stores/card-store'
@@ -128,6 +129,9 @@ export function CardChat() {
   const [mobileListOpen, setMobileListOpen] = useState(false)
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
   const [contextOpen, setContextOpen] = useState(false)
+  // The chat list is a sidebar on a wide screen and a Sheet on a narrow one —
+  // the same list either way, mounted once rather than twice.
+  const wideEnoughForSidebar = useMediaQuery('(min-width: 1024px)')
   const [keeping, setKeeping] = useState<string | null>(null)
   const [personaManagerOpen, setPersonaManagerOpen] = useState(false)
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null)
@@ -450,11 +454,16 @@ export function CardChat() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="hidden w-60 shrink-0 overflow-y-auto border-r border-border lg:block">
-          {chatListContent}
-        </aside>
+        {wideEnoughForSidebar && (
+          <aside className="w-60 shrink-0 overflow-y-auto border-r border-border">
+            {chatListContent}
+          </aside>
+        )}
 
-        <Sheet open={mobileListOpen} onOpenChange={setMobileListOpen}>
+        <Sheet
+          open={!wideEnoughForSidebar && mobileListOpen}
+          onOpenChange={setMobileListOpen}
+        >
           <SheetContent side="left" className="w-72 max-w-[85vw] p-0">
             <VisuallyHidden>
               <SheetHeader>

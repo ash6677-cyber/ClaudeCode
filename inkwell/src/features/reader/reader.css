@@ -264,6 +264,22 @@
   widows: 2;
 }
 
+/*
+ * Ragged right on a narrow page.
+ *
+ * Justified text needs enough characters per line to distribute the slack
+ * invisibly. A phone page is around thirty, and at that measure justification
+ * stops looking like a book and starts opening rivers — visible channels of
+ * white running down the column, which is precisely the thing typesetting
+ * justification exists to avoid. Hyphenation stays on; it is what keeps the
+ * ragged edge from becoming a ragged cliff.
+ */
+@media (max-width: 640px) {
+  .book-flow {
+    text-align: left;
+  }
+}
+
 .book-p {
   margin: 0;
   text-indent: 1.35em;

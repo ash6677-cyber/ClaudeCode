@@ -270,10 +270,14 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Priority.** P1 (1, 2, 5), P2 (3, 4).
 
 **Acceptance criteria.**
-- [ ] Reader at 360×640: readable type, working turns, no horizontal body scroll, exit reachable.
-- [ ] Installed-PWA emulation shows no control under safe-area insets.
-- [ ] Probe suite reports zero interactive elements under 44px on phone widths.
-- [ ] Every route passes the device-matrix suite.
+- [x] Reader at 360×640: readable type, working turns, no horizontal body scroll, exit reachable (`scripts/reader-mobile-check.mjs`, 9/9).
+- [x] Installed-PWA emulation shows no control under safe-area insets. Insets route through `--safe-*` variables so a headless browser can be given a notch; `env()` cannot be overridden and would have made this untestable.
+- [x] Probe suite reports zero interactive elements under 44px on phone widths.
+- [x] Every route passes the device-matrix suite — 28 screens (14 routes × 2 sizes), 28 clean, `--strict` available for CI.
+
+**Shipped (§8.1–8.5).** Buttons, inputs, selects and tabs grow below `sm`; `.touch-target` gives an invisible 44px hit box to the few controls that cannot grow; hover-only grips and row menus are visible on touch. Safe-area padding on shell chrome and the reader's controls. Reader: ragged right below 640px, tap-to-turn, and the left 24px yielded to the OS back gesture. `ChapterSceneTree` and the chat list are each mounted once, chosen by measurement rather than by a `hidden` class that leaves the copy mounted anyway.
+
+**Correction to this section's premise.** The reader's "fixed-geometry two-page spread" was named here as the most likely casualty in the app. It isn't — the reader already collapses to a single page below `sm`. What was actually wrong needed opening it to see: justified text opening rivers at a thirty-character measure, and a tap that began a turn, moved it nowhere and settled it back, so the page refused to turn for anyone who did not think to swipe.
 
 ---
 
@@ -758,7 +762,7 @@ Ordered phases; each ends with the standing gates (typecheck 0 · lint 0 · test
 | **2 — done** | §2.2/2.5/2.6, §2.3, §3.1–3.4/3.6 | M+M | med (redirects) | shipped; §2 + §3 boxes ticked, 22/22 + 21/21 live. §3.5 deferred to Phase 4 with §5 |
 | **3 — done** | §6.1–6.7, §4.1/4.3 | L | med (undo correctness) | shipped; undo byte-check green (16/16 live, 27 unit). §6.8 Send/Pull outstanding |
 | **4 — done** | §13.1–3/13.6, §14.1–2, §5.2–3/5.5, §3.5, §6.8 | L | med | shipped; 47 new unit tests, 3 live suites (10/10, 7/7 + earlier). §13.4–5, §14.3–4 are P2, deferred |
-| **5 — Mobile overhaul** | §8.1–8.5 (reader first) | L | med (reader CSS) | device-matrix suite green |
+| **5 — done** | §8.1–8.5 | L | med (reader CSS) | shipped; 28/28 device matrix, reader 9/9 |
 | **6 — Editor + data safety** | §11.1–2, §21.1–2, §12.3 | M | med (sync path) | conflict-snapshot test green |
 | **7 — Creation flows** | §15.2–5, §22.1, §16.1+3 | L | med | wizard-template + import previews |
 | **8 — Customisation** | §20, §13.4–6, §14.3–4, §18 | L | low | settings search; palette search |
