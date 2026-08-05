@@ -88,7 +88,13 @@ jobs:
       # offer the update and then reject it.
       - name: Build installer (without updater signing)
         if: steps.signing.outputs.usable != 'true'
-        run: npm run desktop:build -- --config "{\"bundle\":{\"createUpdaterArtifacts\":false}}"
+        shell: bash
+        run: |
+          # Through a file rather than on the command line: the runner's
+          # default shell is PowerShell, which ate the quoting of a JSON
+          # literal and handed tauri `{\` to parse.
+          echo '{"bundle":{"createUpdaterArtifacts":false}}' > no-updater.json
+          npm run desktop:build -- --config no-updater.json
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
