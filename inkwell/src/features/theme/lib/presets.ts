@@ -23,7 +23,7 @@ export const BUILT_IN_THEMES: ThemePreset[] = [
   {
     id: 'builtin:inkwell',
     name: 'Inkwell',
-    description: 'The default. Warm paper by day, deep blue-black by night.',
+    description: 'The default. Porcelain touched with violet by day, violet-black by night.',
     light: {},
     dark: {},
   },

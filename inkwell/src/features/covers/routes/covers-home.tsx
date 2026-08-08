@@ -225,7 +225,7 @@ export function CoversHome() {
         actions={
           <>
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => void undo()}
               disabled={!canUndo}
@@ -235,7 +235,7 @@ export function CoversHome() {
               <Undo2 className="size-4" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
               onClick={() => void redo()}
               disabled={!canRedo}
