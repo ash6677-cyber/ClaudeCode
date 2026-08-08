@@ -26,10 +26,18 @@ const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5410/'
 const strict = process.argv.includes('--strict')
 const only = process.argv.find((a) => a.startsWith('--only='))?.split('=')[1]
 
-/** The smallest phone still in real use, and a current one. */
+/**
+ * The smallest phone still in real use, a current one — and the Windows
+ * handhelds (ROG Ally class). A handheld is the case phone-width gating
+ * misses entirely: a desktop-sized viewport driven by thumbs. 1280×720 is
+ * a 1080p handheld at Windows' default 150% scaling; 960×540 is the same
+ * screen at 200%. Both run the full desktop app, in landscape, by touch.
+ */
 const SIZES = [
-  { name: '360×640', viewport: { width: 360, height: 640 } },
-  { name: '390×844', viewport: { width: 390, height: 844 } },
+  { name: '360×640', viewport: { width: 360, height: 640 }, phone: true },
+  { name: '390×844', viewport: { width: 390, height: 844 }, phone: true },
+  { name: '1280×720 handheld', viewport: { width: 1280, height: 720 }, phone: false },
+  { name: '960×540 handheld', viewport: { width: 960, height: 540 }, phone: false },
 ]
 
 /**
@@ -53,7 +61,7 @@ const browser = await chromium.launch({ executablePath: CHROMIUM_PATH, args: ['-
  * zero-sized or inside a closed dialog are skipped — they are not something a
  * finger can miss.
  */
-async function audit(page) {
+async function audit(page, insets) {
   return page.evaluate(
     ({ MIN_TOUCH, INSETS }) => {
       const doc = document.documentElement
@@ -104,31 +112,32 @@ async function audit(page) {
       }
       return { overflow, small, underInset, interactive: interactive.length }
     },
-    { MIN_TOUCH, INSETS },
+    { MIN_TOUCH, INSETS: insets },
   )
 }
 
 const findings = []
 
 for (const size of SIZES) {
-  const ctx = await browser.newContext({
-    ...devices['iPhone 12'],
-    viewport: size.viewport,
-    isMobile: true,
-    hasTouch: true,
-  })
+  // Phones emulate an installed PWA on a notched device; handhelds are a
+  // plain touch screen — no notch, no mobile UA, desktop layout.
+  const ctx = await browser.newContext(
+    size.phone
+      ? { ...devices['iPhone 12'], viewport: size.viewport, isMobile: true, hasTouch: true }
+      : { viewport: size.viewport, hasTouch: true },
+  )
   const page = await ctx.newPage()
 
-  // Pretend to be an installed app on a notched phone for the whole run.
-  await page.addInitScript((insets) => {
+  const insets = size.phone ? INSETS : { top: 0, right: 0, bottom: 0, left: 0 }
+  await page.addInitScript((i) => {
     addEventListener('DOMContentLoaded', () => {
       const r = document.documentElement.style
-      r.setProperty('--safe-top', `${insets.top}px`)
-      r.setProperty('--safe-bottom', `${insets.bottom}px`)
-      r.setProperty('--safe-left', `${insets.left}px`)
-      r.setProperty('--safe-right', `${insets.right}px`)
+      r.setProperty('--safe-top', `${i.top}px`)
+      r.setProperty('--safe-bottom', `${i.bottom}px`)
+      r.setProperty('--safe-left', `${i.left}px`)
+      r.setProperty('--safe-right', `${i.right}px`)
     })
-  }, INSETS)
+  }, insets)
 
   // One book with a little of everything, so screens are not empty states.
   await page.goto(`${BASE}#/projects`)
@@ -202,7 +211,7 @@ for (const size of SIZES) {
   for (const [name, hash] of routes) {
     await page.goto(`${BASE}${hash}`)
     await page.waitForTimeout(1100)
-    const result = await audit(page)
+    const result = await audit(page, insets)
     findings.push({ size: size.name, route: name, ...result })
   }
 

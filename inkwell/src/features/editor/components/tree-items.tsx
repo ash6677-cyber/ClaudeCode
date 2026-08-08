@@ -146,7 +146,7 @@ export function ChapterRow({
           <button
             type="button"
             onDoubleClick={() => setRenaming(true)}
-            className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-sm font-semibold"
+            className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-sm font-semibold pointer-coarse:min-h-11"
           >
             <span className="truncate">{chapter.title}</span>
             {/* Tagged only when the title doesn't already say it — otherwise
@@ -405,7 +405,7 @@ export function SceneRow({
             onClick={onSelect}
             onDoubleClick={() => setRenaming(true)}
             className={cn(
-              'min-w-0 flex-1 truncate text-left text-sm max-sm:min-h-11',
+              'min-w-0 flex-1 truncate text-left text-sm max-sm:min-h-11 pointer-coarse:min-h-11',
               active ? 'font-medium text-foreground' : 'text-foreground/80',
             )}
           >

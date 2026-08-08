@@ -215,7 +215,7 @@ export function ReaderHome() {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0 max-sm:size-11"
+            className="size-8 shrink-0 max-sm:size-11 pointer-coarse:size-11"
             aria-label="Previous page"
             disabled={pageIndex === 0}
             onClick={() => setPageIndex(Math.max(0, pageIndex - columns))}
@@ -240,7 +240,7 @@ export function ReaderHome() {
           <Button
             variant="ghost"
             size="icon"
-            className="size-8 shrink-0 max-sm:size-11"
+            className="size-8 shrink-0 max-sm:size-11 pointer-coarse:size-11"
             aria-label="Next page"
             disabled={pageIndex + columns >= flatPages.length}
             onClick={() => setPageIndex(Math.min(flatPages.length - 1, pageIndex + columns))}

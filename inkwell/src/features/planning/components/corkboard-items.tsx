@@ -110,7 +110,7 @@ export function SortableSceneCard({ scene, chapterId, onOpen }: SortableSceneCar
         <button
           type="button"
           onClick={onOpen}
-          className="min-w-0 flex-1 truncate text-left text-sm font-medium max-sm:min-h-11"
+          className="min-w-0 flex-1 truncate text-left text-sm font-medium max-sm:min-h-11 pointer-coarse:min-h-11"
         >
           {scene.title}
         </button>
@@ -160,7 +160,7 @@ export function ChapterOnlyCard({ chapter, scene, onOpen }: ChapterOnlyCardProps
         <button
           type="button"
           onClick={onOpen}
-          className="min-w-0 flex-1 truncate text-left text-sm font-semibold max-sm:min-h-11"
+          className="min-w-0 flex-1 truncate text-left text-sm font-semibold max-sm:min-h-11 pointer-coarse:min-h-11"
         >
           {chapter.title}
         </button>

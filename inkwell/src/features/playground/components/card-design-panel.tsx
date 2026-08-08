@@ -110,7 +110,7 @@ export function CardDesignPanel({ design, name, onChange }: CardDesignPanelProps
                 aria-pressed={chosen}
                 title={preset.hint}
                 className={cn(
-                  'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                  'rounded-full border px-2.5 py-1 pointer-coarse:min-h-11 pointer-coarse:px-4 text-xs transition-colors',
                   chosen
                     ? 'border-primary bg-primary/10 font-medium text-foreground'
                     : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -139,7 +139,7 @@ export function CardDesignPanel({ design, name, onChange }: CardDesignPanelProps
               aria-pressed={current.frame === frame}
               aria-label={`Frame: ${FRAME_LABEL[frame]}`}
               className={cn(
-                'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                'rounded-full border px-2.5 py-1 pointer-coarse:min-h-11 pointer-coarse:px-4 text-xs transition-colors',
                 current.frame === frame
                   ? 'border-primary bg-primary/10 font-medium text-foreground'
                   : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -163,7 +163,7 @@ export function CardDesignPanel({ design, name, onChange }: CardDesignPanelProps
               aria-pressed={current.finish === finish}
               aria-label={`Finish: ${FINISH_LABEL[finish]}`}
               className={cn(
-                'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                'rounded-full border px-2.5 py-1 pointer-coarse:min-h-11 pointer-coarse:px-4 text-xs transition-colors',
                 current.finish === finish
                   ? 'border-primary bg-primary/10 font-medium text-foreground'
                   : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',

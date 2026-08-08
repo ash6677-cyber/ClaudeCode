@@ -327,9 +327,9 @@ export function CoversHome() {
                             void renameVariant(variant.id, renameText)
                             setRenamingId(null)
                           }}
-                          className="h-6 text-xs"
+                          className="h-6 pointer-coarse:h-11 text-xs"
                         />
-                        <button type="submit" aria-label="Save name" className="text-primary">
+                        <button type="submit" aria-label="Save name" className="touch-target text-primary">
                           <Check className="size-3.5" />
                         </button>
                       </form>
@@ -337,7 +337,7 @@ export function CoversHome() {
                       <button
                         type="button"
                         onClick={() => selectVariant(variant.id)}
-                        className="min-w-0 flex-1 truncate text-left text-xs font-medium"
+                        className="min-w-0 flex-1 truncate text-left text-xs font-medium pointer-coarse:min-h-11"
                       >
                         {coverDisplayName(variant, index)}
                       </button>
@@ -349,7 +349,7 @@ export function CoversHome() {
                       aria-pressed={isActive}
                       title={isActive ? 'The cover your book wears' : 'Use this cover'}
                       className={cn(
-                        'shrink-0 rounded p-1',
+                        'touch-target shrink-0 rounded p-1',
                         isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
                       )}
                     >
@@ -362,7 +362,7 @@ export function CoversHome() {
                         setRenameText(coverDisplayName(variant, index))
                       }}
                       aria-label="Rename this cover"
-                      className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                      className="touch-target shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
                     >
                       <Pencil className="size-3" />
                     </button>
@@ -371,7 +371,7 @@ export function CoversHome() {
                         type="button"
                         onClick={() => void deleteVariant(variant.id)}
                         aria-label="Delete this cover"
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:text-destructive"
+                        className="touch-target shrink-0 rounded p-1 text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="size-3" />
                       </button>
@@ -433,7 +433,7 @@ export function CoversHome() {
                   step={0.05}
                   value={cover.crop.zoom}
                   onChange={(e) => updateCrop({ zoom: Number(e.target.value) })}
-                  className="accent-primary"
+                  className="accent-primary pointer-coarse:h-11"
                 />
               </div>
               <div className="grid gap-1.5">
@@ -444,7 +444,7 @@ export function CoversHome() {
                   max={100}
                   value={cover.crop.x}
                   onChange={(e) => updateCrop({ x: Number(e.target.value) })}
-                  className="accent-primary"
+                  className="accent-primary pointer-coarse:h-11"
                 />
               </div>
               <div className="grid gap-1.5">
@@ -455,7 +455,7 @@ export function CoversHome() {
                   max={100}
                   value={cover.crop.y}
                   onChange={(e) => updateCrop({ y: Number(e.target.value) })}
-                  className="accent-primary"
+                  className="accent-primary pointer-coarse:h-11"
                 />
               </div>
               <div className="grid gap-1.5">
@@ -468,7 +468,7 @@ export function CoversHome() {
                   max={45}
                   value={cover.crop.rotation}
                   onChange={(e) => updateCrop({ rotation: Number(e.target.value) })}
-                  className="accent-primary"
+                  className="accent-primary pointer-coarse:h-11"
                 />
               </div>
             </section>
@@ -493,7 +493,7 @@ export function CoversHome() {
                       type="color"
                       value={cover.overlay.color}
                       onChange={(e) => updateOverlay({ color: e.target.value })}
-                      className="h-9 w-full cursor-pointer rounded-md border border-border bg-transparent p-0.5"
+                      className="h-9 pointer-coarse:h-11 w-full cursor-pointer rounded-md border border-border bg-transparent p-0.5"
                     />
                   </div>
                   <div className="grid gap-1.5">
@@ -522,7 +522,7 @@ export function CoversHome() {
                     step={0.05}
                     value={cover.overlay.opacity}
                     onChange={(e) => updateOverlay({ opacity: Number(e.target.value) })}
-                    className="accent-primary"
+                    className="accent-primary pointer-coarse:h-11"
                   />
                 </div>
               </>

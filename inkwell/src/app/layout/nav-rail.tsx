@@ -45,7 +45,7 @@ export function NavRail() {
               onClick={() => setCommandPaletteOpen(true)}
               aria-label="Open command palette"
               className={cn(
-                'flex h-8 w-full items-center gap-2 rounded-md border border-sidebar-border bg-background/40 px-2.5 text-xs text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'flex h-8 pointer-coarse:min-h-11 w-full items-center gap-2 rounded-md border border-sidebar-border bg-background/40 px-2.5 text-xs text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 collapsed && 'justify-center border-none bg-transparent px-0',
               )}
             >
@@ -88,7 +88,7 @@ export function NavRail() {
               <ExternalLink
                 href={WINDOWS_APP_URL}
                 className={cn(
-                  'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'group flex h-9 pointer-coarse:min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                   collapsed && 'justify-center px-0',
                 )}
               >
@@ -129,7 +129,7 @@ export function NavRail() {
               type="button"
               onClick={toggleSidebar}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              className="flex size-8 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex size-8 pointer-coarse:size-11 shrink-0 items-center justify-center rounded-md text-sidebar-foreground/70 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {collapsed ? (
                 <ChevronsRight className="size-4" />
@@ -166,7 +166,7 @@ export function NavRailLink({
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(
-          'group relative flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'group relative flex h-9 pointer-coarse:min-h-11 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/75 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
           collapsed && 'justify-center px-0',
           isActive && 'bg-accent text-accent-foreground shadow-sm ring-1 ring-primary/15',
           className,

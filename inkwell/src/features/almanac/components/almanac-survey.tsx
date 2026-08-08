@@ -143,7 +143,7 @@ export function AlmanacSurvey({
                     <li key={entry.id}>
                       <Link
                         to={`/almanac/${entry.id}?project=${projectId}`}
-                        className="inline-flex items-center rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs hover:border-warning max-sm:min-h-11"
+                        className="inline-flex items-center rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-xs hover:border-warning max-sm:min-h-11 pointer-coarse:min-h-11"
                       >
                         {entry.name}
                       </Link>
@@ -181,7 +181,7 @@ function TypeChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'rounded-full border px-2.5 py-1 text-xs transition-colors max-sm:min-h-11',
+        'rounded-full border px-2.5 py-1 text-xs transition-colors max-sm:min-h-11 pointer-coarse:min-h-11',
         active
           ? 'border-primary bg-primary/10 font-medium text-foreground'
           : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',

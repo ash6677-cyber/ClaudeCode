@@ -48,7 +48,7 @@ export function CardToolbar({ cards, filter, onChange, actions }: CardToolbarPro
             aria-pressed={on}
             onClick={() => onChange({ ...filter, tags: toggleTag(filter.tags, tag) })}
             className={cn(
-              'rounded-full border px-2.5 py-1 text-xs transition-colors',
+              'rounded-full border px-2.5 py-1 pointer-coarse:min-h-11 pointer-coarse:px-4 text-xs transition-colors',
               on
                 ? 'border-primary bg-primary/10 font-medium text-foreground'
                 : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',
@@ -70,7 +70,7 @@ export function CardToolbar({ cards, filter, onChange, actions }: CardToolbarPro
           aria-pressed={filter.sort === sort}
           onClick={() => onChange({ ...filter, sort })}
           className={cn(
-            'rounded-full border px-2.5 py-1 text-xs transition-colors',
+            'rounded-full border px-2.5 py-1 pointer-coarse:min-h-11 pointer-coarse:px-4 text-xs transition-colors',
             filter.sort === sort
               ? 'border-primary bg-primary/10 font-medium text-foreground'
               : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground',

@@ -27,10 +27,10 @@ export const buttonVariants = cva(
        * design at a different width.
        */
       size: {
-        default: 'h-9 max-sm:h-11 px-4 py-2',
-        sm: 'h-8 max-sm:h-11 rounded-md px-3 text-xs',
-        lg: 'h-10 max-sm:h-12 rounded-md px-6',
-        icon: 'size-9 max-sm:size-11',
+        default: 'h-9 max-sm:h-11 pointer-coarse:h-11 px-4 py-2',
+        sm: 'h-8 max-sm:h-11 pointer-coarse:h-11 rounded-md px-3 text-xs',
+        lg: 'h-10 max-sm:h-12 pointer-coarse:h-12 rounded-md px-6',
+        icon: 'size-9 max-sm:size-11 pointer-coarse:size-11 shrink-0',
       },
     },
     defaultVariants: {

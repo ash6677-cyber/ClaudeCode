@@ -273,7 +273,7 @@ export function SceneMetadataDrawer({
             }}
             onBlur={addLabel}
             placeholder="Add a label and press Enter"
-            className="flex h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-8 pointer-coarse:h-11 w-full rounded-md border border-input bg-background px-2.5 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
 

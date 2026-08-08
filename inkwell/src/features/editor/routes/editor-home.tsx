@@ -222,11 +222,15 @@ export function EditorHome() {
       hudTimerRef.current = setTimeout(() => setHudVisible(false), 2500)
     }
     // Visible on entry, so the writer sees where the exit lives before it
-    // hides itself.
+    // hides itself. Waking on pointerdown as well as movement is what makes
+    // this work on a touchscreen: a thumb never moves a cursor, but a tap
+    // anywhere should still summon the controls.
     wake()
     window.addEventListener('pointermove', wake)
+    window.addEventListener('pointerdown', wake)
     return () => {
       window.removeEventListener('pointermove', wake)
+      window.removeEventListener('pointerdown', wake)
       if (hudTimerRef.current) clearTimeout(hudTimerRef.current)
     }
   }, [focusMode])
