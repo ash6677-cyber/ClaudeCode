@@ -18,6 +18,10 @@ pub fn run() {
     .plugin(tauri_plugin_dialog::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
+    // External links land in the system browser. Without this, an <a> to
+    // the wider web is silently swallowed by the webview — a link that
+    // looks clickable and does nothing.
+    .plugin(tauri_plugin_opener::init())
     .invoke_handler(tauri::generate_handler![
       storage::load_library,
       storage::save_library,

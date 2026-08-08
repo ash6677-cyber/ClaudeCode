@@ -1,4 +1,6 @@
-import { CheckCircle2, Download, ExternalLink, MonitorDown } from 'lucide-react'
+import { CheckCircle2, Download, ExternalLink as ExternalLinkIcon, MonitorDown } from 'lucide-react'
+
+import { ExternalLink } from '@/components/common/external-link'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -51,10 +53,10 @@ export function DesktopDownload() {
         </span>
       </p>
       <Button asChild size="sm" className="gap-1.5">
-        <a href={RELEASES_URL} target="_blank" rel="noreferrer">
+        <ExternalLink href={RELEASES_URL}>
           <Download className="size-4" /> Download for Windows
-          <ExternalLink className="size-3.5 opacity-70" />
-        </a>
+          <ExternalLinkIcon className="size-3.5 opacity-70" />
+        </ExternalLink>
       </Button>
       <p className="text-xs text-muted-foreground">
         Windows will warn you about an unrecognised app the first time — the installer is not

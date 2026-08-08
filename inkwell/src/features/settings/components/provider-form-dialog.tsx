@@ -1,4 +1,6 @@
-import { Check, ExternalLink, Loader2, PlugZap } from 'lucide-react'
+import { Check, ExternalLink as ExternalLinkIcon, Loader2, PlugZap } from 'lucide-react'
+
+import { ExternalLink } from '@/components/common/external-link'
 import { useId, useState } from 'react'
 
 import { AiFailureNotice } from '@/components/common/ai-failure-notice'
@@ -220,14 +222,12 @@ export function ProviderFormDialog({ open, onOpenChange, provider, onSubmit }: P
                 })}
               </div>
               {profile.keyUrl && (
-                <a
+                <ExternalLink
                   href={profile.keyUrl}
-                  target="_blank"
-                  rel="noreferrer"
                   className="inline-flex w-fit items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
                 >
-                  Get a key from {profile.label} <ExternalLink className="size-3" />
-                </a>
+                  Get a key from {profile.label} <ExternalLinkIcon className="size-3" />
+                </ExternalLink>
               )}
             </div>
 

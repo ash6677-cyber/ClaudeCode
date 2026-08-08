@@ -2,6 +2,7 @@ import { ChevronsLeft, ChevronsRight, Download, Feather, Search, Settings } from
 import { NavLink } from 'react-router-dom'
 
 import { NAV_ITEMS } from '@/app/layout/nav-items'
+import { ExternalLink } from '@/components/common/external-link'
 import { ThemeToggle } from '@/components/common/theme-toggle'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { isTauriRuntime } from '@/lib/db/tauri-bridge'
@@ -78,33 +79,34 @@ export function NavRail() {
           />
         ))}
 
-        {/* Only the browser shows this: inside the desktop app it would be
-            a door painted on a wall the visitor is already behind. */}
-        {!isTauriRuntime() && (
-          <div className="mt-auto pt-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <a
-                  href={WINDOWS_APP_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={cn(
-                    'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                    collapsed && 'justify-center px-0',
-                  )}
-                >
-                  <Download className="size-4 shrink-0" strokeWidth={1.9} />
-                  {!collapsed && <span className="truncate">Get the Windows app</span>}
-                </a>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {collapsed
-                  ? 'Get the Windows app'
-                  : 'Free desktop app — works offline, updates itself'}
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        )}
+        {/* In the browser this is the way in; in the installed app it is
+            the way to the releases page — the installer for another PC,
+            a copy for a friend, and the notes on what changed. */}
+        <div className="mt-auto pt-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ExternalLink
+                href={WINDOWS_APP_URL}
+                className={cn(
+                  'group flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm font-medium text-sidebar-foreground/60 transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  collapsed && 'justify-center px-0',
+                )}
+              >
+                <Download className="size-4 shrink-0" strokeWidth={1.9} />
+                {!collapsed && (
+                  <span className="truncate">
+                    {isTauriRuntime() ? 'Windows app releases' : 'Get the Windows app'}
+                  </span>
+                )}
+              </ExternalLink>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {isTauriRuntime()
+                ? 'The installer and release notes — for another PC or a friend'
+                : 'Free desktop app — works offline, updates itself'}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </nav>
 
       <div
