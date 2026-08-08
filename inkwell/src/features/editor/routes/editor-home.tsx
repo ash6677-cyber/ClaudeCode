@@ -247,7 +247,7 @@ export function EditorHome() {
   // Reads the scene fresh from the store at call time (via getState) rather than closing
   // over the `activeScene` from render — this fires after a debounce delay, so a closure
   // would go stale after the first edit and never see subsequent content.
-  const persistChange = useCallback(
+  const doPersist = useCallback(
     async (
       sceneId: string,
       input: { content: RichContent; plainText: string; wordCount: number },
@@ -284,16 +284,64 @@ export function EditorHome() {
     [updateSceneContent],
   )
 
+  // Serialisation happens here — once per save — not once per keystroke.
+  // getJSON/getText walk the whole document, which is fine at 800 words and
+  // a dropped frame per key at 20,000; the debounce already meant nothing
+  // read the serialised value until now anyway. The refs pair the live
+  // editor with the scene it belongs to, so a save that fires after a scene
+  // switch can never write one scene's words under another's id.
+  const liveEditorRef = useRef<{ editor: Editor; sceneId: string } | null>(null)
+  const pendingSceneIdRef = useRef<string | null>(null)
+
+  const serializeLive = (sceneId: string) => {
+    const live = liveEditorRef.current
+    if (!live || live.sceneId !== sceneId || live.editor.isDestroyed) return null
+    return {
+      content: live.editor.getJSON(),
+      plainText: live.editor.getText(),
+      wordCount: live.editor.storage.characterCount.words() as number,
+    }
+  }
+
+  const persistChange = useCallback(
+    (sceneId: string) => {
+      if (pendingSceneIdRef.current !== sceneId) return
+      const input = serializeLive(sceneId)
+      if (!input) return
+      pendingSceneIdRef.current = null
+      void doPersist(sceneId, input)
+    },
+    [doPersist],
+  )
+
   const debouncedPersist = useDebouncedCallback(persistChange, 800)
 
-  function handleEditorChange(input: {
-    content: RichContent
-    plainText: string
-    wordCount: number
-  }) {
+  function handleEditorChange() {
     if (!activeScene) return
     setSaveStatus('unsaved')
-    debouncedPersist(activeScene.id, input)
+    pendingSceneIdRef.current = activeScene.id
+    debouncedPersist(activeScene.id)
+  }
+
+  // The moment a SceneEditor unmounts it announces itself with null — while
+  // its editor is still alive, one statement before destroy(). That is the
+  // window in which an edit younger than the debounce gets serialised and
+  // saved, so switching scenes mid-sentence never costs the sentence.
+  function attachEditor(editor: Editor | null, sceneId: string) {
+    if (editor) {
+      liveEditorRef.current = { editor, sceneId }
+      setLiveEditor(editor)
+      return
+    }
+    if (pendingSceneIdRef.current === sceneId) {
+      const input = serializeLive(sceneId)
+      if (input) {
+        pendingSceneIdRef.current = null
+        void doPersist(sceneId, input)
+      }
+    }
+    if (liveEditorRef.current?.sceneId === sceneId) liveEditorRef.current = null
+    setLiveEditor(null)
   }
 
   if (!projectId) {
@@ -617,7 +665,7 @@ export function EditorHome() {
               projectId={projectId}
               codexEntries={codexEntries}
               onChange={handleEditorChange}
-              onEditorInstance={setLiveEditor}
+              onEditorInstance={(instance) => attachEditor(instance, activeScene.id)}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-6">

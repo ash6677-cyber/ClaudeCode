@@ -28,7 +28,14 @@ interface SceneEditorProps {
   focusMode: boolean
   projectId: string
   codexEntries: CodexEntry[]
-  onChange: (input: { content: RichContent; plainText: string; wordCount: number }) => void
+  /**
+   * Fired on every edit with the live editor — and deliberately nothing
+   * else. Serialising a document costs time proportional to its length,
+   * and doing it per keystroke made a 20,000-word scene type three times
+   * slower than a normal one. The owner serialises once, when it actually
+   * saves.
+   */
+  onChange: (editor: Editor) => void
   onEditorInstance?: (editor: Editor | null) => void
 }
 
@@ -108,11 +115,7 @@ export function SceneEditor({
       },
       onCreate: ({ editor }) => onEditorInstanceRef.current?.(editor),
       onUpdate: ({ editor }) => {
-        onChangeRef.current({
-          content: editor.getJSON(),
-          plainText: editor.getText(),
-          wordCount: editor.storage.characterCount.words(),
-        })
+        onChangeRef.current(editor)
         if (typewriterActiveRef.current) recenterCaret(editor)
       },
       onSelectionUpdate: ({ editor }) => {
