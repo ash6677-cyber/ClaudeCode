@@ -6,6 +6,21 @@ via **Help > Check for Updates…**. When an update is found, a native dialog
 asks to install it; accepting downloads it, installs it, and relaunches the
 app.
 
+## Fixing the signing secret (the exact paste)
+
+`TAURI_SIGNING_PRIVATE_KEY` must contain the **entire single-line base64
+string** from the private key file — the one `tauri signer generate` wrote.
+That one line decodes to the whole two-line minisign document, comment
+included. Pasting only part of it produces
+"Missing comment in secret key" at the end of an otherwise successful build.
+
+The key was generated with an empty password, and the workflow now hardcodes
+the empty password, so `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is unused and can
+be deleted.
+
+Paste it at: repository **Settings → Secrets and variables → Actions →
+TAURI_SIGNING_PRIVATE_KEY → Update secret**.
+
 ## How it's wired
 
 - `src-tauri/tauri.conf.json` → `plugins.updater` points at

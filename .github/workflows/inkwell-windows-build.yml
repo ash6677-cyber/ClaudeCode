@@ -66,7 +66,13 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
+          # Two shapes are accepted, because tauri accepts both: the raw
+          # two-line minisign document, or that document base64-encoded as a
+          # single line (which is what `tauri signer generate` writes to the
+          # key file, and the easiest thing to paste into a secret).
           if printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | head -n1 | grep -qi 'untrusted comment'; then
+            echo 'usable=true' >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | base64 -d 2>/dev/null | head -n1 | grep -qi 'untrusted comment'; then
             echo 'usable=true' >> "$GITHUB_OUTPUT"
           else
             echo 'usable=false' >> "$GITHUB_OUTPUT"
@@ -81,7 +87,11 @@ jobs:
         run: npm run desktop:build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # The updater key was generated with an empty password, so this is
+          # hardcoded rather than read from a secret: a stale value in the
+          # old password secret would fail decryption and kill the signing
+          # this workflow just verified was possible.
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
 
       # Updater artifacts are turned off rather than produced unsigned: a .sig
       # that cannot verify is worse than no .sig, because the updater would
