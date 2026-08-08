@@ -64,19 +64,35 @@ jobs:
         id: signing
         shell: bash
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          RAW_SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           # Two shapes are accepted, because tauri accepts both: the raw
           # two-line minisign document, or that document base64-encoded as a
           # single line (which is what `tauri signer generate` writes to the
           # key file, and the easiest thing to paste into a secret).
-          if printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | head -n1 | grep -qi 'untrusted comment'; then
+          #
+          # The single-line shape is scrubbed of whitespace first. A key
+          # pasted from a phone arrives with a line break folded into it, and
+          # while `base64 -d` shrugs newlines off, tauri's decoder fails the
+          # whole build over one: "Invalid symbol 10, offset 348" — which is
+          # this workflow's way of saying a paste artifact, not a bad key.
+          if printf '%s' "$RAW_SIGNING_KEY" | head -n1 | grep -qi 'untrusted comment'; then
             echo 'usable=true' >> "$GITHUB_OUTPUT"
-          elif printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | base64 -d 2>/dev/null | head -n1 | grep -qi 'untrusted comment'; then
-            echo 'usable=true' >> "$GITHUB_OUTPUT"
+            {
+              echo 'TAURI_SIGNING_PRIVATE_KEY<<INKWELL_KEY_EOF'
+              printf '%s\n' "$RAW_SIGNING_KEY"
+              echo 'INKWELL_KEY_EOF'
+            } >> "$GITHUB_ENV"
           else
-            echo 'usable=false' >> "$GITHUB_OUTPUT"
-            echo "::warning title=Updater signing skipped::TAURI_SIGNING_PRIVATE_KEY is missing or is not a whole minisign secret key (it must include its 'untrusted comment:' first line). The installer is still built and published; in-app updates will not be offered until the secret is fixed and a new release is made."
+            CLEAN=$(printf '%s' "$RAW_SIGNING_KEY" | tr -d '[:space:]')
+            if printf '%s' "$CLEAN" | base64 -d 2>/dev/null | head -n1 | grep -qi 'untrusted comment'; then
+              echo 'usable=true' >> "$GITHUB_OUTPUT"
+              echo "::add-mask::$CLEAN"
+              echo "TAURI_SIGNING_PRIVATE_KEY=$CLEAN" >> "$GITHUB_ENV"
+            else
+              echo 'usable=false' >> "$GITHUB_OUTPUT"
+              echo "::warning title=Updater signing skipped::TAURI_SIGNING_PRIVATE_KEY is missing or is not a whole minisign secret key (it must include its 'untrusted comment:' first line, or be the single-line base64 of that document). The installer is still built and published; in-app updates will not be offered until the secret is fixed and a new release is made."
+            fi
           fi
 
       # Authenticode (SmartScreen) signing needs a purchased certificate — see
@@ -86,7 +102,10 @@ jobs:
         if: steps.signing.outputs.usable == 'true'
         run: npm run desktop:build
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # TAURI_SIGNING_PRIVATE_KEY arrives via GITHUB_ENV from the check
+          # step above, already scrubbed of paste artifacts — not straight
+          # from the secret, which may carry an embedded newline.
+          #
           # The updater key was generated with an empty password, so this is
           # hardcoded rather than read from a secret: a stale value in the
           # old password secret would fail decryption and kill the signing
