@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   analyseProse,
+  chapterPacing,
   countAdverbs,
+  findCrutchWords,
   countPassive,
   dialogueRatio,
   findRepetitions,
@@ -282,5 +284,66 @@ describe('per10k', () => {
 
   it('is zero rather than infinite for an empty scene', () => {
     expect(per10k(3, 0)).toBe(0)
+  })
+})
+
+describe('chapterPacing', () => {
+  it('measures each chapter on its own terms', () => {
+    const pacing = chapterPacing([
+      { title: 'One', text: '"Hello there," she said. "Are you well?"' },
+      { title: 'Two', text: 'The road ran west. Nobody spoke for a long while on the road west.' },
+    ])
+    expect(pacing.map((c) => c.title)).toEqual(['One', 'Two'])
+    expect(pacing[0].dialogueRatio).toBeGreaterThan(0.4)
+    expect(pacing[1].dialogueRatio).toBe(0)
+    expect(pacing[1].words).toBe(14)
+    expect(pacing[1].meanSentenceLength).toBe(7)
+  })
+
+  it('survives an empty chapter without dividing by zero', () => {
+    expect(chapterPacing([{ title: 'Blank', text: '' }])[0]).toEqual({
+      title: 'Blank',
+      words: 0,
+      dialogueRatio: 0,
+      meanSentenceLength: 0,
+    })
+  })
+})
+
+describe('findCrutchWords', () => {
+  /** ~2,600 words with one word worn into a groove and two red herrings. */
+  function manuscript(): string {
+    const filler =
+      'The road bent past the harbour and the morning market carried on below the cliffs. '
+    const habit = 'Everything about the ledger unsettled him, and the ledger would not close. '
+    const named = 'Charlotte kept the accounts while Whitby slept under the fog. '
+    return (filler.repeat(120) + habit.repeat(18) + named.repeat(30)).trim()
+  }
+
+  it('finds the worn word and not the cast', () => {
+    const found = findCrutchWords(manuscript(), ['Charlotte'])
+    const wordsFound = found.map((c) => c.word)
+    expect(wordsFound).toContain('ledger')
+    // Excluded by the Almanac's own cast list.
+    expect(wordsFound).not.toContain('charlotte')
+    // Almost always capitalised: a name the Almanac hasn't met, not a habit.
+    expect(wordsFound).not.toContain('whitby')
+  })
+
+  it('reports how hard the habit is being leaned on', () => {
+    const ledger = findCrutchWords(manuscript(), ['Charlotte']).find((c) => c.word === 'ledger')
+    expect(ledger?.count).toBe(36)
+    expect(ledger?.per10k).toBeGreaterThan(100)
+  })
+
+  it('refuses to call anything a habit on a short text', () => {
+    expect(findCrutchWords('ledger '.repeat(500), [])).toEqual([])
+  })
+
+  it('leaves hedge and filter words to their own panels', () => {
+    const text = ('He was really certain about the harbour, really certain indeed. ').repeat(250)
+    const found = findCrutchWords(text, [])
+    expect(found.map((c) => c.word)).not.toContain('really')
+    expect(found.map((c) => c.word)).toContain('certain')
   })
 })

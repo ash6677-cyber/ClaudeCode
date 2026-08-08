@@ -339,3 +339,95 @@ export function per10k(count: number, totalWords: number): number {
   if (totalWords === 0) return 0
   return Math.round((count / totalWords) * 10_000)
 }
+
+export interface ChapterPace {
+  title: string
+  words: number
+  /** Fraction of the chapter's words inside quotes. */
+  dialogueRatio: number
+  meanSentenceLength: number
+}
+
+/**
+ * The book chapter by chapter — the scale where pacing lives.
+ *
+ * A whole-book mean hides the sagging middle; a scene-level view drowns it
+ * in noise. Chapter grain is where a writer plans, so it is where the shape
+ * of the thing — a short sharp chapter among long ones, a talky stretch, a
+ * chapter of forty-word sentences — actually shows.
+ */
+export function chapterPacing(chapters: { title: string; text: string }[]): ChapterPace[] {
+  return chapters.map(({ title, text }) => {
+    const list = words(text)
+    const sentenceCount = sentences(text).length
+    return {
+      title,
+      words: list.length,
+      dialogueRatio: dialogueRatio(text),
+      meanSentenceLength:
+        sentenceCount === 0 ? 0 : Math.round((list.length / sentenceCount) * 10) / 10,
+    }
+  })
+}
+
+export interface CrutchWord {
+  word: string
+  count: number
+  per10k: number
+}
+
+/**
+ * The writer's own crutch words: distinctive vocabulary leaned on so often
+ * across the whole book that it has become a habit.
+ *
+ * Different from `findRepetitions`, which hears echoes within a paragraph;
+ * a crutch word can be spread perfectly evenly and still wear a groove.
+ * There is no universal list to check against, because a crutch is personal
+ * — so the test is plain frequency, with three kinds of word excused:
+ * function words, the filter/hedge lists (they have their own panels), and
+ * names. The cast is excluded by name — the Almanac already knows them —
+ * and anything else almost always capitalised is treated as a name the
+ * Almanac hasn't met yet, because "Whitby" appearing three hundred times is
+ * a setting, not a habit.
+ */
+export function findCrutchWords(
+  text: string,
+  excludeNames: string[] = [],
+  top = 12,
+): CrutchWord[] {
+  const original = words(text)
+  const total = original.length
+  // A habit needs scale: on a short text every word is "frequent".
+  if (total < 2000) return []
+
+  const excluded = new Set<string>()
+  for (const name of excludeNames) {
+    for (const part of words(name.toLowerCase())) excluded.add(part)
+  }
+  for (const word of FILTER_WORDS) excluded.add(word)
+  for (const word of HEDGE_WORDS) excluded.add(word)
+
+  const counts = new Map<string, number>()
+  const capitalised = new Map<string, number>()
+  for (const raw of original) {
+    const lower = raw.toLowerCase()
+    if (lower.length < 4 || COMMON.has(lower) || excluded.has(lower)) continue
+    counts.set(lower, (counts.get(lower) ?? 0) + 1)
+    if (raw[0] !== lower[0]) capitalised.set(lower, (capitalised.get(lower) ?? 0) + 1)
+  }
+
+  const found: CrutchWord[] = []
+  for (const [word, count] of counts) {
+    if (count < 6) continue
+    const rate = (count / total) * 10_000
+    if (rate < 8) continue
+    // Sentence starts capitalise anything; a real name is capitalised
+    // nearly every time it appears.
+    if ((capitalised.get(word) ?? 0) / count >= 0.6) continue
+    found.push({ word, count, per10k: Math.round(rate) })
+  }
+
+  return found
+    .sort((a, b) => b.per10k - a.per10k || b.count - a.count || a.word.localeCompare(b.word))
+    .slice(0, top)
+}

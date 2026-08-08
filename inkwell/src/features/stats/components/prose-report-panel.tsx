@@ -10,7 +10,11 @@ import {
 } from '@/components/ui/select'
 import {
   analyseProse,
+  chapterPacing,
+  findCrutchWords,
   per10k,
+  type ChapterPace,
+  type CrutchWord,
   type ProseReport,
   type WordTally,
 } from '@/features/stats/lib/prose-analysis'
@@ -52,6 +56,44 @@ function RhythmRibbon({ lengths }: { lengths: number[] }) {
           )}
           style={{ height: `${Math.max(4, (length / peak) * 100)}%` }}
         />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The book as a silhouette: one bar per chapter, in order.
+ *
+ * Length is the bar; the brighter core is how much of it is dialogue. A
+ * sagging middle, a talky act, one strangely short chapter — the things a
+ * writer senses but cannot see from inside a scene are all silhouettes.
+ */
+function BookShape({ pacing }: { pacing: ChapterPace[] }) {
+  const max = Math.max(...pacing.map((chapter) => chapter.words), 1)
+  return (
+    <div className="max-h-64 space-y-1 overflow-y-auto pr-1">
+      {pacing.map((chapter, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <span
+            className="w-28 shrink-0 truncate text-xs text-muted-foreground"
+            title={chapter.title}
+          >
+            {chapter.title}
+          </span>
+          <div className="relative h-3.5 flex-1 overflow-hidden rounded-sm bg-muted/40">
+            <div
+              className="absolute inset-y-0 left-0 rounded-sm bg-primary/40"
+              style={{ width: `${(chapter.words / max) * 100}%` }}
+            />
+            <div
+              className="absolute inset-y-0 left-0 rounded-sm bg-primary/85"
+              style={{ width: `${(chapter.words / max) * chapter.dialogueRatio * 100}%` }}
+            />
+          </div>
+          <span className="w-28 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+            {chapter.words.toLocaleString()} w · ⌀{chapter.meanSentenceLength}
+          </span>
+        </div>
       ))}
     </div>
   )
@@ -106,30 +148,56 @@ export function ProseReportPanel({ projects }: ProseReportPanelProps) {
   const projectId = projects.some((project) => project.id === chosenId)
     ? chosenId
     : (projects[0]?.id ?? '')
-  const [text, setText] = useState<string | null>(null)
+  interface Source {
+    text: string
+    chapterTexts: { title: string; text: string }[]
+    castNames: string[]
+  }
+  const [source, setSource] = useState<Source | null>(null)
 
   // The whole book's prose, in reading order. Read once per project rather
   // than analysed per scene and summed: sentence rhythm and repetition both
   // cross scene boundaries, and measuring each scene alone would miss them.
+  // Chapter-grained texts ride along for the pacing view, and the Almanac's
+  // cast comes too so nobody's protagonist is reported as an overused word.
   useEffect(() => {
     let cancelled = false
     // No project means the panel has already returned its empty state above,
     // so there is nothing to clear and no reason to write state here.
     if (!projectId) return
     void (async () => {
-      const [chapters, scenes] = await Promise.all([db.chapters.toArray(), db.scenes.toArray()])
-      const order = new Map(
-        chapters.filter((c) => c.projectId === projectId).map((c) => [c.id, c.order]),
-      )
-      const joined = scenes
+      const [chapters, scenes, entries] = await Promise.all([
+        db.chapters.toArray(),
+        db.scenes.toArray(),
+        db.codexEntries.toArray(),
+      ])
+      const mineChapters = chapters
+        .filter((c) => c.projectId === projectId)
+        .sort((a, b) => a.order - b.order)
+      const order = new Map(mineChapters.map((c) => [c.id, c.order]))
+      const mineScenes = scenes
         .filter((scene) => scene.projectId === projectId)
         .sort(
           (a, b) =>
             (order.get(a.chapterId) ?? 0) - (order.get(b.chapterId) ?? 0) || a.order - b.order,
         )
-        .map((scene) => scene.plainText)
-        .join('\n\n')
-      if (!cancelled) setText(joined)
+      const chapterTexts = mineChapters.map((chapter) => ({
+        title: chapter.title,
+        text: mineScenes
+          .filter((scene) => scene.chapterId === chapter.id)
+          .map((scene) => scene.plainText)
+          .join('\n\n'),
+      }))
+      const castNames = entries
+        .filter((entry) => entry.projectId === projectId)
+        .flatMap((entry) => [entry.name, ...entry.aliases])
+      if (!cancelled) {
+        setSource({
+          text: mineScenes.map((scene) => scene.plainText).join('\n\n'),
+          chapterTexts,
+          castNames,
+        })
+      }
     })()
     return () => {
       cancelled = true
@@ -137,8 +205,16 @@ export function ProseReportPanel({ projects }: ProseReportPanelProps) {
   }, [projectId])
 
   const report: ProseReport | null = useMemo(
-    () => (text === null ? null : analyseProse(text)),
-    [text],
+    () => (source === null ? null : analyseProse(source.text)),
+    [source],
+  )
+  const pacing: ChapterPace[] = useMemo(
+    () => (source === null ? [] : chapterPacing(source.chapterTexts)),
+    [source],
+  )
+  const crutches: CrutchWord[] = useMemo(
+    () => (source === null ? [] : findCrutchWords(source.text, source.castNames)),
+    [source],
   )
 
   if (projects.length === 0) {
@@ -202,6 +278,17 @@ export function ProseReportPanel({ projects }: ProseReportPanelProps) {
             />
           </div>
 
+          {pacing.length >= 2 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">The shape of the book</h3>
+              <BookShape pacing={pacing} />
+              <p className="text-xs text-muted-foreground">
+                One bar per chapter: length in words, the brighter core is dialogue, ⌀ is the
+                mean sentence length there.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-2">
             <h3 className="text-sm font-semibold">Sentence rhythm</h3>
             <RhythmRibbon lengths={report.sentenceLengths} />
@@ -229,6 +316,34 @@ export function ProseReportPanel({ projects }: ProseReportPanelProps) {
           </div>
 
           <Card className="space-y-4 p-4">
+            <div className="space-y-1.5">
+              <h3 className="text-sm font-semibold">Your crutch words</h3>
+              {crutches.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {report.words < 2000
+                    ? 'Appears once the book is long enough for habits to show (about 2,000 words).'
+                    : 'No single word is being leaned on across the book. That is rarer than it sounds.'}
+                </p>
+              ) : (
+                <ul className="flex flex-wrap gap-1.5">
+                  {crutches.map((crutch) => (
+                    <li
+                      key={crutch.word}
+                      className="rounded-full border border-border bg-muted/50 px-2.5 py-0.5 text-xs"
+                    >
+                      {crutch.word}{' '}
+                      <span className="tabular-nums text-muted-foreground">
+                        ×{crutch.count} · {crutch.per10k}/10k
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Distinctive words worn into habits across the whole book. Your cast is excused —
+                the Almanac vouches for them.
+              </p>
+            </div>
             <TallyList
               title="Filter words"
               items={report.filterWords}
