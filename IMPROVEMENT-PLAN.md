@@ -520,10 +520,10 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 **Acceptance criteria.**
 - [x] Drag the image; exported PNG matches the preview position within a pixel-probe tolerance. *(They match exactly, not within a tolerance — both now read one geometry.)*
 - [x] Scrim makes white text legible over a light image (contrast probe on the export). **Correction to this section's premise:** the scrim already existed (`cover.overlay`, in both the preview and `render-cover.ts`); what was missing was any proof it worked, which is what the probe adds.
-- [ ] Two variants switchable; box set and front page use the active one (`resolve-cover` tests extended). *(16.4, still open.)*
-- [ ] Undo reverts the last ten operations in-session. *(16.6, still open.)*
+- [x] Two variants switchable; box set and front page use the active one (`resolve-cover` tests extended).
+- [x] Undo reverts the last ten operations in-session. *(Fifty, gesture-grained, with redo.)*
 
-**Done: 16.1, 16.3** — `crop-geometry.ts`, `scripts/cover-crop-check.mjs` (17 checks). 16.2, 16.4–16.6 remain.
+**Done: 16.1–16.4, 16.6** — `crop-geometry.ts`, `design-history.ts`, variant picker + eyedropper + outline; `scripts/cover-crop-check.mjs` (17 checks) and `scripts/cover-studio-check.mjs` (14 checks). Remaining: 16.5 (KDP spine maths), which this plan already flags as a suggestion rather than scope.
 
 ---
 
@@ -693,9 +693,9 @@ Current sitemap: Projects · Editor · Read · Almanac · Cards (→ detail → 
 
 **Acceptance criteria.**
 - [x] A 30-chapter Markdown file imports with structure matching the preview exactly; word counts sum correctly.
-- [ ] Almanac JSON round-trips entries, attributes, relationships (images included as base64, matching backup format conventions). *(22.2, still open.)*
+- [x] Almanac JSON round-trips entries, attributes, relationships (images included as base64, matching backup format conventions).
 
-**Done: 22.1** — `features/import/` (`parse-manuscript.ts`, `read-document.ts`, `commit-import.ts`), `scripts/manuscript-import-check.mjs` (28 checks). It landed under `features/import/` rather than `features/export/lib/importers.ts`: reading a foreign document has nothing in common with writing one of ours, and the parse is the whole of the work. 22.2–22.3 remain.
+**Done: 22.1, 22.2, 22.3** — `features/import/` (28 harness checks), `features/codex/lib/almanac-file.ts` + `run-almanac-io.ts` (`scripts/almanac-io-check.mjs`, 12 checks), and the export dialog remembers its format. 22.1 landed under `features/import/` rather than `features/export/lib/importers.ts`: reading a foreign document has nothing in common with writing one of ours, and the parse is the whole of the work.
 
 ---
 
