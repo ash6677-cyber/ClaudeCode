@@ -43,7 +43,6 @@ import { useAiStore } from '@/stores/ai-store'
 import { findTemplate, templateChoices, useTemplateStore } from '@/stores/template-store'
 import { rememberHandoff } from '@/features/book-creator/lib/handoff'
 import { stepAdvice } from '@/features/book-creator/lib/step-advice'
-import { cn } from '@/lib/utils'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
 
 const STEPS = [
@@ -540,12 +539,12 @@ export function BookCreatorWizard() {
       </div>
 
       <footer className="border-t border-border px-4 py-3 sm:px-6">
+        {/* Muted even when blocking: the button is disabled, so this is
+            guidance about what comes next, and red on a form the writer has
+            not touched yet reads as a telling-off. */}
         {(advice.block || advice.note) && (
           <p
-            className={cn(
-              'mb-2 text-xs',
-              advice.block ? 'text-destructive' : 'text-muted-foreground',
-            )}
+            className="mb-2 text-xs text-muted-foreground"
             role={advice.block ? 'alert' : 'status'}
           >
             {advice.block ?? advice.note}

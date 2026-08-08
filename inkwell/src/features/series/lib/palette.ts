@@ -188,13 +188,16 @@ function clampByte(value: number): number {
  * Cloth colours for a book with no cover art yet.
  *
  * Print-plausible bindings rather than arbitrary hues: a shelf of saturated
- * primaries reads as a bar chart, while these read as books. Kept here so the
+ * primaries reads as a bar chart, while these read as books. The set skews
+ * jewel-toned — mulberry and slate rather than mustard and drab olive —
+ * because these cloths also stand alone as the tile on a project card,
+ * where one muddy binding is the first thing a writer sees. Kept here so the
  * flat thumbnail on a series card and the 3D set agree on what colour any
  * given volume is — the two looking different would be read as a bug.
  */
 export const CLOTH_COLORS = [
-  '#2f4858', '#7b3f2e', '#3c5148', '#4a3b63', '#8a6a2f',
-  '#2c3e50', '#6b2f3f', '#37564a', '#5a4632', '#403a5c',
+  '#2f4858', '#7b3f2e', '#3c5148', '#4a3b63', '#7a3b52',
+  '#2c3e50', '#6b2f3f', '#37564a', '#446062', '#403a5c',
 ] as const
 
 function hashOf(seed: string): number {
