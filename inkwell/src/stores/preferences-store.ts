@@ -13,12 +13,19 @@ interface PreferencesState {
   backupSnoozedUntil: number
   /** The format the last manuscript export used. The next one starts there. */
   lastExportFormat: string | null
+  /**
+   * Whether the sample book has had its one chance to exist — set when it
+   * is seeded, and equally when a library proves it never needed one.
+   * Deleting the sample must never resurrect it.
+   */
+  sampleBookOffered: boolean
   setEditorFont: (id: string) => void
   setTypewriterMode: (value: boolean) => void
   setDimInactiveParagraphs: (value: boolean) => void
   markBackedUp: () => void
   rememberExportFormat: (format: string) => void
   snoozeBackupReminder: (days: number) => void
+  markSampleBookOffered: () => void
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -30,6 +37,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       lastBackupAt: null,
       backupSnoozedUntil: 0,
       lastExportFormat: null,
+      sampleBookOffered: false,
       setEditorFont: (id) => set({ editorFont: id }),
       setTypewriterMode: (value) => set({ typewriterMode: value }),
       setDimInactiveParagraphs: (value) => set({ dimInactiveParagraphs: value }),
@@ -37,6 +45,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       rememberExportFormat: (format) => set({ lastExportFormat: format }),
       snoozeBackupReminder: (days) =>
         set({ backupSnoozedUntil: Date.now() + days * 24 * 60 * 60 * 1000 }),
+      markSampleBookOffered: () => set({ sampleBookOffered: true }),
     }),
     { name: 'inkwell-preferences' },
   ),

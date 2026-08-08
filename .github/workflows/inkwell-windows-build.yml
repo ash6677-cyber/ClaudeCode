@@ -112,6 +112,38 @@ jobs:
           # this workflow just verified was possible.
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
 
+      # Tauri signs the installer but writes no manifest — the .sig proves an
+      # update genuine; latest.json is what tells running apps one exists.
+      # The app polls releases/latest/download/latest.json, so every signed
+      # release must carry one or auto-update silently never fires.
+      - name: Write the updater manifest
+        if: steps.signing.outputs.usable == 'true' && (startsWith(github.ref, 'refs/tags/inkwell-v') || inputs.release_tag != '')
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          node -e '
+            const fs = require("fs")
+            const path = require("path")
+            const version = require("./package.json").version
+            const dir = "src-tauri/target/release/bundle/nsis"
+            const exe = fs.readdirSync(dir).find((f) => f.endsWith(".exe"))
+            if (!exe) throw new Error("no installer found to describe")
+            const signature = fs.readFileSync(path.join(dir, exe + ".sig"), "utf8").trim()
+            const url = `https://github.com/ash6677-cyber/ink/releases/download/${process.env.RELEASE_TAG}/${encodeURIComponent(exe)}`
+            const manifest = {
+              version,
+              notes: `INKWELL ${version}`,
+              pub_date: new Date().toISOString(),
+              platforms: { "windows-x86_64": { signature, url } },
+            }
+            fs.writeFileSync(
+              "src-tauri/target/release/bundle/latest.json",
+              JSON.stringify(manifest, null, 2),
+            )
+            console.log("latest.json points at", url)
+          '
+
       # Updater artifacts are turned off rather than produced unsigned: a .sig
       # that cannot verify is worse than no .sig, because the updater would
       # offer the update and then reject it.

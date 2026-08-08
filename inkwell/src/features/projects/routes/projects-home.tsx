@@ -12,6 +12,7 @@ import { ProjectCard } from '@/features/projects/components/project-card'
 import { ExportDialog } from '@/features/export/components/export-dialog'
 import { ImportManuscriptDialog } from '@/features/import/components/import-manuscript-dialog'
 import { ProjectFormDialog } from '@/features/projects/components/project-form-dialog'
+import { maybeSeedSampleBook } from '@/features/projects/lib/sample-book'
 import { useProjectStore } from '@/stores/project-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project } from '@/types'
@@ -40,7 +41,10 @@ export function ProjectsHome() {
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
-    fetchProjects()
+    // The sample book gets its one chance to exist before the first fetch,
+    // so a brand-new library's first paint already has something on it
+    // rather than flashing empty and then filling in.
+    maybeSeedSampleBook().finally(() => fetchProjects())
   }, [fetchProjects])
 
   function openCreateDialog() {
