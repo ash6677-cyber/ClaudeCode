@@ -79,6 +79,15 @@ function createFirestore(): Firestore {
 export const firestore = createFirestore()
 
 /**
+ * Use the local emulator suite whenever there's no real project configured
+ * (dev by default) or when explicitly requested — never in a production
+ * build that a writer would receive, and never when pointed at a real
+ * project.
+ */
+const useEmulator =
+  import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || (!hasRealConfig && import.meta.env.DEV)
+
+/**
  * Whether cloud accounts and sync are actually reachable.
  *
  * A production build with no Firebase project configured has nowhere to sign
@@ -87,16 +96,13 @@ export const firestore = createFirestore()
  * that hangs against an emulator nobody is running, the cloud features
  * declare themselves unavailable and the app stays what it already is
  * without them — fully local-first.
+ *
+ * A build made *expressly* for the emulator counts as cloud-enabled: that is
+ * what lets the sync acceptance harness drive the production bundle — real
+ * sign-up form, real engine, real Firestore semantics — with nobody's real
+ * credentials anywhere near it.
  */
-export const cloudEnabled = hasRealConfig || import.meta.env.DEV
-
-/**
- * Use the local emulator suite whenever there's no real project configured
- * (dev by default) or when explicitly requested — never in a production
- * build, and never when pointed at a real project.
- */
-const useEmulator =
-  import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true' || (!hasRealConfig && import.meta.env.DEV)
+export const cloudEnabled = hasRealConfig || import.meta.env.DEV || useEmulator
 
 let emulatorsConnected = false
 export function connectToEmulatorsIfConfigured() {
