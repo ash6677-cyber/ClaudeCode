@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 import { usePreferencesStore } from '@/stores/preferences-store'
 import type { CodexEntry, RichContent } from '@/types'
 
-function recenterCaret(editor: Editor) {
+function recenterCaret(editor: Editor, behavior: ScrollBehavior = 'auto') {
   const { from } = editor.state.selection
   const coords = editor.view.coordsAtPos(from)
   const container = findScrollParent(editor.view.dom as HTMLElement)
@@ -18,7 +18,7 @@ function recenterCaret(editor: Editor) {
   const containerRect = container.getBoundingClientRect()
   const targetY = containerRect.top + containerRect.height * 0.4
   const delta = coords.top - targetY
-  if (Math.abs(delta) > 2) container.scrollTop += delta
+  if (Math.abs(delta) > 2) container.scrollTo({ top: container.scrollTop + delta, behavior })
 }
 
 interface SceneEditorProps {
@@ -141,7 +141,17 @@ export function SceneEditor({
 
   useEffect(() => {
     if (!editor || !focusMode || !typewriterMode) return
-    recenterCaret(editor)
+    // After the sheet's 200ms width transition, not during it: measuring
+    // mid-transition centres the caret against a page width that is still
+    // changing, and the caret lands visibly off the line it was promised.
+    // The entry glide is the one place smooth scrolling belongs — every
+    // keystroke after it recenters instantly, because animation under a
+    // moving caret reads as seasickness, not polish.
+    const timer = setTimeout(() => {
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      recenterCaret(editor, reduced ? 'auto' : 'smooth')
+    }, 230)
+    return () => clearTimeout(timer)
   }, [editor, focusMode, typewriterMode])
 
   const hoveredEntry = hover ? codexEntries.find((e) => e.id === hover.entryId) : undefined
@@ -164,7 +174,15 @@ export function SceneEditor({
           ? // No edge at all here, and that is the whole point of focus mode:
             // a glow around the page is exactly the sort of thing you want
             // until the moment you are actually trying to write.
-            'my-0 min-h-full bg-transparent py-16'
+            //
+            // With typewriter scrolling on, the page gets a long runway of
+            // padding below the last line. Without it the scrollbar clamps
+            // at the bottom and the caret physically cannot be held at 40%
+            // of the view — which is to say typewriter mode stops working
+            // exactly where a writer lives: the end of the draft.
+            typewriterMode
+            ? 'my-0 min-h-full bg-transparent pt-16 pb-[55vh]'
+            : 'my-0 min-h-full bg-transparent py-16'
           : // Tall enough to reach the bottom of the view even when the scene
             // is two paragraphs long. A sheet that stopped at the last line
             // read as a card containing prose rather than a page being

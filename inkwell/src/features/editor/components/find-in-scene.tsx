@@ -86,7 +86,15 @@ export function FindInScene({ editor, onClose, initialQuery }: FindInSceneProps)
               if (e.shiftKey) goPrev()
               else goNext()
             }
-            if (e.key === 'Escape') onClose()
+            if (e.key === 'Escape') {
+              // Consumed, and said so: the focus-mode Escape handler on
+              // window checks defaultPrevented to know the key already did
+              // its job here. Without this, closing the find bar re-renders
+              // mid-bubble and the same keystroke falls through and exits
+              // focus mode too.
+              e.preventDefault()
+              onClose()
+            }
           }}
           placeholder="Find in scene"
           className="h-8 text-sm"

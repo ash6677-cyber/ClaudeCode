@@ -42,6 +42,7 @@ import { useAiStore } from '@/stores/ai-store'
 import { useCodexStore } from '@/stores/codex-store'
 import { useEditorStore } from '@/stores/editor-store'
 import { usePreferencesStore } from '@/stores/preferences-store'
+import { dailyTotals, useStatsStore, wordsToday } from '@/stores/stats-store'
 import { useUiStore } from '@/stores/ui-store'
 import type { Project, RichContent } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
@@ -167,6 +168,23 @@ export function EditorHome() {
         setFocusMode(!focusMode)
         return
       }
+      // Escape leaves focus mode, because Escape leaves every full-screen
+      // mode ever shipped and a writer should not have to learn otherwise.
+      // But only when nothing closer owns the key: the find bar closes
+      // itself and calls preventDefault (checking `findOpen` here is not
+      // enough — closing it re-renders mid-bubble, and the re-registered
+      // listener would see it already false), and anything inside a menu,
+      // dialog, or popover is Radix's Escape, not ours.
+      if (focusMode && e.key === 'Escape' && !e.defaultPrevented && !findOpen) {
+        const target = e.target as HTMLElement | null
+        const inOverlay = target?.closest(
+          '[role="dialog"], [role="menu"], [data-radix-popper-content-wrapper]',
+        )
+        if (!inOverlay) {
+          setFocusMode(false)
+          return
+        }
+      }
       if (!activeScene) return
       if (matchesShortcut(e, 'search-manuscript')) {
         e.preventDefault()
@@ -178,7 +196,53 @@ export function EditorHome() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [activeScene, setManuscriptSearchOpen, focusMode, setFocusMode])
+  }, [activeScene, setManuscriptSearchOpen, focusMode, setFocusMode, findOpen])
+
+  // Entering focus mode should land the caret back in the prose. The writer
+  // pressed a button that says "just let me write"; making them click the
+  // page afterwards is the app not believing them.
+  useEffect(() => {
+    if (!focusMode) return
+    const raf = requestAnimationFrame(() => liveEditor?.commands.focus())
+    return () => cancelAnimationFrame(raf)
+  }, [focusMode, liveEditor])
+
+  // The focus HUD shows itself when the hand is on the mouse and gets out of
+  // the way when the hands are on the keys. A half-dimmed pill hovering over
+  // the prose was the worst of both: present enough to collide with scrolled
+  // text, absent enough to look broken.
+  const [hudVisible, setHudVisible] = useState(true)
+  const hudTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [focusSettingsOpen, setFocusSettingsOpen] = useState(false)
+  useEffect(() => {
+    if (!focusMode) return
+    const wake = () => {
+      setHudVisible(true)
+      if (hudTimerRef.current) clearTimeout(hudTimerRef.current)
+      hudTimerRef.current = setTimeout(() => setHudVisible(false), 2500)
+    }
+    // Visible on entry, so the writer sees where the exit lives before it
+    // hides itself.
+    wake()
+    window.addEventListener('pointermove', wake)
+    return () => {
+      window.removeEventListener('pointermove', wake)
+      if (hudTimerRef.current) clearTimeout(hudTimerRef.current)
+    }
+  }, [focusMode])
+
+  // Today's words for the focus pill — loaded lazily, only once focus mode
+  // actually asks for them.
+  const statsStatus = useStatsStore((s) => s.status)
+  const statsSessions = useStatsStore((s) => s.sessions)
+  const loadStats = useStatsStore((s) => s.loadAll)
+  useEffect(() => {
+    if (focusMode && statsStatus === 'idle') loadStats()
+  }, [focusMode, statsStatus, loadStats])
+  const todayWords = useMemo(
+    () => (projectId ? wordsToday(dailyTotals(statsSessions, 1, projectId)) : 0),
+    [statsSessions, projectId],
+  )
 
   // Reads the scene fresh from the store at call time (via getState) rather than closing
   // over the `activeScene` from render — this fires after a debounce delay, so a closure
@@ -317,21 +381,50 @@ export function EditorHome() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {focusMode ? (
-          <div className="group pointer-events-none fixed right-5 top-4 z-10 flex items-center gap-2 rounded-full border border-border/60 bg-card/80 px-3 py-1.5 opacity-25 shadow-sm backdrop-blur transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100">
-            <span
-              className="pointer-events-none text-xs tabular-nums text-muted-foreground"
-              title="Every word in this book"
-            >
+          // Fully there or fully gone, never a ghost: when hidden it also
+          // stops catching the pointer, so nothing invisible ever sits
+          // between the writer and their own text. A failed save and an open
+          // settings menu both pin it visible — one because it must be seen,
+          // the other because a menu whose anchor fades away looks haunted.
+          <div
+            className={cn(
+              'fixed right-5 top-4 z-10 flex items-center gap-2 rounded-full border border-border/60 bg-card/90 px-3 py-1.5 shadow-sm backdrop-blur transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100',
+              hudVisible || focusSettingsOpen || saveStatus === 'failed'
+                ? 'opacity-100'
+                : 'pointer-events-none opacity-0',
+            )}
+          >
+            <span className="text-xs tabular-nums text-muted-foreground" title="Every word in this book">
               {formatWordCount(bookWordCount)} words
             </span>
-            <DropdownMenu>
+            {todayWords > 0 && (
+              <span
+                className="border-l border-border/60 pl-2 text-xs tabular-nums text-muted-foreground"
+                title="Written today"
+              >
+                +{formatWordCount(todayWords)} today
+              </span>
+            )}
+            {saveStatus === 'failed' ? (
+              <span
+                role="alert"
+                className="flex items-center gap-1 border-l border-border/60 pl-2 text-xs font-medium text-destructive"
+              >
+                <AlertTriangle className="size-3.5" /> Could not save — your text is still here
+              </span>
+            ) : saveStatus === 'saving' || saveStatus === 'saved' ? (
+              <span className="border-l border-border/60 pl-2 text-xs text-muted-foreground/70">
+                {saveStatus === 'saving' ? 'Saving…' : savedTimeLabel}
+              </span>
+            ) : null}
+            <DropdownMenu open={focusSettingsOpen} onOpenChange={setFocusSettingsOpen}>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="pointer-events-auto size-6"
+                      className="size-6"
                       aria-label="Focus mode settings"
                     >
                       <Settings2 className="size-3.5" />
@@ -340,7 +433,7 @@ export function EditorHome() {
                 </TooltipTrigger>
                 <TooltipContent>Focus mode settings</TooltipContent>
               </Tooltip>
-              <DropdownMenuContent align="end" className="pointer-events-auto">
+              <DropdownMenuContent align="end">
                 <DropdownMenuCheckboxItem
                   checked={typewriterMode}
                   onCheckedChange={setTypewriterMode}
@@ -360,14 +453,14 @@ export function EditorHome() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="pointer-events-auto size-6"
+                  className="size-6"
                   onClick={() => setFocusMode(false)}
                   aria-label="Exit focus mode"
                 >
                   <Minimize2 className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Exit focus mode</TooltipContent>
+              <TooltipContent>Exit focus mode (Esc)</TooltipContent>
             </Tooltip>
           </div>
         ) : (
