@@ -1,1 +1,0 @@
-import{i as e}from"./rolldown-runtime-Dd_uD5pT.js";import{Kn as t}from"./vendor-fIfllW7y.js";var n=e(t(),1);function r(e){let[t,r]=(0,n.useState)(null),[i,a]=(0,n.useState)(e);return e!==i&&(a(e),r(null)),(0,n.useEffect)(()=>{if(!e)return;let t=URL.createObjectURL(e);return r(t),()=>URL.revokeObjectURL(t)},[e]),t}export{r as t};

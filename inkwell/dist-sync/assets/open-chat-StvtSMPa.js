@@ -1,1 +1,0 @@
-import{ln as e}from"./index-BBo5-bpM.js";async function t(t,n){let{chats:r,createChat:i}=e.getState(),a=r.filter(e=>e.cardId===n.id);return a.length>0?a[0].id:(await i(t,n.id,{title:`First conversation`,firstMessage:n.firstMessage})).id}function n(e){return e===0?`First conversation`:`Conversation ${e+1}`}export{n,t};

@@ -1,1 +1,0 @@
-import{ct as e}from"./vendor-radix-Mu3eVckT.js";import{ft as t}from"./index-BBo5-bpM.js";var n=e();function r({className:e,...r}){return(0,n.jsx)(`div`,{className:t(`skeleton-shimmer rounded-md`,e),...r})}export{r as t};
