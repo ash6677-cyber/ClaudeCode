@@ -1,5 +1,5 @@
-import { BookOpen, Library, Plus, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { BookOpen, Download, Library, Plus, Search, Upload } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
@@ -11,6 +11,9 @@ import { useToast } from '@/components/ui/use-toast'
 import { EntryCard } from '@/features/codex/components/entry-card'
 import { EntryFormDialog } from '@/features/codex/components/entry-form-dialog'
 import { AlmanacSurvey } from '@/features/almanac/components/almanac-survey'
+import { exportAlmanac, importAlmanac } from '@/features/codex/lib/run-almanac-io'
+import { saveExport } from '@/features/export/lib/save-file'
+import { useProjectStore } from '@/stores/project-store'
 import { useCodexStore } from '@/stores/codex-store'
 import type { CodexEntryType } from '@/types'
 import { useDocumentTitle } from '@/lib/hooks/use-document-title'
@@ -22,6 +25,50 @@ export function CodexHome() {
 
   const { entries, status, error, loadProject, createEntry } = useCodexStore()
   const { toast } = useToast()
+  const projects = useProjectStore((s) => s.projects)
+  const fetchProjects = useProjectStore((s) => s.fetchProjects)
+  const importFileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetchProjects()
+  }, [fetchProjects])
+
+  /**
+   * The Almanac as a file — the cast and world of this book, portable.
+   * The next book in a series lives in a different project, and what it
+   * needs from this one is the people, not the prose.
+   */
+  async function handleExportAlmanac() {
+    if (!projectId) return
+    const title = projects.find((p) => p.id === projectId)?.title ?? 'almanac'
+    const file = await exportAlmanac(projectId, title)
+    await saveExport({
+      filename: `${title.replace(/[^\w-]+/g, '-').toLowerCase() || 'almanac'}.almanac.json`,
+      mimeType: 'application/json',
+      text: JSON.stringify(file, null, 2),
+    })
+    toast({
+      title: `${file.entries.length} ${file.entries.length === 1 ? 'entry' : 'entries'} exported`,
+      description: 'Import the file into any other book from its Almanac page.',
+    })
+  }
+
+  async function handleImportAlmanac(picked: File | undefined) {
+    if (!picked || !projectId) return
+    const result = await importAlmanac(projectId, await picked.text())
+    if ('error' in result) {
+      toast({ title: 'Could not import that file', description: result.error, variant: 'destructive' })
+      return
+    }
+    await loadProject(projectId)
+    toast({
+      title: `${result.created} ${result.created === 1 ? 'entry' : 'entries'} imported`,
+      description:
+        result.skipped.length > 0
+          ? `Left alone because they already exist here: ${result.skipped.slice(0, 4).join(', ')}${result.skipped.length > 4 ? '…' : ''}`
+          : undefined,
+    })
+  }
 
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<CodexEntryType | 'all'>('all')
@@ -76,11 +123,32 @@ export function CodexHome() {
             : undefined
         }
         actions={
-          status === 'ready' &&
-          entries.length > 0 && (
-            <Button size="sm" onClick={() => setFormOpen(true)}>
-              <Plus /> New entry
-            </Button>
+          status === 'ready' && (
+            <>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".json,application/json"
+                className="hidden"
+                onChange={(e) => {
+                  void handleImportAlmanac(e.target.files?.[0])
+                  e.target.value = ''
+                }}
+              />
+              <Button size="sm" variant="outline" onClick={() => importFileRef.current?.click()}>
+                <Upload /> Import
+              </Button>
+              {entries.length > 0 && (
+                <Button size="sm" variant="outline" onClick={() => void handleExportAlmanac()}>
+                  <Download /> Export
+                </Button>
+              )}
+              {entries.length > 0 && (
+                <Button size="sm" onClick={() => setFormOpen(true)}>
+                  <Plus /> New entry
+                </Button>
+              )}
+            </>
           )
         }
       />

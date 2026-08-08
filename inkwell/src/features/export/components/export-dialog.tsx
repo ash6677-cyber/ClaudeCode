@@ -20,6 +20,7 @@ import { saveExport } from '@/features/export/lib/save-file'
 import { compileBook, type BookChapter } from '@/features/reader/lib/compile-book'
 import { chapterRepo, sceneRepo } from '@/lib/db/repositories'
 import { cn } from '@/lib/utils'
+import { usePreferencesStore } from '@/stores/preferences-store'
 import type { Project } from '@/types'
 
 const FORMATS: ExportFormat[] = ['docx', 'epub', 'markdown', 'html', 'text']
@@ -33,7 +34,14 @@ export function ExportDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const [format, setFormat] = useState<ExportFormat>('docx')
+  // Opens on whatever was chosen last time. Someone who exports to EPUB
+  // exports to EPUB every week, and re-answering a settled question is the
+  // kind of chore that only shows up as a chore the tenth time.
+  const lastFormat = usePreferencesStore((s) => s.lastExportFormat)
+  const rememberExportFormat = usePreferencesStore((s) => s.rememberExportFormat)
+  const [format, setFormat] = useState<ExportFormat>(() =>
+    FORMATS.includes(lastFormat as ExportFormat) ? (lastFormat as ExportFormat) : 'docx',
+  )
   const [loaded, setLoaded] = useState<{ projectId: string; book: BookChapter[] } | null>(null)
   const [busy, setBusy] = useState(false)
   const { toast } = useToast()
@@ -77,6 +85,9 @@ export function ExportDialog({
       const result = await buildExport(format, project, book)
       const outcome = await saveExport(result)
       if (outcome === 'saved') {
+        // Remembered only on success: a format that failed or was cancelled
+        // has not earned being the default next time.
+        rememberExportFormat(format)
         toast({ title: `Exported as ${FORMAT_META[format].label}`, description: result.filename })
         onOpenChange(false)
       }
