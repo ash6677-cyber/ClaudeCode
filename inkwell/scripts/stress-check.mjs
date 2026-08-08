@@ -416,6 +416,76 @@ if (heapMB !== null) {
   check('JS heap stays reasonable with the monster open', heapMB < 400, `${heapMB}MB (limit 400)`)
 }
 
+// ── Leave no trace ───────────────────────────────────────────────────────────
+// Every run of this harness uses a throwaway browser profile, so the monster
+// can never reach a real library. It is deleted anyway, and the deletion is
+// checked: a future harness pointed at a persistent profile would otherwise
+// leave a 193k-word squatter in someone's project list.
+const leftover = await page.evaluate(async (targetProjectId) => {
+  const open = indexedDB.open('inkwell')
+  const db = await new Promise((res) => {
+    open.onsuccess = () => res(open.result)
+  })
+  const all = (store) =>
+    new Promise((res) => {
+      const req = db.transaction(store).objectStore(store).getAll()
+      req.onsuccess = () => res(req.result)
+    })
+  const wipe = (store, ids) =>
+    new Promise((res, rej) => {
+      if (ids.length === 0) return res()
+      const t = db.transaction(store, 'readwrite')
+      const os = t.objectStore(store)
+      for (const rowId of ids) os.delete(rowId)
+      t.oncomplete = () => res()
+      t.onerror = () => rej(t.error)
+    })
+
+  const [scenes, chapters, entries, snapshots, sessions] = await Promise.all([
+    all('scenes'),
+    all('chapters'),
+    all('codexEntries'),
+    all('snapshots'),
+    all('sessionLogs'),
+  ])
+  const sceneIds = new Set(
+    scenes.filter((s) => s.projectId === targetProjectId).map((s) => s.id),
+  )
+  await wipe('snapshots', snapshots.filter((s) => sceneIds.has(s.sceneId)).map((s) => s.id))
+  await wipe('sessionLogs', sessions.filter((s) => s.projectId === targetProjectId).map((s) => s.id))
+  await wipe('scenes', [...sceneIds])
+  await wipe('chapters', chapters.filter((c) => c.projectId === targetProjectId).map((c) => c.id))
+  await wipe('codexEntries', entries.filter((e) => e.projectId === targetProjectId).map((e) => e.id))
+  await wipe('projects', [targetProjectId])
+
+  const after = await Promise.all([
+    all('projects'),
+    all('scenes'),
+    all('chapters'),
+    all('codexEntries'),
+    all('snapshots'),
+    all('sessionLogs'),
+  ])
+  db.close()
+  return after
+    .flat()
+    .filter(
+      (row) =>
+        row.id === targetProjectId ||
+        row.projectId === targetProjectId ||
+        sceneIds.has(row.sceneId),
+    ).length
+}, projectId)
+check('the monster book is fully deleted afterwards', leftover === 0, `${leftover} rows left behind`)
+
+// A real reload, not a hash hop: the store already has the project in
+// memory, and the point is to prove a fresh app start finds nothing.
+await page.goto(`${BASE}#/projects`)
+await page.reload()
+await page.waitForTimeout(1200)
+const stillListed = await page.getByText('The Salt Ledger').count()
+check('…and the Projects page has never heard of it', stillListed === 0, `${stillListed} card(s) still showing`)
+
 check('no uncaught errors along the way', consoleErrors.length === 0, JSON.stringify(consoleErrors))
 
 await browser.close()
