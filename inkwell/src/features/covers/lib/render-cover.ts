@@ -13,6 +13,27 @@ export function hexWithAlpha(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
+/**
+ * The outline that makes this text colour readable.
+ *
+ * Dark behind light text, light behind dark — an outline the same tone as
+ * the letters is just a fatter letter. Not configurable on purpose: the
+ * outline is a legibility device, and the one setting that defeats its
+ * purpose is the one a colour picker would offer first.
+ */
+export function strokeColorFor(hex: string): string {
+  const clean = hex.replace('#', '')
+  const full = clean.length === 3 ? clean.split('').map((c) => c + c).join('') : clean
+  const r = parseInt(full.slice(0, 2), 16) || 0
+  const g = parseInt(full.slice(2, 4), 16) || 0
+  const b = parseInt(full.slice(4, 6), 16) || 0
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  return luminance > 140 ? 'rgba(0, 0, 0, 0.85)' : 'rgba(255, 255, 255, 0.9)'
+}
+
+/** Stroke width relative to the letters, shared by preview and export. */
+export const STROKE_OF_FONT = 0.06
+
 /** CSS background-image value replicating the overlay for the live preview. */
 export function overlayCssBackground(overlay: Cover['overlay']): string | undefined {
   if (!overlay.enabled) return undefined
@@ -100,7 +121,18 @@ function drawTypographyLayer(
   const lines = layer.text.split('\n')
   const lineHeight = fontPx * 1.2
   const startY = y - ((lines.length - 1) * lineHeight) / 2
-  lines.forEach((line, i) => ctx.fillText(line, x, startY + i * lineHeight))
+  lines.forEach((line, i) => {
+    // Stroke under fill, which halves the visible ring to the outside of the
+    // glyph — the same geometry the preview's paint-order gives, so the two
+    // renderings of an outlined title stay identical.
+    if (layer.stroke) {
+      ctx.lineJoin = 'round'
+      ctx.lineWidth = fontPx * STROKE_OF_FONT
+      ctx.strokeStyle = strokeColorFor(layer.color)
+      ctx.strokeText(line, x, startY + i * lineHeight)
+    }
+    ctx.fillText(line, x, startY + i * lineHeight)
+  })
   ctx.restore()
 }
 

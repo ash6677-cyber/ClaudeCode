@@ -50,19 +50,27 @@ export function coverIsEmpty(cover: Cover): boolean {
 /**
  * The design for a project, by the link that cannot be mistaken for another.
  *
- * Newest wins if there is more than one. There should never be — the studio
- * reuses the row it finds — but two devices editing the same book while both
- * offline can each create one, and after they meet, array order would decide
- * which cover the book has. Whichever was touched last is at least the
- * writer's most recent intent, and it is the same answer on every device.
+ * A project can hold several designs now, and the one marked active is the
+ * one the book wears — everywhere at once, which is the whole point of the
+ * flag. Newest active wins if two devices marked different ones while offline.
+ * With no flag anywhere (every row predates variants, or a sync dropped it),
+ * the newest row stands in, which is exactly the old behaviour — so a library
+ * from before variants keeps the cover it had without any migration step.
  */
 export function pickCoverFor(covers: Cover[], projectId: string): Cover | undefined {
-  let best: Cover | undefined
+  let bestActive: Cover | undefined
+  let bestAny: Cover | undefined
   for (const cover of covers) {
     if (cover.projectId !== projectId) continue
-    if (!best || cover.updatedAt > best.updatedAt) best = cover
+    if (!bestAny || cover.updatedAt > bestAny.updatedAt) bestAny = cover
+    if (cover.active && (!bestActive || cover.updatedAt > bestActive.updatedAt)) bestActive = cover
   }
-  return best
+  return bestActive ?? bestAny
+}
+
+/** What a design is called, including the rows made before names existed. */
+export function coverDisplayName(cover: Cover, index: number): string {
+  return cover.name?.trim() || `Cover ${index + 1}`
 }
 
 export async function findCoverForProject(projectId: string): Promise<Cover | undefined> {

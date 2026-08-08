@@ -115,3 +115,38 @@ export function wheelZoomFactor(deltaY: number): number {
   if (!Number.isFinite(deltaY)) return 1
   return Math.exp(-deltaY / 400)
 }
+
+/**
+ * Which pixel of the source picture is under a point on the cover.
+ *
+ * The eyedropper's question, and the exact inverse of `coverGeometry`: undo
+ * the rotation about the cover's centre, then undo the placement. Returns
+ * null off the edge of the picture — possible when rotation has exposed a
+ * corner of background — because "no pixel" is an answer and the nearest
+ * edge pixel is not it.
+ */
+export function imagePointAt(
+  container: Box,
+  image: Box,
+  crop: Crop,
+  px: number,
+  py: number,
+): { x: number; y: number } | null {
+  const geo = coverGeometry(container, image, crop)
+  if (geo.w <= 0 || geo.h <= 0 || image.w <= 0 || image.h <= 0) return null
+
+  // The image layer is rotated about the container's centre, so the point
+  // asks its question in unrotated space.
+  const rad = (-(crop.rotation ?? 0) * Math.PI) / 180
+  const cx = container.w / 2
+  const cy = container.h / 2
+  const dx = px - cx
+  const dy = py - cy
+  const ux = cx + dx * Math.cos(rad) - dy * Math.sin(rad)
+  const uy = cy + dx * Math.sin(rad) + dy * Math.cos(rad)
+
+  const ix = ((ux - geo.x) / geo.w) * image.w
+  const iy = ((uy - geo.y) / geo.h) * image.h
+  if (ix < 0 || iy < 0 || ix >= image.w || iy >= image.h) return null
+  return { x: Math.floor(ix), y: Math.floor(iy) }
+}

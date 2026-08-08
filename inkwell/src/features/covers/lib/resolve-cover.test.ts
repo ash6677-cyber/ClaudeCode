@@ -80,3 +80,38 @@ describe('coverIsEmpty', () => {
     expect(coverIsEmpty(cover({ typography: [layer('   ')] }))).toBe(true)
   })
 })
+
+describe('variants', () => {
+  it('shows the design marked active, not merely the newest', () => {
+    const chosen = cover({ id: 'a', active: true, updatedAt: 1_000 })
+    const newer = cover({ id: 'b', updatedAt: 9_000 })
+    expect(pickCoverFor([newer, chosen], 'p1')?.id).toBe('a')
+  })
+
+  it('keeps the pre-variant behaviour when no row carries the flag', () => {
+    // A library from before variants has no flags anywhere; the newest row
+    // standing in is exactly what it showed before, with no migration step.
+    const older = cover({ id: 'a', updatedAt: 1_000 })
+    const newer = cover({ id: 'b', updatedAt: 2_000 })
+    expect(pickCoverFor([older, newer], 'p1')?.id).toBe('b')
+  })
+
+  it('settles two devices that each marked a different design active', () => {
+    const first = cover({ id: 'a', active: true, updatedAt: 5_000 })
+    const second = cover({ id: 'b', active: true, updatedAt: 6_000 })
+    expect(pickCoverFor([first, second], 'p1')?.id).toBe('b')
+  })
+
+  it('never borrows another project’s active design', () => {
+    const theirs = cover({ id: 'a', projectId: 'p2', active: true })
+    const mine = cover({ id: 'b' })
+    expect(pickCoverFor([theirs, mine], 'p1')?.id).toBe('b')
+  })
+
+  it('names an unnamed design by its position', async () => {
+    const { coverDisplayName } = await import('./resolve-cover')
+    expect(coverDisplayName(cover(), 0)).toBe('Cover 1')
+    expect(coverDisplayName(cover({ name: 'Moody blue' }), 3)).toBe('Moody blue')
+    expect(coverDisplayName(cover({ name: '   ' }), 1)).toBe('Cover 2')
+  })
+})

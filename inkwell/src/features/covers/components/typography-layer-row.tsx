@@ -1,4 +1,4 @@
-import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
+import { AlignCenter, AlignLeft, AlignRight, ChevronDown, ChevronUp, Pipette, Trash2 } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -29,9 +29,20 @@ interface TypographyLayerRowProps {
   onSelect: () => void
   onChange: (changes: Partial<CoverTypographyLayer>) => void
   onDelete: () => void
+  /** Sample a colour from the cover art itself. Absent without an image. */
+  onPickColor?: () => void
+  picking?: boolean
 }
 
-export function TypographyLayerRow({ layer, expanded, onSelect, onChange, onDelete }: TypographyLayerRowProps) {
+export function TypographyLayerRow({
+  layer,
+  expanded,
+  onSelect,
+  onChange,
+  onDelete,
+  onPickColor,
+  picking,
+}: TypographyLayerRowProps) {
   return (
     <div className={cn('rounded-lg border', expanded ? 'border-primary/40 bg-accent/20' : 'border-border')}>
       <div className="flex items-center gap-2 p-2.5">
@@ -143,6 +154,23 @@ export function TypographyLayerRow({ layer, expanded, onSelect, onChange, onDele
                   className="size-9 shrink-0 cursor-pointer rounded-md border border-border bg-transparent p-0.5"
                 />
                 <Input value={layer.color} onChange={(e) => onChange({ color: e.target.value })} />
+                {onPickColor && (
+                  <button
+                    type="button"
+                    onClick={onPickColor}
+                    aria-label="Pick a colour from the cover image"
+                    aria-pressed={picking}
+                    title="Pick a colour from the cover image"
+                    className={cn(
+                      'flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors',
+                      picking
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <Pipette className="size-4" />
+                  </button>
+                )}
               </div>
             </div>
             <div className="grid gap-1.5">
@@ -174,9 +202,18 @@ export function TypographyLayerRow({ layer, expanded, onSelect, onChange, onDele
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Drop shadow</Label>
-            <Switch checked={layer.shadow} onCheckedChange={(v) => onChange({ shadow: v })} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Drop shadow</Label>
+              <Switch checked={layer.shadow} onCheckedChange={(v) => onChange({ shadow: v })} />
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Outline</Label>
+              <Switch
+                checked={layer.stroke ?? false}
+                onCheckedChange={(v) => onChange({ stroke: v })}
+              />
+            </div>
           </div>
         </div>
       )}

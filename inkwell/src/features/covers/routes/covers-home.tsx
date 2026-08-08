@@ -1,11 +1,26 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Download, ImagePlus, Library, Loader2, Plus, RotateCw } from 'lucide-react'
+import {
+  Check,
+  Copy,
+  Download,
+  ImagePlus,
+  Library,
+  Loader2,
+  Pencil,
+  Plus,
+  Redo2,
+  RotateCw,
+  Star,
+  Trash2,
+  Undo2,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
 import { EmptyState } from '@/components/common/empty-state'
 import { PageHeader } from '@/components/common/page-header'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -19,6 +34,7 @@ import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/ui/use-toast'
 import { CoverPreview } from '@/features/covers/components/cover-preview'
 import { MAX_ZOOM, MIN_ZOOM } from '@/features/covers/lib/crop-geometry'
+import { coverDisplayName } from '@/features/covers/lib/resolve-cover'
 import { TypographyLayerRow } from '@/features/covers/components/typography-layer-row'
 import { ASPECT_DIMENSIONS } from '@/features/covers/lib/aspect'
 import { exportCoverPng } from '@/features/covers/lib/render-cover'
@@ -26,6 +42,7 @@ import { imageAssetRepo } from '@/lib/db/repositories'
 import { DEFAULT_EDITOR_FONT_ID } from '@/lib/editor/fonts'
 import { useObjectUrl } from '@/lib/hooks/use-object-url'
 import { storeImageFile } from '@/lib/image-upload'
+import { cn } from '@/lib/utils'
 import { useCoverStore } from '@/stores/cover-store'
 import { useProjectStore } from '@/stores/project-store'
 import type { CoverAspectPreset, CoverTypographyLayer } from '@/types'
@@ -60,6 +77,8 @@ export function CoversHome() {
 
   const {
     cover,
+    variants,
+    history,
     status,
     loadProject,
     setSourceImage,
@@ -70,6 +89,13 @@ export function CoversHome() {
     updateTypographyLayer,
     removeTypographyLayer,
     setExportedImage,
+    selectVariant,
+    createVariant,
+    renameVariant,
+    activateVariant,
+    deleteVariant,
+    undo,
+    redo,
   } = useCoverStore()
 
   useEffect(() => {
@@ -79,7 +105,23 @@ export function CoversHome() {
     if (projectId) loadProject(projectId)
   }, [projectId, loadProject])
 
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return
+      const target = e.target as HTMLElement | null
+      // Typing in a field has its own undo; the studio must not eat it.
+      if (target && /^(input|textarea|select)$/i.test(target.tagName)) return
+      e.preventDefault()
+      void (e.shiftKey ? useCoverStore.getState().redo() : useCoverStore.getState().undo())
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null)
+  const [pickingLayerId, setPickingLayerId] = useState<string | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameText, setRenameText] = useState('')
   const [uploading, setUploading] = useState(false)
   const [exporting, setExporting] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -166,6 +208,14 @@ export function CoversHome() {
   }
 
   const selectedLayer = cover.typography.find((l) => l.id === selectedLayerId) ?? null
+  const canUndo = history.past.length > 0
+  const canRedo = history.future.length > 0
+
+  // Which design the shelf shows. No flag anywhere means the newest row is
+  // standing in, exactly as before variants existed.
+  const activeId =
+    variants.find((v) => v.active)?.id ??
+    [...variants].sort((a, b) => b.updatedAt - a.updatedAt)[0]?.id
 
   return (
     <div className="flex h-full flex-col">
@@ -173,10 +223,32 @@ export function CoversHome() {
         title="Cover Studio"
         description={project.title}
         actions={
-          <Button size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
-            {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-            Export PNG
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void undo()}
+              disabled={!canUndo}
+              aria-label="Undo"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 className="size-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void redo()}
+              disabled={!canRedo}
+              aria-label="Redo"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <Redo2 className="size-4" />
+            </Button>
+            <Button size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
+              {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              Export PNG
+            </Button>
+          </>
         }
       />
 
@@ -189,11 +261,127 @@ export function CoversHome() {
             onSelectLayer={setSelectedLayerId}
             onCommitLayerPosition={(id, x, y) => updateTypographyLayer(id, { x, y })}
             onCropChange={updateCrop}
+            picking={pickingLayerId !== null}
+            onPick={(hex) => {
+              if (pickingLayerId) updateTypographyLayer(pickingLayerId, { color: hex })
+              setPickingLayerId(null)
+            }}
             className="w-full max-w-sm"
           />
         </div>
 
         <aside className="w-full shrink-0 space-y-5 overflow-y-auto border-t border-border p-4 sm:p-5 lg:w-80 lg:border-l lg:border-t-0">
+          <section className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Covers
+              </Label>
+              <div className="flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-xs"
+                  onClick={() => void createVariant()}
+                >
+                  <Plus className="size-3" /> New
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-1.5 text-xs"
+                  onClick={() => void createVariant({ duplicate: true })}
+                >
+                  <Copy className="size-3" /> Duplicate
+                </Button>
+              </div>
+            </div>
+            {/* One book, several jackets. The starred one is what the shelf
+                and the box set wear; the one open here is just being edited,
+                which is why selecting and starring are different acts. */}
+            <div className="space-y-1">
+              {variants.map((variant, index) => {
+                const isOpen = variant.id === cover.id
+                const isActive = variant.id === activeId
+                return (
+                  <div
+                    key={variant.id}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md border px-2 py-1.5',
+                      isOpen ? 'border-primary/50 bg-accent/30' : 'border-border',
+                    )}
+                  >
+                    {renamingId === variant.id ? (
+                      <form
+                        className="flex min-w-0 flex-1 items-center gap-1"
+                        onSubmit={(e: React.FormEvent) => {
+                          e.preventDefault()
+                          void renameVariant(variant.id, renameText)
+                          setRenamingId(null)
+                        }}
+                      >
+                        <Input
+                          autoFocus
+                          value={renameText}
+                          onChange={(e) => setRenameText(e.target.value)}
+                          onBlur={() => {
+                            void renameVariant(variant.id, renameText)
+                            setRenamingId(null)
+                          }}
+                          className="h-6 text-xs"
+                        />
+                        <button type="submit" aria-label="Save name" className="text-primary">
+                          <Check className="size-3.5" />
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => selectVariant(variant.id)}
+                        className="min-w-0 flex-1 truncate text-left text-xs font-medium"
+                      >
+                        {coverDisplayName(variant, index)}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void activateVariant(variant.id)}
+                      aria-label={isActive ? 'This is the cover in use' : 'Use this cover'}
+                      aria-pressed={isActive}
+                      title={isActive ? 'The cover your book wears' : 'Use this cover'}
+                      className={cn(
+                        'shrink-0 rounded p-1',
+                        isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      <Star className={cn('size-3.5', isActive && 'fill-current')} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenamingId(variant.id)
+                        setRenameText(coverDisplayName(variant, index))
+                      }}
+                      aria-label="Rename this cover"
+                      className="shrink-0 rounded p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                    {variants.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => void deleteVariant(variant.id)}
+                        aria-label="Delete this cover"
+                        className="shrink-0 rounded p-1 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
           <section className="space-y-2">
             <Label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Source image
@@ -387,6 +575,12 @@ export function CoversHome() {
                     expanded={selectedLayer?.id === layer.id}
                     onSelect={() => setSelectedLayerId((id) => (id === layer.id ? null : layer.id))}
                     onChange={(changes) => updateTypographyLayer(layer.id, changes)}
+                    onPickColor={
+                      imageUrl
+                        ? () => setPickingLayerId((id) => (id === layer.id ? null : layer.id))
+                        : undefined
+                    }
+                    picking={pickingLayerId === layer.id}
                     onDelete={() => {
                       removeTypographyLayer(layer.id)
                       if (selectedLayerId === layer.id) setSelectedLayerId(null)

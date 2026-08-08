@@ -8,12 +8,13 @@ import type { Cover, CoverTypographyLayer } from '@/types'
 import { ASPECT_DIMENSIONS } from '../lib/aspect'
 import {
   coverGeometry,
+  imagePointAt,
   panCrop,
   wheelZoomFactor,
   zoomBy,
   type Box,
 } from '../lib/crop-geometry'
-import { overlayCssBackground } from '../lib/render-cover'
+import { STROKE_OF_FONT, overlayCssBackground, strokeColorFor } from '../lib/render-cover'
 
 interface CoverPreviewProps {
   cover: Cover
@@ -23,6 +24,9 @@ interface CoverPreviewProps {
   onCommitLayerPosition: (id: string, x: number, y: number) => void
   /** Framing the image by hand, writing the same fields the sliders write. */
   onCropChange?: (crop: Partial<Cover['crop']>) => void
+  /** The eyedropper: a tap answers with the colour of the pixel under it. */
+  picking?: boolean
+  onPick?: (hex: string) => void
   className?: string
 }
 
@@ -70,6 +74,8 @@ export function CoverPreview({
   onSelectLayer,
   onCommitLayerPosition,
   onCropChange,
+  picking,
+  onPick,
   className,
 }: CoverPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -115,10 +121,48 @@ export function CoverPreview({
    * begins on a text layer stops there — the two gestures look identical and
    * only the starting point tells them apart.
    */
+  /**
+   * The eyedropper's read. The click point maps back through the same
+   * geometry that placed the image, so the colour that comes out is the one
+   * under the cursor — zoomed, panned, or rotated. Sampled from the source
+   * pixels rather than a screenshot, so the overlay scrim cannot tint it.
+   */
+  async function samplePixel(e: React.PointerEvent) {
+    if (!onPick || !natural || !imageUrl || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const point = imagePointAt(
+      measured,
+      natural,
+      cover.crop,
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+    )
+    if (!point) return
+    const image = new Image()
+    await new Promise((resolve) => {
+      image.onload = resolve
+      image.onerror = resolve
+      image.src = imageUrl
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 1
+    const c = canvas.getContext('2d', { willReadFrequently: true })
+    if (!c) return
+    c.drawImage(image, point.x, point.y, 1, 1, 0, 0, 1, 1)
+    const [r, g, b] = c.getImageData(0, 0, 1, 1).data
+    const hex = `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`
+    onPick(hex)
+  }
+
   function handleBackgroundPointerDown(e: React.PointerEvent) {
     // The layer handler runs first, at the target, and has already left
     // behind which layer this press began on; nothing means the picture.
     movedRef.current = false
+
+    // While the eyedropper is armed, the surface answers questions instead
+    // of moving things — a pan that also sampled would do both badly.
+    if (picking) return
 
     if (!onCropChange || !geometry) return
     if (e.button !== 0 && e.pointerType === 'mouse') return
@@ -145,6 +189,11 @@ export function CoverPreview({
   }
 
   function handlePointerUp(e: React.PointerEvent) {
+    if (picking && !movedRef.current) {
+      void samplePixel(e)
+      tapTargetRef.current = null
+      return
+    }
     if (panRef.current?.pointerId === e.pointerId) panRef.current = null
     // A press that never moved was a tap, and a tap is how selection changes
     // — including a tap on the picture, which is how everything deselects.
@@ -171,6 +220,7 @@ export function CoverPreview({
       className={cn(
         'relative w-full overflow-hidden rounded-lg border border-border bg-muted shadow-lg',
         canPan && 'touch-none',
+        picking && 'cursor-crosshair',
         className,
       )}
       data-testid="cover-surface"
@@ -185,7 +235,7 @@ export function CoverPreview({
         <div
           aria-hidden
           data-testid="cover-image"
-          className={cn('absolute inset-0', canPan && 'cursor-grab')}
+          className={cn('absolute inset-0', canPan && !picking && 'cursor-grab')}
           style={{
             backgroundImage: `url(${imageUrl})`,
             // Laid out in pixels from the shared geometry rather than by
@@ -231,6 +281,12 @@ export function CoverPreview({
               letterSpacing: `${(layer.letterSpacing / 100) * layer.fontSize}cqw`,
               textAlign: layer.align,
               textShadow: layer.shadow ? '0 0.4cqw 1.2cqw rgba(0,0,0,0.6)' : undefined,
+              // The same width the export draws, in the same terms — a
+              // fraction of the letters, so parity survives any size.
+              WebkitTextStroke: layer.stroke
+                ? `${layer.fontSize * STROKE_OF_FONT}cqw ${strokeColorFor(layer.color)}`
+                : undefined,
+              paintOrder: 'stroke fill',
               lineHeight: 1.2,
             }}
           >

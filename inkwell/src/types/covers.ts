@@ -15,10 +15,20 @@ export interface CoverTypographyLayer {
   x: number
   y: number
   shadow: boolean
+  /** A contrasting outline for legibility over busy art. Off when absent. */
+  stroke?: boolean
 }
 
 export interface Cover extends BaseEntity {
   projectId: string
+  /** What the writer calls this design. Rows made before variants have none. */
+  name?: string
+  /**
+   * Whether this is the design the rest of the app shows. At most one per
+   * project; rows made before variants existed have no flag, and the newest
+   * of them stands in as the active one.
+   */
+  active?: boolean
   sourceImageId: string | null
   aspectPreset: CoverAspectPreset
   crop: { x: number; y: number; zoom: number; rotation: number }

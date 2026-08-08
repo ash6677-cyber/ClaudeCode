@@ -121,3 +121,47 @@ describe('zooming', () => {
     expect(wheelZoomFactor(-50) * wheelZoomFactor(-50)).toBeCloseTo(wheelZoomFactor(-100), 10)
   })
 })
+
+describe('finding the pixel under a point', () => {
+  it('inverts the placement exactly at zoom 1', async () => {
+    const { imagePointAt } = await import('./crop-geometry')
+    const image = { w: 1200, h: 600 }
+    // Centre of the cover shows the centre of the picture at a centred crop.
+    const hit = imagePointAt(container, image, crop(), 200, 300)
+    expect(hit).toEqual({ x: 600, y: 300 })
+  })
+
+  it('follows the crop: showing the left edge means sampling the left edge', async () => {
+    const { imagePointAt } = await import('./crop-geometry')
+    const image = { w: 1200, h: 600 }
+    const hit = imagePointAt(container, image, crop({ x: 0 }), 0, 0)
+    expect(hit).toEqual({ x: 0, y: 0 })
+  })
+
+  it('inverts a zoomed placement', async () => {
+    const { imagePointAt } = await import('./crop-geometry')
+    const image = { w: 400, h: 600 }
+    const geoCentre = imagePointAt(container, image, crop({ zoom: 2 }), 200, 300)
+    expect(geoCentre).toEqual({ x: 200, y: 300 })
+    // Zoomed in twice, a quarter-width step on screen is an eighth of the image.
+    const step = imagePointAt(container, image, crop({ zoom: 2 }), 300, 300)
+    expect(step?.x).toBe(250)
+  })
+
+  it('answers "no pixel" beyond the picture rather than clamping to an edge', async () => {
+    const { imagePointAt } = await import('./crop-geometry')
+    // Rotation exposes background at the corners; a colour sampled from the
+    // nearest edge pixel would be a lie about what is visibly there.
+    const image = { w: 400, h: 600 }
+    expect(imagePointAt(container, image, crop({ rotation: 45 }), 2, 2)).toBeNull()
+  })
+
+  it('round-trips through the rotation', async () => {
+    const { imagePointAt, coverGeometry } = await import('./crop-geometry')
+    const image = { w: 1200, h: 600 }
+    const centre = imagePointAt(container, image, crop({ rotation: 30 }), 200, 300)
+    // The centre is the fixed point of the rotation, so it maps to itself.
+    expect(centre).toEqual({ x: 600, y: 300 })
+    void coverGeometry
+  })
+})
