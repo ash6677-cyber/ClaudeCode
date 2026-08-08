@@ -65,7 +65,9 @@
   --destructive: oklch(56% 0.21 25);
   --destructive-foreground: oklch(98% 0.01 25);
 
-  --success: oklch(56% 0.13 152);
+  /* Deep enough that white text on a "Saved" badge clears 4.5:1 — at 56% it
+     measured 4.17, close enough to look fine and still fail someone. */
+  --success: oklch(52.5% 0.125 152);
   --success-foreground: oklch(98% 0.02 152);
 
   --warning: oklch(72% 0.15 78);
@@ -115,8 +117,10 @@
   --accent: oklch(32% 0.07 290);
   --accent-foreground: oklch(90% 0.06 290);
 
+  /* Dark ink on the bright red, not white: white on a red bright enough for
+     dark mode only reaches ~3.2:1, and delete buttons deserve legible text. */
   --destructive: oklch(66% 0.2 25);
-  --destructive-foreground: oklch(98% 0.01 25);
+  --destructive-foreground: oklch(13% 0.04 25);
 
   --success: oklch(68% 0.14 152);
   --success-foreground: oklch(13% 0.02 152);
